@@ -106,19 +106,21 @@
             align-items: center;
             font-size: 0.9rem;
         }
-        .name-label-text {
-            font-weight: bold;
-            min-width: 32px;
-            color: #7f8c8d;
-        }
         .name-input {
             flex: 1;
-            padding: 8px;
+            padding: 10px;
             border: 1px solid #ddd;
-            border-radius: 4px;
+            border-radius: 6px;
             font-size: 0.95rem;
             width: 100%;
             box-sizing: border-box;
+            text-align: center;
+            background-color: #fbfcfc;
+        }
+        .name-input:focus {
+            border-color: var(--primary);
+            outline: none;
+            background-color: #fff;
         }
 
         .btn-block {
@@ -342,11 +344,9 @@
         errorTips.style.display = "none";
         btnNext.disabled = false;
 
-        // Mathematical calculation logic to define perfectly equal rounds list
-        let validOptionsHtml = "";
-        let countOptions = 0;
+        // Collect all mathematically valid rounds to calculate the closest fallback option
+        let validRounds = [];
 
-        // Iterate through possible play counts per player to reverse-engineer valid total rounds
         for (let targetPlay = 1; targetPlay <= 15; targetPlay++) {
             let totalRound = 0;
             if (numGroups > 1) {
@@ -359,18 +359,31 @@
                 if (upper % lower === 0) totalRound = upper / lower;
             }
 
-            // Exclude rounds out of standard tournament range or physically unfeasible scenarios
             if (totalRound > 0 && totalRound <= 30) {
                 if (numGroups === 1 && totalRound === 1 && targetPlay === 1) continue;
-                validOptionsHtml += `<option value="${totalRound}" ${totalRound === 9 ? 'selected':''}>共 ${totalRound} 轮比赛 (每人刚好上场 ${targetPlay} 次)</option>`;
-                countOptions++;
+                
+                // Prevent duplicate rounds insertion mapping
+                if (!validRounds.some(item => item.round === totalRound)) {
+                    validRounds.push({ round: totalRound, plays: targetPlay });
+                }
             }
         }
 
-        if (countOptions === 0) {
+        if (validRounds.length === 0) {
             selectEl.innerHTML = "<option value=''>暂无完美匹配的对齐轮次，请调整人数</option>";
             btnNext.disabled = true;
         } else {
+            // Analytical algorithm to resolve which valid round option has the minimal delta to 9
+            let closestRoundObj = validRounds.reduce((prev, curr) => {
+                return (Math.abs(curr.round - 9) < Math.abs(prev.round - 9)) ? curr : prev;
+            });
+
+            // Dynamically construct drop-down list tracking the selection anchor
+            let validOptionsHtml = "";
+            validRounds.forEach(r => {
+                let isSelected = (r.round === closestRoundObj.round) ? "selected" : "";
+                validOptionsHtml += `<option value="${r.round}" ${isSelected}>共 ${r.round} 轮比赛 (每人刚好上场 ${r.plays} 次)</option>`;
+            });
             selectEl.innerHTML = validOptionsHtml;
         }
     }
@@ -402,11 +415,10 @@
             html += `<div class="name-grid">`;
             
             for (let i = 1; i <= playersPerGroup; i++) {
-                let defaultVal = (defaultNamesPool[g-1] && defaultNamesPool[g-1][i-1]) || `${groupLetter}${i}`;
+                let defaultVal = (defaultNamesPool[g-1] && defaultNamesPool[g-1][i-1]) || "";
                 html += `
                     <div class="name-item">
-                        <span class="name-label-text">${groupLetter}${i}:</span>
-                        <input type="text" id="inputName_G${g}_${i}" class="name-input" value="${defaultVal}">
+                        <input type="text" id="inputName_G${g}_${i}" class="name-input" value="${defaultVal}" placeholder="选手姓名 ${i}">
                     </div>`;
             }
             html += `</div>`;
@@ -418,13 +430,35 @@
     }
 
     function lockNamesAndBuildAll() {
+        nameMap = {};
+        
+        const shuffle = (array) => {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        };
+
         for (let g = 1; g <= numGroups; g++) {
+            let groupNames = [];
+            let groupLetter = String.fromCharCode(64 + g);
+            
             for (let i = 1; i <= playersPerGroup; i++) {
-                nameMap[`G${g}_${i}`] = document.getElementById(`inputName_G${g}_${i}`).value.trim() || `${String.fromCharCode(64+g)}${i}`;
+                let val = document.getElementById(`inputName_G${g}_${i}`).value.trim();
+                if (!val) {
+                    val = numGroups === 1 ? `未名选手-${i}` : `${groupLetter}组选手-${i}`;
+                }
+                groupNames.push(val);
+            }
+            
+            shuffle(groupNames);
+            
+            for (let i = 1; i <= playersPerGroup; i++) {
+                nameMap[`G${g}_${i}`] = groupNames[i - 1];
             }
         }
 
-        // Execute core scheduling generation
         let success = autoScheduleEngine();
         if(!success) {
             alert("在当前限制条件下无法计算出完美的绝对对齐矩阵，请返回重新调整参与人数或轮次！");
@@ -441,7 +475,6 @@
         liveCalculate();
     }
 
-    // Core Scheduling Engine using deterministic tracking with loop fallback
     function autoScheduleEngine() {
         const slotsPerMatch = isDouble ? 2 : 1;
         let attempt = 0;
@@ -468,7 +501,6 @@
 
             for (let r = 1; r <= numRounds; r++) {
                 if (numGroups > 1) {
-                    // =============== Mode A: Group vs Group Anti-Consecutive Matching ===============
                     let neededPerGroup = Array(numGroups + 1).fill(0);
                     let courtMatchups = [];
 
@@ -531,7 +563,6 @@
                     }
 
                 } else {
-                    // =============== Mode B: Internal Single Group Rotation Matching ===============
                     let pList = [];
                     for (let i = 1; i <= playersPerGroup; i++) {
                         let k = `G1_${i}`;
@@ -572,7 +603,6 @@
         return false;
     }
 
-    // Analytical Visual Timeline Matrix Renderer with sticky left column mapping
     function renderTimelineMatrix() {
         const container = document.getElementById("dynamicTimeline");
         container.innerHTML = "";
