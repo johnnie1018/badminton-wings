@@ -2,911 +2,698 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>羽翼齐飞 - 智能对抗与轮转赛事系统</title>
     <style>
         :root {
-            --primary: #1abc9c;
-            --primary-dark: #16a085;
-            --red: #e74c3c;
-            --blue: #3498db;
-            --bg: #f5f7f9;
-            --card-bg: #ffffff;
-            --text: #2c3e50;
+            --ios-bg: #f2f2f7;
+            --ios-card: #ffffff;
+            --ios-text: #1c1c1e;
+            --ios-subtext: #8e8e93;
+            --ios-primary: #34c759;     /* Apple Green */
+            --ios-primary-dark: #248a3d;
+            --ios-orange: #ff9500;      /* Apple Orange */
+            --ios-blue: #007aff;        /* Apple Blue */
+            --ios-red: #ff3b30;         /* Apple Red */
+            --ios-gray: #e5e5ea;
+            --radius-main: 14px;
+            --radius-sub: 10px;
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            background-color: var(--ios-bg);
+            color: var(--ios-text);
             margin: 0;
-            padding: 10px;
+            padding: calc(12px + env(safe-area-inset-top)) 14px calc(24px + env(safe-area-inset-bottom)) 14px;
             font-size: 14px;
+            -webkit-font-smoothing: antialiased;
         }
 
         .container {
-            max-width: 600px;
+            max-width: 520px;
             margin: 0 auto;
         }
 
         h1 {
-            font-size: 1.6rem;
+            font-size: 1.8rem;
+            font-weight: 700;
             text-align: center;
-            margin: 15px 0 5px 0;
-            color: #1a252f;
-            letter-spacing: 2px;
+            margin: 10px 0 2px 0;
+            color: var(--ios-text);
+            letter-spacing: -0.5px;
         }
 
         .subtitle {
             text-align: center;
             font-size: 0.85rem;
-            color: #7f8c8d;
-            margin-bottom: 15px;
+            color: var(--ios-subtext);
+            margin-bottom: 24px;
+            font-weight: 500;
         }
 
+        /* iOS Toast Badge */
         .viewer-badge {
-            background-color: #f39c12;
+            background-color: var(--ios-orange);
             color: white;
             text-align: center;
-            padding: 6px;
-            border-radius: 6px;
-            font-weight: bold;
-            margin-bottom: 12px;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-bottom: 16px;
             display: none;
-            animation: pulse-badge 2s ease-in-out infinite;
-        }
-        @keyframes pulse-badge {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
+            box-shadow: 0 4px 12px rgba(255, 149, 0, 0.2);
         }
 
-        .sync-indicator {
-            display: none;
-            text-align: center;
-            font-size: 0.75rem;
-            color: #27ae60;
-            padding: 4px 8px;
-            background: #e8f8f0;
-            border-radius: 12px;
-            margin-bottom: 8px;
-            animation: fadeInOut 0.5s ease;
-        }
-        @keyframes fadeInOut {
-            from { opacity: 0; transform: translateY(-4px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .sync-indicator.flash {
-            background: #d4efdf;
-            color: #1e8449;
-            font-weight: bold;
-        }
-
-        .match-id-tag {
-            text-align: center;
-            font-size: 0.7rem;
-            color: #95a5a6;
-            margin-bottom: 4px;
-            word-break: break-all;
-            display: none;
-        }
-
+        /* iOS Style Grouped Cards */
         .card {
-            background: var(--card-bg);
-            border-radius: 8px;
-            padding: 15px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-            margin-bottom: 15px;
+            background: var(--ios-card);
+            border-radius: var(--radius-main);
+            padding: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+            margin-bottom: 20px;
+            border: 1px solid rgba(0, 0, 0, 0.01);
         }
 
         .section-title {
-            font-size: 1.1rem;
-            margin: 20px 0 10px 0;
-            padding-left: 8px;
-            border-left: 4px solid var(--primary-dark);
-            font-weight: bold;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            color: var(--ios-subtext);
+            margin: 24px 0 8px 8px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
         }
 
+        /* Form Controls Setup */
         .form-group {
-            margin-bottom: 12px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            padding-bottom: 12px;
+        }
+        .form-group:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
         }
         .form-group label {
             display: block;
-            font-weight: bold;
-            margin-bottom: 5px;
-            color: #34495e;
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+            color: var(--ios-text);
         }
         .form-control {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            padding: 12px;
+            background-color: #f2f2f7;
+            border: none;
+            border-radius: var(--radius-sub);
             font-size: 1rem;
+            color: var(--ios-text);
             box-sizing: border-box;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        .form-control:focus {
+            background-color: #e5e5ea;
+            outline: none;
         }
         .radio-group {
             display: flex;
-            gap: 20px;
-            margin-top: 5px;
+            background: #f2f2f7;
+            padding: 3px;
+            border-radius: var(--radius-sub);
+            gap: 2px;
         }
         .radio-label {
+            flex: 1;
             display: flex;
             align-items: center;
-            gap: 5px;
-            font-weight: normal !important;
+            justify-content: center;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 600 !important;
+            font-size: 0.9rem;
+            cursor: pointer;
+            color: var(--ios-subtext);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .radio-label input {
+            display: none;
+        }
+        .radio-label:has(input:checked) {
+            background: var(--ios-card);
+            color: var(--ios-text);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         }
 
-        .group-name-title {
-            font-weight: bold;
-            display: block;
-            margin: 12px 0 6px 0;
-            padding-bottom: 3px;
-        }
+        /* iOS Capsule Inputs Grid Layout */
         .name-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 10px 12px;
-            margin-bottom: 15px;
+            gap: 12px;
+            margin-bottom: 8px;
         }
         .name-item {
             display: flex;
             align-items: center;
-            font-size: 0.9rem;
         }
         .name-input {
             flex: 1;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            padding: 12px;
+            border: none;
+            border-radius: var(--radius-sub);
             font-size: 0.95rem;
+            font-weight: 600;
             width: 100%;
             box-sizing: border-box;
             text-align: center;
-            background-color: #fbfcfc;
+            background-color: #f2f2f7;
+            color: var(--ios-text);
+            transition: all 0.2s ease;
         }
         .name-input:focus {
-            border-color: var(--primary);
+            background-color: #ffffff;
+            box-shadow: 0 0 0 3px rgba(52, 199, 89, 0.15);
             outline: none;
-            background-color: #fff;
+        }
+        .name-input::placeholder {
+            color: #bcbcc0;
+            font-weight: 400;
         }
 
+        /* iOS Spec Button Element Layout Mapping */
         .btn-block {
             width: 100%;
             border: none;
-            padding: 14px;
+            padding: 15px;
             font-size: 1rem;
-            border-radius: 6px;
-            font-weight: bold;
+            border-radius: var(--radius-main);
+            font-weight: 600;
             cursor: pointer;
-            color: white;
-            margin-bottom: 8px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-sizing: border-box;
         }
-        .btn-orange { background-color: #e67e22; }
-        .btn-orange:active { background-color: #d35400; }
-        .btn-teal { background-color: var(--primary); }
-        .btn-teal:active { background-color: var(--primary-dark); }
-        .btn-blue { background-color: #2980b9; }
-        .btn-blue:active { background-color: #1f618d; }
-
+        .btn-block:active {
+            transform: scale(0.98);
+            opacity: 0.9;
+        }
+        .btn-orange { background-color: var(--ios-orange); box-shadow: 0 4px 12px rgba(255, 149, 0, 0.15); color: white; }
+        .btn-teal { background-color: var(--ios-primary); box-shadow: 0 4px 12px rgba(52, 199, 121, 0.15); color: white; }
+        .btn-blue { background-color: var(--ios-blue); box-shadow: 0 4px 12px rgba(0, 122, 255, 0.15); color: white; }
+        
+        /* App Style Match Rows Card Box Layout Mapping */
         .round-container {
-            margin-bottom: 15px;
-            background: #eaeded;
-            border-radius: 8px;
-            padding: 4px;
+            margin-bottom: 20px;
+            background: transparent;
         }
         .round-title {
-            font-size: 0.9rem;
-            font-weight: bold;
-            padding: 6px 10px;
-            color: #34495e;
+            font-size: 0.85rem;
+            font-weight: 600;
+            padding: 4px 8px 6px 8px;
+            color: var(--ios-subtext);
+            text-transform: uppercase;
         }
         .match-card {
-            background: var(--card-bg);
-            border-radius: 6px;
-            padding: 12px;
-            margin-bottom: 4px;
+            background: var(--ios-card);
+            border-radius: var(--radius-main);
+            padding: 14px 16px;
+            margin-bottom: 8px;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.015);
+            border: 1px solid rgba(0,0,0,0.005);
         }
         .match-card:last-child { margin-bottom: 0; }
+        
         .court-label {
             font-size: 0.75rem;
-            background: #95a5a6;
-            color: white;
-            padding: 2px 5px;
-            border-radius: 3px;
-            min-width: 40px;
+            background: #e5e5ea;
+            color: #555559;
+            padding: 3px 6px;
+            border-radius: 6px;
+            font-weight: 600;
+            min-width: 42px;
             text-align: center;
         }
         .team-players {
-            width: 33%;
+            width: 32%;
             font-weight: 600;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             word-break: break-all;
+            line-height: 1.3;
         }
-        .team-a { color: var(--red); text-align: right; }
-        .team-b { color: var(--blue); text-align: left; }
+        .team-a { color: var(--ios-red); text-align: right; }
+        .team-b { color: var(--ios-blue); text-align: left; }
+        
         .score-area {
             display: flex;
             align-items: center;
             justify-content: center;
             width: 28%;
+            background: #f2f2f7;
+            padding: 3px 6px;
+            border-radius: 20px;
         }
         .score-num {
-            width: 38px;
-            height: 32px;
+            width: 36px;
+            height: 30px;
             font-size: 1.1rem;
             text-align: center;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-weight: bold;
+            border: none;
+            background: transparent;
+            font-weight: 700;
+            color: var(--ios-text);
         }
-        .colon { font-weight: bold; color: #7f8c8d; margin: 0 4px; }
+        .score-num:focus {
+            outline: none;
+            color: var(--ios-primary-dark);
+        }
+        .score-num[readonly] {
+            color: #646466;
+        }
+        .colon { font-weight: 700; color: #aeaeb2; margin: 0 2px; font-size: 1.1rem; }
 
+        /* iOS Total Indicator Summary Component View Layout */
         .summary-total {
-            background: #2c3e50;
+            background: #1c1c1e;
             color: white;
-            padding: 12px;
-            border-radius: 8px;
+            padding: 16px;
+            border-radius: var(--radius-main);
             text-align: center;
-            font-size: 0.95rem;
-            margin-bottom: 15px;
-            line-height: 1.5;
+            font-size: 1rem;
+            margin-bottom: 20px;
+            line-height: 1.4;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
         }
+        
+        /* Cupertino Style Rank Tables View Component Handler Mapping */
         .rank-table {
             width: 100%;
             border-collapse: collapse;
-            background: var(--card-bg);
-            border-radius: 8px;
+            background: var(--ios-card);
+            border-radius: var(--radius-main);
             overflow: hidden;
             margin-bottom: 20px;
-            box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.01);
         }
         .rank-table th, .rank-table td {
-            padding: 10px 6px;
+            padding: 12px 10px;
             text-align: center;
-            border-bottom: 1px solid #edf2f7;
+            border-bottom: 1px solid #f2f2f7;
         }
-        .rank-table th { background: #f8f9fa; color: #7f8c8d; font-size: 0.8rem; }
-        .winner-tag { color: #2ecc71; font-weight: bold; }
-        .error-tips { color: var(--red); font-size: 0.85rem; margin-top: 5px; display: none; }
+        .rank-table th { 
+            background: #fafafc; 
+            color: var(--ios-subtext); 
+            font-size: 0.8rem; 
+            font-weight: 600;
+        }
+        .rank-table tr:last-child td {
+            border-bottom: none;
+        }
+        .rank-table td {
+            font-size: 0.95rem;
+        }
+        .winner-tag { color: var(--ios-primary); font-weight: bold; }
+        
+        /* Sticky Timeline Grid View Styling Layout Components Map Mapping */
+        #timelineWrapper {
+            border: 1px solid rgba(0,0,0,0.02);
+            border-radius: var(--radius-main);
+        }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>羽翼齐飞</h1>
-        <div class="subtitle">🏸 智能赛事编排与动态计分系统 🏸</div>
+<div class="container">
+    <h1>羽翼齐飞</h1>
+    <div class="subtitle">🏸 智能赛事编排与动态计分系统 🏸</div>
+    
+    <div id="viewerModeBadge" class="viewer-badge">👁️ 当前处于：群友实时观战模式（只读自动刷新）</div>
 
-        <div id="viewerModeBadge" class="viewer-badge">👁️ 当前处于：群友实时观战模式（自动同步比分）</div>
-        <div id="syncIndicator" class="sync-indicator">✅ 比分已实时同步</div>
-        <div id="matchIdTag" class="match-id-tag">比赛ID: <span id="matchIdSpan"></span></div>
-
-        <div id="step1" class="card">
-            <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid var(--primary); padding-bottom: 5px;">第一步：赛事模式配置</div>
-
-            <div class="form-group">
-                <label>比赛类型</label>
-                <div class="radio-group">
-                    <label class="radio-label"><input type="radio" name="matchType" value="single" onchange="onParamChange()"> 单打 (1vs1)</label>
-                    <label class="radio-label"><input type="radio" name="matchType" value="double" checked onchange="onParamChange()"> 双打 (2vs2)</label>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label>分组数量 (组)</label>
-                <input type="number" id="cfgGroups" class="form-control" value="2" min="1" oninput="onParamChange(); toggleCourtInput();">
-            </div>
-
-            <div class="form-group" id="courtInputRow">
-                <label>可用场地数量 (个)</label>
-                <input type="number" id="cfgCourts" class="form-control" value="2" min="1" oninput="onParamChange()">
-            </div>
-
-            <div class="form-group">
-                <label>每组人员数量 (人/组)</label>
-                <input type="number" id="cfgPlayers" class="form-control" value="6" min="2" oninput="onParamChange()">
-                <div id="errorTips" class="error-tips"></div>
-            </div>
-
-            <div class="form-group">
-                <label style="color: var(--primary-dark);">💡 选择比赛轮次 (已锁定出场数绝对相等)</label>
-                <select id="cfgRoundsSelect" class="form-control" style="border-color: var(--primary); font-weight: bold; color: var(--primary-dark);"></select>
-            </div>
-
-            <button type="button" class="btn-block btn-orange" id="btnNextStep" onclick="goToStep2()">下一步：录入选手名单</button>
-        </div>
-
-        <div id="step2" class="card" style="display: none;">
-            <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid var(--primary); padding-bottom: 5px;">第二步：录入选手姓名</div>
-            <div id="dynamicNameSections"></div>
-
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <button type="button" class="btn-block btn-orange" style="width: 35%; background-color: #95a5a6;" onclick="backToStep1()">返回修改</button>
-                <button type="button" class="btn-block btn-teal" style="width: 65%;" onclick="lockNamesAndBuildAll()">锁定名单并生成赛程</button>
+    <div id="step1" class="card">
+        <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; color: var(--ios-text);">赛事模式配置</div>
+        
+        <div class="form-group">
+            <label>比赛类型</label>
+            <div class="radio-group">
+                <label class="radio-label"><input type="radio" name="matchType" value="single" onchange="onParamChange()">单打 (1vs1)</label>
+                <label class="radio-label"><input type="radio" name="matchType" value="double" checked onchange="onParamChange()">双打 (2vs2)</label>
             </div>
         </div>
 
-        <div id="step3" style="display: none;">
-            <div class="card" style="padding: 10px; text-align: center; border: 1px solid #b3e5fc; background-color: #e1f5fe;">
-                <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()" style="margin-bottom:0;">🔗 复制实时赛况链接分享至群聊（一次分享，持续同步）</button>
-                <div style="font-size:0.7rem;color:#7f8c8d;margin-top:4px;">💡 分享后记分员更新比分，群友页面可在微信或浏览器中无感自同步刷新</div>
-            </div>
+        <div class="form-group">
+            <label>分组数量 (组)</label>
+            <input type="number" id="cfgGroups" class="form-control" value="2" min="1" oninput="onParamChange(); toggleCourtInput();">
+        </div>
 
-            <div class="section-title">✨ 赛程时间轴 (横向滑动查看各轮次)</div>
-            <div class="card" id="timelineWrapper" style="padding: 8px; overflow: hidden;">
-                <div id="dynamicTimeline"></div>
-            </div>
+        <div class="form-group" id="courtInputRow">
+            <label>可用场地数量 (个)</label>
+            <input type="number" id="cfgCourts" class="form-control" value="2" min="1" oninput="onParamChange()">
+        </div>
 
-            <div class="section-title">第三步：比分录入表单</div>
-            <div id="dynamicScheduleList"></div>
+        <div class="form-group">
+            <label>每组人员数量 (人/组)</label>
+            <input type="number" id="cfgPlayers" class="form-control" value="6" min="2" oninput="onParamChange()">
+            <div id="errorTips" class="error-tips"></div>
+        </div>
 
-            <div class="section-title">第四步：实时战绩展示</div>
-            <div class="summary-total" id="groupSummary" style="display: none;"></div>
-            <div id="dynamicRankTables"></div>
+        <div class="form-group">
+            <label style="color: var(--ios-primary-dark);">💡 选择比赛轮次 (已锁定出场数绝对相等)</label>
+            <select id="cfgRoundsSelect" class="form-control" style="border: 1px solid rgba(52, 199, 89, 0.3); font-weight: 600; color: var(--ios-primary-dark); background-color: #f4fbf6;"></select>
+        </div>
 
-            <button type="button" class="btn-block btn-orange" id="btnWipeSystem" style="margin-top:10px; background-color: #e74c3c;" onclick="resetAllTournament()">清空整个赛事重新配置</button>
+        <button type="button" class="btn-block btn-orange" id="btnNextStep" onclick="goToStep2()">下一步：录入选手名单</button>
+    </div>
+
+    <div id="step2" class="card" style="display: none;">
+        <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; color: var(--ios-text);">选手名单管理</div>
+        <div id="dynamicNameSections"></div>
+        
+        <div style="display: flex; gap: 12px; margin-top: 20px;">
+            <button type="button" class="btn-block btn-orange" style="width: 35%; background-color: #8e8e93; box-shadow: none;" onclick="backToStep1()">返回修改</button>
+            <button type="button" class="btn-block btn-teal" style="width: 65%;" onclick="lockNamesAndBuildAll()">锁定名单并生成赛程</button>
         </div>
     </div>
 
-    <script>
-        (function() {
-            // ==================== Global State Variables ====================
-            let isDouble = true;
-            let numGroups = 2;
-            let numCourts = 2;
-            let numRounds = 9;
-            let playersPerGroup = 6;
-            let isViewerMode = false;
-            let matchUUID = null; 
-            let nameMap = {};
-            let generatedMatches = [];
-            let broadcastChannel = null; 
-            let isReceivingUpdate = false; 
-            let syncFlashTimer = null; 
+    <div id="step3" style="display: none;">
+        <div class="card" style="padding: 12px; text-align: center; background-color: #eaf4ff; border: none; margin-bottom: 16px;">
+            <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()" style="margin-bottom:0;">🔗 复制最新实时赛况链接分享至群聊</button>
+        </div>
 
-            // ==================== Utility Functions ====================
-            function generateMatchUUID() {
-                const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-                const segments = [8, 4, 4, 4, 8];
-                return segments.map(len => {
-                    let seg = '';
-                    for (let i = 0; i < len; i++) seg += chars.charAt(Math.floor(Math.random() * chars.length));
-                    return seg;
-                }).join('-');
+        <div class="section-title">✨ 赛程时间轴 (横向滑动查看各轮次)</div>
+        <div class="card" id="timelineWrapper" style="padding: 10px; overflow: hidden; background: var(--ios-card);">
+            <div id="dynamicTimeline"></div>
+        </div>
+
+        <div class="section-title">第三步：比分录入表单</div>
+        <div id="dynamicScheduleList"></div>
+
+        <div class="section-title">第四步：实时战绩展示</div>
+        <div class="summary-total" id="groupSummary" style="display: none;"></div>
+        <div id="dynamicRankTables"></div>
+        
+        <button type="button" class="btn-block btn-orange" id="btnWipeSystem" style="margin-top:16px; background-color: var(--ios-red); box-shadow: 0 4px 12px rgba(255, 59, 48, 0.15);" onclick="resetAllTournament()">清空整个赛事重新配置</button>
+    </div>
+</div>
+
+<script>
+    let isDouble = true;
+    let numGroups = 2;
+    let numCourts = 2;
+    let numRounds = 9;
+    let playersPerGroup = 6;
+    let isViewerMode = false; 
+    let currentRoomId = ""; 
+    
+    let nameMap = {}; 
+    let generatedMatches = []; 
+
+    function toggleCourtInput() {
+        const gNum = parseInt(document.getElementById("cfgGroups").value) || 1;
+        document.getElementById("courtInputRow").style.display = (gNum === 1) ? "none" : "block";
+    }
+
+    function onParamChange() {
+        isDouble = document.querySelector('input[name="matchType"]:checked').value === 'double';
+        numGroups = parseInt(document.getElementById("cfgGroups").value) || 1;
+        numCourts = numGroups === 1 ? 1 : (parseInt(document.getElementById("cfgCourts").value) || 1);
+        playersPerGroup = parseInt(document.getElementById("cfgPlayers").value) || 6;
+
+        const slotsPerMatch = isDouble ? 2 : 1;
+        const errorTips = document.getElementById("errorTips");
+        const selectEl = document.getElementById("cfgRoundsSelect");
+        const btnNext = document.getElementById("btnNextStep");
+
+        if (numGroups > 1) {
+            const requiredPerRound = numCourts * slotsPerMatch;
+            if (playersPerGroup < requiredPerRound) {
+                errorTips.innerText = `❌ 人数不足！${numCourts}个场地进行${isDouble?'双':'单'}打，对抗赛每组至少需要 ${requiredPerRound} 人。`;
+                errorTips.style.display = "block";
+                selectEl.innerHTML = "<option value=''>请修正人数...</option>";
+                btnNext.disabled = true;
+                return;
+            }
+        } else {
+            const requiredTotal = isDouble ? 4 : 2;
+            if (playersPerGroup < requiredTotal) {
+                errorTips.innerText = `❌ 人数不足！内部轮转赛进行${isDouble?'双':'单'}打至少需要 ${requiredTotal} 人。`;
+                errorTips.style.display = "block";
+                selectEl.innerHTML = "<option value=''>请修正人数...</option>";
+                btnNext.disabled = true;
+                return;
+            }
+        }
+        errorTips.style.display = "none";
+        btnNext.disabled = false;
+
+        let validRounds = [];
+        for (let targetPlay = 1; targetPlay <= 15; targetPlay++) {
+            let totalRound = 0;
+            if (numGroups > 1) {
+                let upper = playersPerGroup * targetPlay;
+                let lower = numCourts * slotsPerMatch;
+                if (upper % lower === 0) totalRound = upper / lower;
+            } else {
+                let upper = playersPerGroup * targetPlay;
+                let lower = slotsPerMatch * 2;
+                if (upper % lower === 0) totalRound = upper / lower;
             }
 
-            function getChannelName() {
-                return matchUUID ? `yuyiqifei_bc_${matchUUID}` : null;
-            }
-
-            function initBroadcastChannel() {
-                const channelName = getChannelName();
-                if (!channelName) return;
-
-                if (broadcastChannel) {
-                    try { broadcastChannel.close(); } catch (e) {}
-                    broadcastChannel = null;
-                }
-
-                if (typeof BroadcastChannel === 'undefined') {
-                    console.warn('BroadcastChannel API unavailable, using localStorage events listener as fallback');
-                    return;
-                }
-
-                try {
-                    broadcastChannel = new BroadcastChannel(channelName);
-                    broadcastChannel.onmessage = handleBroadcastMessage;
-                    console.log('BroadcastChannel opened:', channelName);
-                } catch (e) {
-                    console.warn('Failed to bind BroadcastChannel context:', e);
-                    broadcastChannel = null;
+            if (totalRound > 0 && totalRound <= 30) {
+                if (numGroups === 1 && totalRound === 1 && targetPlay === 1) continue;
+                if (!validRounds.some(item => item.round === totalRound)) {
+                    validRounds.push({ round: totalRound, plays: targetPlay });
                 }
             }
+        }
 
-            function handleBroadcastMessage(event) {
-                if (!event.data || event.data.matchId !== matchUUID) return;
+        if (validRounds.length === 0) {
+            selectEl.innerHTML = "<option value=''>暂无完美匹配的对齐轮次，请调整人数</option>";
+            btnNext.disabled = true;
+        } else {
+            let closestRoundObj = validRounds.reduce((prev, curr) => {
+                return (Math.abs(curr.round - 9) < Math.abs(prev.round - 9)) ? curr : prev;
+            });
 
-                if (event.data.type === 'score_update') {
-                    isReceivingUpdate = true;
-                    applyScoresFromBroadcast(event.data.scores);
-                    isReceivingUpdate = false;
-                    showSyncIndicator();
-                } else if (event.data.type === 'match_reset') {
-                    if (isViewerMode) {
-                        alert('⚠️ 记分员已重置比赛，页面将刷新。');
-                        window.location.reload();
-                    }
-                } else if (event.data.type === 'ping') {
-                    if (broadcastChannel && !isViewerMode) {
-                        try {
-                            broadcastChannel.postMessage({ type: 'pong', matchId: matchUUID, timestamp: Date.now() });
-                        } catch (e) {}
-                    }
-                }
+            let validOptionsHtml = "";
+            validRounds.forEach(r => {
+                let isSelected = (r.round === closestRoundObj.round) ? "selected" : "";
+                validOptionsHtml += `<option value="${r.round}" ${isSelected}>共 ${r.round} 轮比赛 (每人上场 ${r.plays} 次)</option>`;
+            });
+            selectEl.innerHTML = validOptionsHtml;
+        }
+    }
+
+    function backToStep1() {
+        document.getElementById("step2").style.display = "none";
+        document.getElementById("step1").style.display = "block";
+    }
+
+    function goToStep2() {
+        numRounds = parseInt(document.getElementById("cfgRoundsSelect").value) || 6;
+        const nameSections = document.getElementById("dynamicNameSections");
+        nameSections.innerHTML = "";
+        
+        const groupColors = ["var(--ios-red)", "var(--ios-blue)", "#9b59b6", "var(--ios-orange)", "var(--ios-primary)"];
+        const defaultNamesPool = [
+            ["张三", "李四", "王五", "赵六", "钱七", "孙八", "周九", "吴十"],
+            ["阿华", "阿明", "阿强", "阿飞", "小丽", "小红", "小冬", "小宇"]
+        ];
+
+        for (let g = 1; g <= numGroups; g++) {
+            const color = groupColors[(g-1) % groupColors.length];
+            const groupLetter = String.fromCharCode(64 + g); 
+            let html = `<span class="group-name-title" style="color:${color}; font-weight:700; margin-top:10px; font-size:0.95rem;">● ${numGroups === 1 ? '选手名单管理' : groupLetter + ' 组选手名单'}</span>`;
+            html += `<div class="name-grid">`;
+            for (let i = 1; i <= playersPerGroup; i++) {
+                let defaultVal = (defaultNamesPool[g-1] && defaultNamesPool[g-1][i-1]) || "";
+                html += `<div class="name-item"><input type="text" id="inputName_G${g}_${i}" class="name-input" value="${defaultVal}" placeholder="选手姓名 ${i}"></div>`;
             }
+            html += `</div>`;
+            nameSections.innerHTML += html;
+        }
+        document.getElementById("step1").style.display = "none";
+        document.getElementById("step2").style.display = "block";
+    }
 
-            function applyScoresFromBroadcast(scores) {
-                if (!scores || typeof scores !== 'object') return;
-                let changed = false;
-                for (let id in scores) {
-                    const inputNode = document.getElementById(id);
-                    if (inputNode && inputNode.value !== String(scores[id])) {
-                        inputNode.value = scores[id];
-                        changed = true;
-                    }
-                }
-                if (changed) {
-                    liveCalculate(); 
-                }
+    function lockNamesAndBuildAll() {
+        nameMap = {};
+        const shuffle = (array) => {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
             }
+            return array;
+        };
 
-            function broadcastScoreUpdate(scores) {
-                if (isReceivingUpdate) return; 
-                if (!broadcastChannel || !matchUUID) return;
-
-                try {
-                    broadcastChannel.postMessage({
-                        type: 'score_update',
-                        matchId: matchUUID,
-                        scores: scores,
-                        timestamp: Date.now()
-                    });
-                } catch (e) {
-                    console.warn('Failed to dispatch broadcast frame packet:', e);
-                }
+        for (let g = 1; g <= numGroups; g++) {
+            let groupNames = [];
+            let groupLetter = String.fromCharCode(64 + g);
+            for (let i = 1; i <= playersPerGroup; i++) {
+                let val = document.getElementById(`inputName_G${g}_${i}`).value.trim();
+                groupNames.push(val || (numGroups === 1 ? `选手-${i}` : `${groupLetter}组-${i}`));
             }
-
-            function showSyncIndicator() {
-                const indicator = document.getElementById('syncIndicator');
-                if (!indicator) return;
-                indicator.style.display = 'block';
-                indicator.classList.add('flash');
-                if (syncFlashTimer) clearTimeout(syncFlashTimer);
-                syncFlashTimer = setTimeout(() => {
-                    indicator.classList.remove('flash');
-                    setTimeout(() => {
-                        if (indicator.classList.contains('flash')) return;
-                        indicator.style.display = 'none';
-                    }, 1800);
-                }, 600);
+            shuffle(groupNames);
+            for (let i = 1; i <= playersPerGroup; i++) {
+                nameMap[`G${g}_${i}`] = groupNames[i - 1];
             }
+        }
 
-            function saveFullDataToStorage(scoresOverride) {
-                if (!matchUUID) return;
-                const storageKey = `match_${matchUUID}_config`;
-                const scoresKey = `match_${matchUUID}_scores`;
+        if(!autoScheduleEngine()) {
+            alert("无法计算出完美对齐矩阵，请返回调整！");
+            return;
+        }
 
-                const configData = {
-                    isDouble,
-                    numGroups,
-                    numCourts,
-                    numRounds,
-                    playersPerGroup,
-                    nameMap,
-                    generatedMatches,
-                    matchUUID,
-                    createdAt: Date.now()
-                };
+        currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-4);
+        window.location.hash = `#room=${currentRoomId}`;
 
-                try {
-                    localStorage.setItem(storageKey, JSON.stringify(configData));
-                    if (scoresOverride) {
-                        localStorage.setItem(scoresKey, JSON.stringify(scoresOverride));
-                    }
-                    localStorage.setItem('yuyiqifei_active', 'true');
-                    localStorage.setItem('yuyiqifei_matchId', matchUUID);
-                    
-                    // Secure permanent local storage assertions
-                    localStorage.setItem('yuyiqifei_admin_' + matchUUID, 'true');
-                } catch (e) {
-                    console.warn('LocalStorage storage capacity breached:', e);
-                }
-            }
+        renderTimelineMatrix();
+        renderMobileCards();
+        renderRankTablesFramework();
+        
+        document.getElementById("step2").style.display = "none";
+        document.getElementById("step3").style.display = "block";
+        
+        saveGameFrameworkToStorage();
+        liveCalculate();
+    }
 
-            function loadConfigFromStorage(uuid) {
-                const storageKey = `match_${uuid}_config`;
-                try {
-                    const raw = localStorage.getItem(storageKey);
-                    if (!raw) return null;
-                    return JSON.parse(raw);
-                } catch (e) {
-                    return null;
-                }
-            }
+    function autoScheduleEngine() {
+        const slotsPerMatch = isDouble ? 2 : 1;
+        let attempt = 0, maxAttempts = 200; 
 
-            function loadScoresFromStorage(uuid) {
-                const scoresKey = `match_${uuid}_scores`;
-                try {
-                    const raw = localStorage.getItem(scoresKey);
-                    if (!raw) return {};
-                    return JSON.parse(raw);
-                } catch (e) {
-                    return {};
-                }
-            }
-
-            function saveScoresToStorage(scores) {
-                if (!matchUUID) return;
-                const scoresKey = `match_${matchUUID}_scores`;
-                try {
-                    localStorage.setItem(scoresKey, JSON.stringify(scores));
-                } catch (e) {
-                    console.warn('Failed to commit scores:', e);
-                }
-            }
-
-            function updateUrlHashSilently(scoresMap) {
-                if (!matchUUID) return;
-                const snapshotPayload = {
-                    v: 2, 
-                    uuid: matchUUID,
-                    isDouble,
-                    numGroups,
-                    numCourts,
-                    numRounds,
-                    playersPerGroup,
-                    nameMap,
-                    generatedMatches,
-                    scores: scoresMap,
-                    ts: Date.now()
-                };
-                try {
-                    const compressed = btoa(unescape(encodeURIComponent(JSON.stringify(snapshotPayload))));
-                    const newHash = '#match=' + matchUUID + '&d=' + compressed;
-                    window.history.replaceState(null, null, window.location.href.split('#')[0] + newHash);
-                } catch (e) {
-                    const newHash = '#match=' + matchUUID;
-                    window.history.replaceState(null, null, window.location.href.split('#')[0] + newHash);
+        while (attempt < maxAttempts) {
+            attempt++; generatedMatches = [];
+            let playedCount = {}, consecutive = {};  
+            for (let g = 1; g <= numGroups; g++) {
+                for (let i = 1; i <= playersPerGroup; i++) {
+                    let key = `G${g}_${i}`; playedCount[key] = 0; consecutive[key] = 0;
                 }
             }
 
-            function parseUrlHash() {
-                const hash = window.location.hash;
-                if (!hash) return null;
+            let failed = false;
+            const targetPlays = numGroups > 1 ? (numRounds * numCourts * slotsPerMatch) / playersPerGroup : (numRounds * slotsPerMatch * 2) / playersPerGroup;
 
-                if (hash.startsWith('#match=')) {
-                    const matchPart = hash.replace('#match=', '');
-                    const ampIdx = matchPart.indexOf('&d=');
-                    if (ampIdx > 0) {
-                        const uuid = matchPart.substring(0, ampIdx);
-                        const dataB64 = matchPart.substring(ampIdx + 3);
-                        try {
-                            const payload = JSON.parse(decodeURIComponent(escape(atob(dataB64))));
-                            return { ...payload, uuid, source: 'url' };
-                        } catch (e) {
-                            return { uuid, source: 'url_incomplete' };
-                        }
-                    } else {
-                        return { uuid: matchPart.split('&')[0], source: 'url_uuid_only' };
-                    }
-                }
-
-                if (hash.startsWith('#data=')) {
-                    try {
-                        const base64 = hash.replace('#data=', '');
-                        const payload = JSON.parse(decodeURIComponent(escape(atob(base64))));
-                        return { ...payload, uuid: null, source: 'legacy_url' };
-                    } catch (e) {
-                        return null;
-                    }
-                }
-
-                return null;
-            }
-
-            // ==================== UI Interactive Layout Event Handlers ====================
-            function toggleCourtInput() {
-                const gNum = parseInt(document.getElementById('cfgGroups').value) || 1;
-                document.getElementById('courtInputRow').style.display = (gNum === 1) ? 'none' : 'block';
-            }
-
-            function onParamChange() {
-                isDouble = document.querySelector('input[name="matchType"]:checked').value === 'double';
-                numGroups = parseInt(document.getElementById('cfgGroups').value) || 1;
-                numCourts = numGroups === 1 ? 1 : (parseInt(document.getElementById('cfgCourts').value) || 1);
-                playersPerGroup = parseInt(document.getElementById('cfgPlayers').value) || 6;
-
-                const slotsPerMatch = isDouble ? 2 : 1;
-                const errorTips = document.getElementById('errorTips');
-                const selectEl = document.getElementById('cfgRoundsSelect');
-                const btnNext = document.getElementById('btnNextStep');
-
+            for (let r = 1; r <= numRounds; r++) {
                 if (numGroups > 1) {
-                    const requiredPerRound = numCourts * slotsPerMatch;
-                    if (playersPerGroup < requiredPerRound) {
-                        errorTips.innerText = `❌ 人数不足！${numCourts}个场地进行${isDouble?'双':'单'}打，对抗赛每组至少需要 ${requiredPerRound} 人。`;
-                        errorTips.style.display = 'block';
-                        selectEl.innerHTML = "<option value=''>请修正人数...</option>";
-                        btnNext.disabled = true;
-                        return;
-                    }
-                } else {
-                    const requiredTotal = isDouble ? 4 : 2;
-                    if (playersPerGroup < requiredTotal) {
-                        errorTips.innerText = `❌ 人数不足！内部轮转赛进行${isDouble?'双':'单'}打至少需要 ${requiredTotal} 人。`;
-                        errorTips.style.display = 'block';
-                        selectEl.innerHTML = "<option value=''>请修正人数...</option>";
-                        btnNext.disabled = true;
-                        return;
-                    }
-                }
-                errorTips.style.display = 'none';
-                btnNext.disabled = false;
-
-                let validRounds = [];
-                for (let targetPlay = 1; targetPlay <= 15; targetPlay++) {
-                    let totalRound = 0;
-                    if (numGroups > 1) {
-                        let upper = playersPerGroup * targetPlay;
-                        let lower = numCourts * slotsPerMatch;
-                        if (upper % lower === 0) totalRound = upper / lower;
-                    } else {
-                        let upper = playersPerGroup * targetPlay;
-                        let lower = slotsPerMatch * 2;
-                        if (upper % lower === 0) totalRound = upper / lower;
-                    }
-
-                    if (totalRound > 0 && totalRound <= 30) {
-                        if (numGroups === 1 && totalRound === 1 && targetPlay === 1) continue;
-                        if (!validRounds.some(item => item.round === totalRound)) {
-                            validRounds.push({ round: totalRound, plays: targetPlay });
+                    let neededPerGroup = Array(numGroups + 1).fill(0), courtMatchups = [];
+                    for (let c = 0; c < numCourts; c++) {
+                        let gA = 1, gB = 2;
+                        if (numGroups > 2) {
+                            gA = ((r - 1 + c * 2) % numGroups) + 1; gB = ((r - 1 + c * 2 + 1) % numGroups) + 1;
                         }
+                        courtMatchups.push({ gA, gB }); neededPerGroup[gA] += slotsPerMatch; neededPerGroup[gB] += slotsPerMatch;
                     }
-                }
 
-                if (validRounds.length === 0) {
-                    selectEl.innerHTML = "<option value=''>暂无完美匹配的对齐轮次，请调整人数</option>";
-                    btnNext.disabled = true;
-                } else {
-                    let closestRoundObj = validRounds.reduce((prev, curr) => {
-                        return (Math.abs(curr.round - 9) < Math.abs(prev.round - 9)) ? curr : prev;
-                    });
-
-                    let validOptionsHtml = '';
-                    validRounds.forEach(r => {
-                        let isSelected = (r.round === closestRoundObj.round) ? 'selected' : '';
-                        validOptionsHtml += `<option value="${r.round}" ${isSelected}>共 ${r.round} 轮比赛 (每人刚好上场 ${r.plays} 次)</option>`;
-                    });
-                    selectEl.innerHTML = validOptionsHtml;
-                }
-            }
-
-            function backToStep1() {
-                document.getElementById('step2').style.display = 'none';
-                document.getElementById('step1').style.display = 'block';
-            }
-
-            function goToStep2() {
-                numRounds = parseInt(document.getElementById('cfgRoundsSelect').value) || 6;
-                const nameSections = document.getElementById('dynamicNameSections');
-                nameSections.innerHTML = '';
-
-                const groupColors = ['#e74c3c', '#3498db', '#9b59b6', '#e67e22', '#2ecc71'];
-                const defaultNamesPool = [
-                    ['张三', '李四', '王五', "赵六", '钱七', '孙八', '周九', '吴十'],
-                    ['阿华', '阿明', '阿强', '阿飞', '小丽', '小红', '小冬', '小宇']
-                ];
-
-                for (let g = 1; g <= numGroups; g++) {
-                    const color = groupColors[(g - 1) % groupColors.length];
-                    const groupLetter = String.fromCharCode(64 + g);
-                    let html = `<span class="group-name-title" style="color:${color};">● ${numGroups === 1 ? '选手名单管理' : groupLetter + ' 组选手名单'}</span>`;
-                    html += `<div class="name-grid">`;
-                    for (let i = 1; i <= playersPerGroup; i++) {
-                        let defaultVal = (defaultNamesPool[g - 1] && defaultNamesPool[g - 1][i - 1]) || '';
-                        html += `<div class="name-item"><input type="text" id="inputName_G${g}_${i}" class="name-input" value="${defaultVal}" placeholder="选手姓名 ${i}"></div>`;
-                    }
-                    html += `</div>`;
-                    nameSections.innerHTML += html;
-                }
-                document.getElementById('step1').style.display = 'none';
-                document.getElementById('step2').style.display = 'block';
-            }
-
-            function lockNamesAndBuildAll() {
-                nameMap = {};
-                const shuffle = (array) => {
-                    for (let i = array.length - 1; i > 0; i--) {
-                        const j = Math.floor(Math.random() * (i + 1));
-                        [array[i], array[j]] = [array[j], array[i]];
-                    }
-                    return array;
-                };
-
-                for (let g = 1; g <= numGroups; g++) {
-                    let groupNames = [];
-                    let groupLetter = String.fromCharCode(64 + g);
-                    for (let i = 1; i <= playersPerGroup; i++) {
-                        let val = document.getElementById(`inputName_G${g}_${i}`).value.trim();
-                        groupNames.push(val || (numGroups === 1 ? `选手-${i}` : `${groupLetter}组-${i}`));
-                    }
-                    shuffle(groupNames);
-                    for (let i = 1; i <= playersPerGroup; i++) {
-                        nameMap[`G${g}_${i}`] = groupNames[i - 1];
-                    }
-                }
-
-                if (!autoScheduleEngine()) {
-                    alert('无法计算出完美对齐矩阵，请返回调整！');
-                    return;
-                }
-
-                matchUUID = generateMatchUUID();
-                document.getElementById('matchIdSpan').textContent = matchUUID;
-                document.getElementById('matchIdTag').style.display = 'block';
-
-                initBroadcastChannel();
-                saveFullDataToStorage({});
-
-                renderTimelineMatrix();
-                renderMobileCards();
-                renderRankTablesFramework();
-
-                updateUrlHashSilently({});
-
-                document.getElementById('step2').style.display = 'none';
-                document.getElementById('step3').style.display = 'block';
-
-                liveCalculate();
-            }
-
-            // ==================== Scheduling Algorithms Matcher Elements ====================
-            function autoScheduleEngine() {
-                const slotsPerMatch = isDouble ? 2 : 1;
-                let attempt = 0, maxAttempts = 200;
-
-                while (attempt < maxAttempts) {
-                    attempt++;
-                    generatedMatches = [];
-                    let playedCount = {}, consecutive = {};
+                    let poolSelections = {};
                     for (let g = 1; g <= numGroups; g++) {
+                        if (neededPerGroup[g] === 0) continue;
+                        let pList = [];
                         for (let i = 1; i <= playersPerGroup; i++) {
-                            let key = `G${g}_${i}`;
-                            playedCount[key] = 0;
-                            consecutive[key] = 0;
+                            let k = `G${g}_${i}`; if (playedCount[k] < targetPlays) pList.push(k);
                         }
+                        if(attempt > 1) pList.sort(() => Math.random() - 0.5);
+                        pList.sort((x, y) => {
+                            let cx = consecutive[x], cy = consecutive[y];
+                            if (cx >= 2 && cy < 2) return 1; if (cy >= 2 && cx < 2) return -1;
+                            return playedCount[x] - playedCount[y];
+                        });
+                        if (pList.length < neededPerGroup[g]) { failed = true; break; }
+                        poolSelections[g] = pList.slice(0, neededPerGroup[g]);
                     }
+                    if (failed) break;
 
-                    let failed = false;
-                    const targetPlays = numGroups > 1 ?
-                        (numRounds * numCourts * slotsPerMatch) / playersPerGroup :
-                        (numRounds * slotsPerMatch * 2) / playersPerGroup;
-
-                    for (let r = 1; r <= numRounds; r++) {
-                        if (numGroups > 1) {
-                            let neededPerGroup = Array(numGroups + 1).fill(0), courtMatchups = [];
-                            for (let c = 0; c < numCourts; c++) {
-                                let gA = 1, gB = 2;
-                                if (numGroups > 2) {
-                                    gA = ((r - 1 + c * 2) % numGroups) + 1;
-                                    gB = ((r - 1 + c * 2 + 1) % numGroups) + 1;
-                                }
-                                courtMatchups.push({ gA, gB });
-                                neededPerGroup[gA] += slotsPerMatch;
-                                neededPerGroup[gB] += slotsPerMatch;
-                            }
-
-                            let poolSelections = {};
-                            for (let g = 1; g <= numGroups; g++) {
-                                if (neededPerGroup[g] === 0) continue;
-                                let pList = [];
-                                for (let i = 1; i <= playersPerGroup; i++) {
-                                    let k = `G${g}_${i}`;
-                                    if (playedCount[k] < targetPlays) pList.push(k);
-                                }
-                                if (attempt > 1) pList.sort(() => Math.random() - 0.5);
-                                pList.sort((x, y) => {
-                                    let cx = consecutive[x], cy = consecutive[y];
-                                    if (cx >= 2 && cy < 2) return 1;
-                                    if (cy >= 2 && cx < 2) return -1;
-                                    return playedCount[x] - playedCount[y];
-                                });
-                                if (pList.length < neededPerGroup[g]) { failed = true; break; }
-                                poolSelections[g] = pList.slice(0, neededPerGroup[g]);
-                            }
-                            if (failed) break;
-
-                            let roundUsedKeys = new Set();
-                            for (let c = 0; c < numCourts; c++) {
-                                let { gA, gB } = courtMatchups[c], matchA = [], matchB = [];
-                                for (let s = 0; s < slotsPerMatch; s++) {
-                                    let pA = poolSelections[gA].shift(), pB = poolSelections[gB].shift();
-                                    matchA.push(pA);
-                                    matchB.push(pB);
-                                    roundUsedKeys.add(pA);
-                                    roundUsedKeys.add(pB);
-                                }
-                                generatedMatches.push({ round: r, court: `${c + 1}号场`, a: matchA, b: matchB });
-                            }
-                            for (let k in consecutive) {
-                                if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } else { consecutive[k] = 0; }
-                            }
-                        } else {
-                            let pList = [];
-                            for (let i = 1; i <= playersPerGroup; i++) {
-                                let k = `G1_${i}`;
-                                if (playedCount[k] < targetPlays) pList.push(k);
-                            }
-                            if (attempt > 1) pList.sort(() => Math.random() - 0.5);
-                            pList.sort((x, y) => {
-                                let cx = consecutive[x], cy = consecutive[y];
-                                if (cx >= 2 && cy < 2) return 1;
-                                if (cy >= 2 && cx < 2) return -1;
-                                return playedCount[x] - playedCount[y];
-                            });
-                            const totalNeeded = slotsPerMatch * 2;
-                            if (pList.length < totalNeeded) { failed = true; break; }
-                            let roundPicked = pList.slice(0, totalNeeded), matchA = [], matchB = [];
-                            for (let s = 0; s < slotsPerMatch; s++) { 
-                                matchA.push(roundPicked.shift());
-                                matchB.push(roundPicked.shift()); 
-                            }
-                            generatedMatches.push({ round: r, court: '轮转对阵', a: matchA, b: matchB });
-                            let roundUsedKeys = new Set([...matchA, ...matchB]);
-                            for (let k in consecutive) {
-                                if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } else { consecutive[k] = 0; }
-                            }
+                    let roundUsedKeys = new Set();
+                    for (let c = 0; c < numCourts; c++) {
+                        let { gA, gB } = courtMatchups[c], matchA = [], matchB = [];
+                        for (let s = 0; s < slotsPerMatch; s++) {
+                            let pA = poolSelections[gA].shift(), pB = poolSelections[gB].shift();
+                            matchA.push(pA); matchB.push(pB); roundUsedKeys.add(pA); roundUsedKeys.add(pB);
                         }
+                        generatedMatches.push({ round: r, court: `${c + 1}号场`, a: matchA, b: matchB });
                     }
-                    if (!failed) return true;
+                    for (let k in consecutive) {
+                        if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } else { consecutive[k] = 0; }
+                    }
+                } else {
+                    let pList = [];
+                    for (let i = 1; i <= playersPerGroup; i++) {
+                        let k = `G1_${i}`; if (playedCount[k] < targetPlays) pList.push(k);
+                    }
+                    if(attempt > 1) pList.sort(() => Math.random() - 0.5);
+                    pList.sort((x, y) => {
+                        let cx = consecutive[x], cy = consecutive[y];
+                        if (cx >= 2 && cy < 2) return 1; if (cy >= 2 && cx < 2) return -1;
+                        return playedCount[x] - playedCount[y];
+                    });
+                    const totalNeeded = slotsPerMatch * 2; if (pList.length < totalNeeded) { failed = true; break; }
+                    let roundPicked = pList.slice(0, totalNeeded), matchA = [], matchB = [];
+                    for (let s = 0; s < slotsPerMatch; s++) { matchA.push(roundPicked.shift()); matchB.push(roundPicked.shift()); }
+                    generatedMatches.push({ round: r, court: `轮转对阵`, a: matchA, b: matchB });
+                    let roundUsedKeys = new Set([...matchA, ...matchB]);
+                    for (let k in consecutive) {
+                        if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } else { consecutive[k] = 0; }
+                    }
                 }
-                return false;
             }
+            if (!failed) return true; 
+        }
+        return false;
+    }
 
-            // ==================== View Rendering Nodes Components ====================
-            function renderTimelineMatrix() {
-                const container = document.getElementById('dynamicTimeline');
-                container.innerHTML = '';
-                let allPlayerKeys = [];
-                for (let g = 1; g <= numGroups; g++) {
-                    for (let i = 1; i <= playersPerGroup; i++) allPlayerKeys.push(`G${g}_${i}`);
+    function renderTimelineMatrix() {
+        const container = document.getElementById("dynamicTimeline");
+        container.innerHTML = "";
+        let allPlayerKeys = [];
+        for (let g = 1; g <= numGroups; g++) {
+            for (let i = 1; i <= playersPerGroup; i++) allPlayerKeys.push(`G${g}_${i}`);
+        }
+
+        let html = `<div style="overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius:10px;">
+                        <table style="width: 100%; border-collapse: collapse; min-width: 460px; font-size: 0.8rem; text-align: center;">
+                            <thead>
+                                <tr>
+                                    <th style="border: 1px solid #e5e5ea; padding: 10px 8px; background: #f2f2f7; position: sticky; left: 0; z-index: 3; min-width: 65px; font-weight:700; color:var(--ios-text); box-shadow: 1px 0 0 #e5e5ea;">队员</th>`;
+        for (let r = 1; r <= numRounds; r++) html += `<th style="border: 1px solid #e5e5ea; padding: 10px 4px; background: #f2f2f7; font-weight: 700; min-width: 38px; color:var(--ios-text);">R${r}</th>`;
+        html += `</tr></thead><tbody>`;
+
+        allPlayerKeys.forEach((pKey, idx) => {
+            const pName = nameMap[pKey];
+            const hue = (idx * 350) / allPlayerKeys.length;
+            const uniqueColor = `hsl(${hue}, 65%, 43%)`;
+            html += `<tr><td style="border: 1px solid #e5e5ea; padding: 10px 6px; font-weight: 700; background: #ffffff; position: sticky; left: 0; z-index: 2; box-shadow: 2px 0 4px rgba(0,0,0,0.02); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 75px; color:var(--ios-text);">${pName}</td>`;
+            for (let r = 1; r <= numRounds; r++) {
+                let roundMatches = generatedMatches.filter(m => m.round === r);
+                let playingMatch = roundMatches.find(m => m.a.includes(pKey) || m.b.includes(pKey));
+                if (playingMatch) {
+                    let textSymbol = (numGroups === 1) ? "上场" : playingMatch.court.replace("号场", "场");
+                    html += `<td style="border: 1px solid #e5e5ea; padding: 4px; background: ${uniqueColor}; color: white; font-weight: 700; font-size: 0.75rem; border-radius:4px;">${textSymbol}</td>`;
+                } else {
+                    html += `<td style="border: 1px solid #e5e5ea; padding: 4px; background: #fafafc; color: #c7c7cc; font-size: 0.75rem;">休</td>`;
                 }
-
-                let html = `<div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
-                                <table style="width: 100%; border-collapse: collapse; min-width: 480px; font-size: 0.8rem; text-align: center;">
-                                    <thead>
-                                        <tr>
-                                            <th style="border: 1px solid #e2e8f0; padding: 8px 6px; background: #f8fafc; position: sticky; left: 0; z-index: 3; min-width: 65px; box-shadow: 1px 0 0 #e2e8f0;">队员</th>`;
-                for (let r = 1; r <= numRounds; r++)
-                    html += `<th style="border: 1px solid #e2e8f0; padding: 8px 4px; background: #f8fafc; font-weight: bold; min-width: 42px;">R${r}</th>`;
-                html += `</tr></thead><tbody>`;
-
-                allPlayerKeys.forEach((pKey, idx) => {
-                    const pName = nameMap[pKey] || pKey;
-                    const hue = (idx * 360) / allPlayerKeys.length;
-                    const uniqueColor = `hsl(${hue}, 70%, 45%)`;
-                    html += `<tr><td style="border: 1px solid #e2e8f0; padding: 8px 4px; font-weight: bold; background: #ffffff; position: sticky; left: 0; z-index: 2; box-shadow: 2px 0 4px rgba(0,0,0,0.04); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70px;">${pName}</td>`;
-                    for (let r = 1; r <= numRounds; r++) {
-                        let roundMatches = generatedMatches.filter(m => m.round === r);
-                        let playingMatch = roundMatches.find(m => m.a.includes(pKey) || m.b.includes(pKey));
-                        if (playingMatch) {
-                            let textSymbol = (numGroups === 1) ? '上场' : playingMatch.court.replace('号场', '场');
-                            html += `<td style="border: 1px solid #e2e8f0; padding: 4px; background: ${uniqueColor}; color: white; font-weight: bold; font-size: 0.75rem;">${textSymbol}</td>`;
-                        } else {
-                            html += `<td style="border: 1px solid #e2e8f0; padding: 4px; background: #f1f5f9; color: #94a3b8; font-size: 0.7rem;">休</td>`;
-                        }
-                    }
-                    html += `</tr>`;
-                });
-                html += `</tbody></table></div>`;
-                container.innerHTML = html;
             }
+            html += `</tr>`;
+        });
+        html += `</tbody></table></div>`;
+        container.innerHTML = html;
+    }
 
-            function renderMobileCards() {
-                const container = document.getElementById('dynamicScheduleList');
-                let html = '';
-                for (let r = 1; r <= numRounds; r++) {
-                    html += `<div class="round-container"><div class="round-title">第 ${r} 轮</div>`;
-                    generatedMatches.filter(m => m.round === r).forEach((match) => {
-                        const globalIdx = generatedMatches.indexOf(match);
-                        let namesA = match.a.map(k => nameMap[k] || k).join('<br>');
-                        let namesB = match.b.map(k => nameMap[k] || k).join('<br>');
-                        let roAttr = isViewerMode ? "readonly style='background-color:#f1f5f9; color:#7f8c8d;'" : '';
+    function renderMobileCards() {
+        const container = document.getElementById("dynamicScheduleList");
+        let html = "";
+        for (let r = 1; r <= numRounds; r++) {
+            html += `<div class="round-container"><div class="round-title">第 ${r} 轮</div>`;
+            generatedMatches.filter(m => m.round === r).forEach((match) => {
+                const globalIdx = generatedMatches.indexOf(match);
+                let namesA = match.a.map(k => nameMap[k]).join("<br>");
+                let namesB = match.b.map(k => nameMap[k]).join("<br>");
+                let roAttr = isViewerMode ? "readonly" : "";
 
-                        html += `
+                html += `
                     <div class="match-card">
-                        <span class="court-label" style="background:${numGroups===1?'#16a085':'#95a5a6'}">${match.court}</span>
+                        <span class="court-label">${match.court}</span>
                         <div class="team-players team-a">${namesA}</div>
                         <div class="score-area">
                             <input type="number" inputmode="numeric" class="score-num" id="sA_${globalIdx}" ${roAttr} oninput="liveCalculate()">
@@ -915,522 +702,276 @@
                         </div>
                         <div class="team-players team-b">${namesB}</div>
                     </div>`;
-                    });
-                    html += `</div>`;
-                }
-                container.innerHTML = html;
-            }
+            });
+            html += `</div>`;
+        }
+        container.innerHTML = html;
+    }
 
-            function renderRankTablesFramework() {
-                const container = document.getElementById('dynamicRankTables');
-                container.innerHTML = '';
-                const groupColors = ['#e74c3c', '#3498db', '#9b59b6', '#e67e22', '#2ecc71'];
+    function renderRankTablesFramework() {
+        const container = document.getElementById("dynamicRankTables"); container.innerHTML = "";
+        const groupColors = ["var(--ios-red)", "var(--ios-blue)", "#9b59b6", "var(--ios-orange)", "var(--ios-primary)"];
 
-                for (let g = 1; g <= numGroups; g++) {
-                    const color = groupColors[(g - 1) % groupColors.length];
-                    const groupLetter = String.fromCharCode(64 + g);
-                    const title = numGroups === 1 ? `👑 个人全员战绩大榜` : `🔴 ${groupLetter} 组内部战绩排名`;
-                    container.innerHTML += `
-                <div style="font-weight: bold; color: ${color}; margin-top:15px; margin-bottom: 5px;">${title}</div>
+        for (let g = 1; g <= numGroups; g++) {
+            const color = groupColors[(g-1) % groupColors.length];
+            const groupLetter = String.fromCharCode(64 + g);
+            const title = numGroups === 1 ? `👑 全员个人战绩榜` : `🔴 ${groupLetter} 组战绩排名`;
+            container.innerHTML += `
+                <div style="font-weight: 700; color: ${color}; margin-top:16px; margin-bottom: 6px; font-size:0.9rem; padding-left:4px;">${title}</div>
                 <table class="rank-table">
-                    <thead><tr><th style="width: 15%;">排名</th><th style="width: 30%;">队员</th><th style="width: 20%;">胜-负</th><th style="width: 18%;">净胜分</th><th style="width: 17%;">得分</th></tr></thead>
+                    <thead><tr><th style="width: 15%;">排名</th><th style="width: 32%;">队员</th><th style="width: 21%;">胜 - 负</th><th style="width: 17%;">净胜</th><th style="width: 15%;">得分</th></tr></thead>
                     <tbody id="rankBody_G${g}"></tbody>
                 </table>`;
-                }
+        }
+    }
+
+    function liveCalculate() {
+        let stats = {};
+        for (let k in nameMap) stats[nameMap[k]] = { name: nameMap[k], win: 0, lose: 0, diffScore: 0, totalScore: 0, group: k.split('_')[0] };
+
+        let totalWinA = 0, totalWinB = 0, totalScoreA = 0, totalScoreB = 0;
+        let currentScoresCache = {}; 
+
+        for (let i = 0; i < generatedMatches.length; i++) {
+            const valA = document.getElementById(`sA_${i}`) ? document.getElementById(`sA_${i}`).value : "";
+            const valB = document.getElementById(`sB_${i}`) ? document.getElementById(`sB_${i}`).value : "";
+
+            currentScoresCache[`sA_${i}`] = valA; currentScoresCache[`sB_${i}`] = valB;
+            if (valA === "" || valB === "") continue;
+
+            const scoreA = parseInt(valA), scoreB = parseInt(valB);
+            if (scoreA === scoreB) continue; 
+            const isWinA = scoreA > scoreB;
+
+            if (numGroups === 2) {
+                totalScoreA += scoreA; totalScoreB += scoreB;
+                if (isWinA) totalWinA++; else totalWinB++;
             }
 
-            // ==================== Live Scoring Calculator Node ====================
-            function liveCalculate() {
-                let stats = {};
-                for (let k in nameMap) stats[nameMap[k]] = {
-                    name: nameMap[k],
-                    win: 0,
-                    lose: 0,
-                    diffScore: 0,
-                    totalScore: 0,
-                    group: k.split('_')[0]
-                };
-
-                let totalWinA = 0, totalWinB = 0, totalScoreA = 0, totalScoreB = 0;
-                let currentScoresCache = {};
-
-                for (let i = 0; i < generatedMatches.length; i++) {
-                    const valA = document.getElementById(`sA_${i}`) ? document.getElementById(`sA_${i}`).value : '';
-                    const valB = document.getElementById(`sB_${i}`) ? document.getElementById(`sB_${i}`).value : '';
-
-                    currentScoresCache[`sA_${i}`] = valA;
-                    currentScoresCache[`sB_${i}`] = valB;
-                    if (valA === '' || valB === '') continue;
-
-                    const scoreA = parseInt(valA), scoreB = parseInt(valB);
-                    if (scoreA === scoreB) continue;
-                    const isWinA = scoreA > scoreB;
-
-                    if (numGroups === 2) {
-                        totalScoreA += scoreA;
-                        totalScoreB += scoreB;
-                        if (isWinA) totalWinA++; else totalWinB++;
-                    }
-
-                    generatedMatches[i].a.forEach(k => {
-                        let p = nameMap[k];
-                        if (stats[p]) {
-                            if (isWinA) stats[p].win++; else stats[p].lose++;
-                            stats[p].totalScore += scoreA;
-                            stats[p].diffScore += (scoreA - scoreB);
-                        }
-                    });
-                    generatedMatches[i].b.forEach(k => {
-                        let p = nameMap[k];
-                        if (stats[p]) {
-                            if (!isWinA) stats[p].win++; else stats[p].lose++;
-                            stats[p].totalScore += scoreB;
-                            stats[p].diffScore += (scoreB - scoreA);
-                        }
-                    });
+            generatedMatches[i].a.forEach(k => {
+                let p = nameMap[k];
+                if (stats[p]) {
+                    if (isWinA) stats[p].win++; else stats[p].lose++;
+                    stats[p].totalScore += scoreA; stats[p].diffScore += (scoreA - scoreB);
                 }
-
-                saveScoresToStorage(currentScoresCache);
-
-                if (!isReceivingUpdate && !isViewerMode) {
-                    broadcastScoreUpdate(currentScoresCache);
-                    updateUrlHashSilently(currentScoresCache);
+            });
+            generatedMatches[i].b.forEach(k => {
+                let p = nameMap[k];
+                if (stats[p]) {
+                    if (!isWinA) stats[p].win++; else stats[p].lose++;
+                    stats[p].totalScore += scoreB; stats[p].diffScore += (scoreB - scoreA);
                 }
+            });
+        }
 
-                const summaryBox = document.getElementById('groupSummary');
-                if (numGroups === 2) {
-                    let winnerText = '抗衡中...';
-                    if (totalWinA > totalWinB) winnerText = "<span class='winner-tag'>A 组暂时领先! 🏆</span>";
-                    else if (totalWinB > totalWinA) winnerText = "<span class='winner-tag'>B 组暂时领先! 🏆</span>";
-                    else if (totalScoreA !== totalScoreB) winnerText = totalScoreA > totalScoreB ? '胜场平，A组小分占优' : '胜场平，B组小分占优';
+        if (!isViewerMode) {
+            localStorage.setItem("yuyiqifei_scores", JSON.stringify(currentScoresCache));
+            updateUrlHashWithScores(currentScoresCache);
+        }
 
-                    summaryBox.innerHTML = `<b>A 组红方：</b> ${totalWinA} 胜 (${totalScoreA}分)<br><span style="color:#bdc3c7;font-size:0.75rem;">VS</span><br><b>B 组蓝方：</b> ${totalWinB} 胜 (${totalScoreB}分)<br><div style="color:#f1c40f;font-size:0.85rem;margin-top:3px;">${winnerText}</div>`;
-                    summaryBox.style.display = 'block';
-                } else {
-                    summaryBox.style.display = 'none';
-                }
+        const summaryBox = document.getElementById("groupSummary");
+        if (numGroups === 2) {
+            let winnerText = "抗衡中...";
+            if (totalWinA > totalWinB) winnerText = "A 组红方领先 🏆";
+            else if (totalWinB > totalWinA) winnerText = "B 组蓝方领先 🏆";
+            else if (totalScoreA !== totalScoreB) winnerText = totalScoreA > totalScoreB ? "场次持平，A组凭借小分优势占优" : "场次持平，B组凭借小分优势占优";
+            
+            summaryBox.innerHTML = `<b>A 组红方 :</b> ${totalWinA} 胜 (${totalScoreA}分) <span style="margin:0 8px; color:rgba(255,255,255,0.3)">|</span> <b>B 组蓝方 :</b> ${totalWinB} 胜 (${totalScoreB}分)<br><div style="color:#ffcc00; font-size:0.85rem; font-weight:600; margin-top:5px;">${winnerText}</div>`;
+            summaryBox.style.display = "block";
+        } else {
+            summaryBox.style.display = "none";
+        }
 
-                const sortRule = (x, y) => {
-                    if (y.win !== x.win) return y.win - x.win;
-                    if (y.diffScore !== x.diffScore) return y.diffScore - x.diffScore;
-                    return y.totalScore - x.totalScore;
-                };
+        const sortRule = (x, y) => {
+            if (y.win !== x.win) return y.win - x.win;
+            if (y.diffScore !== x.diffScore) return y.diffScore - x.diffScore;
+            return y.totalScore - x.totalScore;
+        };
 
-                for (let g = 1; g <= numGroups; g++) {
-                    let subList = Object.values(stats).filter(p => p.group === `G${g}`).sort(sortRule);
-                    let tbody = document.getElementById(`rankBody_G${g}`);
-                    if (!tbody) continue;
+        for (let g = 1; g <= numGroups; g++) {
+            let subList = Object.values(stats).filter(p => p.group === `G${g}`).sort(sortRule);
+            let tbody = document.getElementById(`rankBody_G${g}`); if(!tbody) continue;
+            
+            let html = "";
+            subList.forEach((p, idx) => {
+                let medal = idx === 0 ? "🥇" : (idx === 1 ? "🥈" : (idx === 2 ? "🥉" : `<span style="color:var(--ios-subtext); font-weight:500;">${idx + 1}</span>`));
+                html += `<tr><td style="font-weight:700;">${medal}</td><td style="font-weight:700; color:var(--ios-text);">${p.name}</td><td style="color:var(--ios-primary-dark); font-weight:600;">${p.win}胜 - ${p.lose}负</td><td style="font-weight:600; color:${p.diffScore >= 0 ? 'var(--ios-red)' : 'var(--ios-text)'}">${p.diffScore > 0 ? '+' + p.diffScore : p.diffScore}</td><td style="color:var(--ios-subtext); font-weight:500;">${p.totalScore}</td></tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+    }
 
-                    let html = '';
-                    subList.forEach((p, idx) => {
-                        let medal = idx === 0 ? '🥇' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : idx + 1));
-                        html += `<tr><td style="font-weight:bold;">${medal}</td><td style="font-weight:bold;">${p.name}</td><td style="color:#27ae60;font-weight:600;">${p.win}-${p.lose}</td><td style="color:${p.diffScore >= 0 ? 'var(--red)' : '#34495e'}">${p.diffScore > 0 ? '+' + p.diffScore : p.diffScore}</td><td>${p.totalScore}</td></tr>`;
-                    });
-                    tbody.innerHTML = html;
-                }
-            }
+    function saveGameFrameworkToStorage() {
+        localStorage.setItem("yuyiqifei_active", "true");
+        localStorage.setItem("yuyiqifei_roomId", currentRoomId);
+        localStorage.setItem("yuyiqifei_isDouble", isDouble);
+        localStorage.setItem("yuyiqifei_numGroups", numGroups);
+        localStorage.setItem("yuyiqifei_numCourts", numCourts);
+        localStorage.setItem("yuyiqifei_numRounds", numRounds);
+        localStorage.setItem("yuyiqifei_playersPerGroup", playersPerGroup);
+        localStorage.setItem("yuyiqifei_nameMap", JSON.stringify(nameMap));
+        localStorage.setItem("yuyiqifei_generatedMatches", JSON.stringify(generatedMatches));
+        if (currentRoomId) {
+            localStorage.setItem("admin_room_" + currentRoomId, "true");
+        }
+    }
 
-            // ==================== URL Export Logic ====================
-            function generateShareLink() {
-                let currentScores = {};
-                for (let i = 0; i < generatedMatches.length; i++) {
-                    const valA = document.getElementById(`sA_${i}`) ? document.getElementById(`sA_${i}`).value : '';
-                    const valB = document.getElementById(`sB_${i}`) ? document.getElementById(`sB_${i}`).value : '';
-                    currentScores[`sA_${i}`] = valA;
-                    currentScores[`sB_${i}`] = valB;
-                }
+    function loadDataFromLocalStorage() {
+        isDouble = localStorage.getItem("yuyiqifei_isDouble") === "true";
+        numGroups = parseInt(localStorage.getItem("yuyiqifei_numGroups"));
+        numCourts = parseInt(localStorage.getItem("yuyiqifei_numCourts"));
+        numRounds = parseInt(localStorage.getItem("yuyiqifei_numRounds"));
+        playersPerGroup = parseInt(localStorage.getItem("yuyiqifei_playersPerGroup"));
+        nameMap = JSON.parse(localStorage.getItem("yuyiqifei_nameMap"));
+        generatedMatches = JSON.parse(localStorage.getItem("yuyiqifei_generatedMatches"));
+        currentRoomId = localStorage.getItem("yuyiqifei_roomId") || "";
+        
+        if (currentRoomId) window.location.hash = `#room=${currentRoomId}`;
 
-                updateUrlHashSilently(currentScores);
-                saveScoresToStorage(currentScores);
-                saveFullDataToStorage(currentScores);
+        renderTimelineMatrix(); 
+        renderMobileCards(); 
+        renderRankTablesFramework();
 
-                const shareUrl = window.location.href;
+        const savedScores = JSON.parse(localStorage.getItem("yuyiqifei_scores") || "{}");
+        for (let id in savedScores) {
+            let inputNode = document.getElementById(id); 
+            if (inputNode) inputNode.value = savedScores[id];
+        }
 
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(shareUrl).then(() => {
-                        alert('📋 专属观战网址已成功复制到剪贴板！\n\n💡 只需分享一次，记分员更新比分后：\n• 同设备观战标签页将自动实时同步\n• 跨设备用户刷新页面即可获取最新比分\n\n发到微信群后，大家点开链接即可观战！');
-                    }).catch(() => {
-                        fallbackCopyAction(shareUrl);
-                    });
-                } else {
-                    fallbackCopyAction(shareUrl);
-                }
-            }
+        document.getElementById("step1").style.display = "none";
+        document.getElementById("step2").style.display = "none";
+        document.getElementById("step3").style.display = "block";
 
-            function fallbackCopyAction(text) {
-                const textArea = document.createElement('textarea');
-                textarea.value = text;
-                textArea.style.position = 'fixed';
-                textArea.style.left = '-999999px';
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-                try {
-                    document.execCommand('copy');
-                    alert('📋 专属观战网址已成功复制到剪贴板！发到微信群后，群友点开即可实时观战。');
-                } catch (err) {
-                    alert('自动复制失败，请手动复制浏览器地址栏的完整网址发送给群友！');
-                }
-                document.body.removeChild(textArea);
-            }
+        liveCalculate();
+    }
 
-            // ==================== Recovery Bootloaders System ====================
-            function loadDataFromLocalStorage() {
-                const storedMatchId = localStorage.getItem('yuyiqifei_matchId');
-                if (!storedMatchId) return false;
+    function updateUrlHashWithScores(scoresMap) {
+        const snapshotPayload = { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: scoresMap };
+        const compressedDataStream = btoa(unescape(encodeURIComponent(JSON.stringify(snapshotPayload))));
+        window.history.replaceState(null, null, window.location.href.split('#')[0] + "#data=" + compressedDataStream);
+    }
 
-                const config = loadConfigFromStorage(storedMatchId);
-                if (!config) return false;
+    function generateShareLink() {
+        const shareUrl = window.location.href;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                alert("📋 专属观战链接已成功复制到剪贴板！\n\n发送至微信群后，群友点击即可进入【只读观战状态】，记分员更新比分后，群友再次点开此链接即可无感实时同步。");
+            }).catch(() => {
+                fallbackCopyAction(shareUrl);
+            });
+        } else {
+            fallbackCopyAction(shareUrl);
+        }
+    }
 
-                matchUUID = storedMatchId;
-                isDouble = config.isDouble;
-                numGroups = config.numGroups;
-                numCourts = config.numCourts;
-                numRounds = config.numRounds;
-                playersPerGroup = config.playersPerGroup;
-                nameMap = config.nameMap;
-                generatedMatches = config.generatedMatches;
+    function fallbackCopyAction(text) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed"; textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus(); textArea.select();
+        try {
+            document.execCommand('copy');
+            alert("📋 专属观战链接已成功复制到剪贴板！可以直接发送给群友观战。");
+        } catch (err) {
+            alert("自动复制失败，请手动复制地址栏的长网址发送给群友！");
+        }
+        document.body.removeChild(textArea);
+    }
 
-                document.getElementById('matchIdSpan').textContent = matchUUID;
-                document.getElementById('matchIdTag').style.display = 'block';
-
-                initBroadcastChannel();
-
-                renderTimelineMatrix();
-                renderMobileCards();
-                renderRankTablesFramework();
-
-                const savedScores = loadScoresFromStorage(storedMatchId);
-                for (let id in savedScores) {
+    function pollUrlHashChanges() {
+        const hash = window.location.hash;
+        if (hash.startsWith("#data=")) {
+            try {
+                const base64 = hash.replace("#data=", "");
+                const payload = JSON.parse(decodeURIComponent(escape(atob(base64))));
+                if (!isViewerMode) return; 
+                for (let id in payload.scores) {
                     let inputNode = document.getElementById(id);
-                    if (inputNode) inputNode.value = savedScores[id];
+                    if (inputNode && inputNode.value !== payload.scores[id]) {
+                        inputNode.value = payload.scores[id];
+                    }
                 }
-
-                document.getElementById('step1').style.display = 'none';
-                document.getElementById('step2').style.display = 'none';
-                document.getElementById('step3').style.display = 'block';
-
-                if (localStorage.getItem('yuyiqifei_admin_' + matchUUID) === 'true') {
-                    isViewerMode = false;
-                    document.getElementById('viewerModeBadge').style.display = 'none';
-                    document.getElementById('btnWipeSystem').style.display = 'block';
-                    document.getElementById('btnShareMatch').style.display = 'block';
-                } else {
-                    isViewerMode = true;
-                    document.getElementById('viewerModeBadge').style.display = 'block';
-                    document.getElementById('btnWipeSystem').style.display = 'none';
-                    document.getElementById('btnShareMatch').style.display = 'none';
-                }
-
                 liveCalculate();
-                return true;
+            } catch(e) {}
+        }
+    }
+
+    async function checkAndRestoreHistory() {
+        const hash = window.location.hash;
+
+        if (hash.startsWith("#room=") || hash.includes("&data=") || hash.startsWith("#data=")) {
+            let roomIdFromUrl = "";
+            let backupDataStream = "";
+
+            if (hash.startsWith("#data=")) {
+                backupDataStream = hash.replace("#data=", "");
+            } else {
+                const urlParams = hash.replace("#", "").split("&");
+                urlParams.forEach(param => {
+                    if (param.startsWith("room=")) roomIdFromUrl = param.replace("room=", "");
+                    if (param.startsWith("data=")) backupDataStream = param.replace("data=", "");
+                });
             }
 
-            function restoreFromUrlHash() {
-                const parsed = parseUrlHash();
-                if (!parsed) return false;
+            if (roomIdFromUrl && localStorage.getItem("admin_room_" + roomIdFromUrl) === "true") {
+                isViewerMode = false;
+                document.getElementById("viewerModeBadge").style.display = "none";
+                if (localStorage.getItem("yuyiqifei_active") === "true") {
+                    loadDataFromLocalStorage();
+                    return;
+                }
+            } else {
+                isViewerMode = true;
+                document.getElementById("viewerModeBadge").style.display = "block";
+                document.getElementById("btnWipeSystem").style.display = "none";
+                document.getElementById("btnShareMatch").style.display = "none";
+            }
 
-                if (parsed.source === 'legacy_url') {
-                    matchUUID = generateMatchUUID();
-                    isDouble = parsed.isDouble;
-                    numGroups = parsed.numGroups;
-                    numCourts = payload.numCourts;
-                    numRounds = parsed.numRounds;
-                    playersPerGroup = parsed.playersPerGroup;
-                    nameMap = parsed.nameMap;
-                    generatedMatches = parsed.generatedMatches;
+            currentRoomId = roomIdFromUrl;
 
-                    document.getElementById('matchIdSpan').textContent = matchUUID;
-                    document.getElementById('matchIdTag').style.display = 'block';
+            if (backupDataStream) {
+                try {
+                    const payload = JSON.parse(decodeURIComponent(escape(atob(backupDataStream))));
+                    isDouble = payload.isDouble; numGroups = payload.numGroups; numCourts = payload.numCourts;
+                    numRounds = payload.numRounds; playersPerGroup = payload.playersPerGroup;
+                    nameMap = payload.nameMap; generatedMatches = payload.generatedMatches;
 
-                    initBroadcastChannel();
-                    saveFullDataToStorage(parsed.scores || {});
+                    renderTimelineMatrix(); renderMobileCards(); renderRankTablesFramework();
 
-                    renderTimelineMatrix();
-                    renderMobileCards();
-                    renderRankTablesFramework();
-
-                    if (parsed.scores) {
-                        for (let id in parsed.scores) {
-                            let inputNode = document.getElementById(id);
-                            if (inputNode) inputNode.value = parsed.scores[id];
-                        }
+                    for (let id in payload.scores) {
+                        let inputNode = document.getElementById(id); if (inputNode) inputNode.value = payload.scores[id];
                     }
 
-                    document.getElementById('step1').style.display = 'none';
-                    document.getElementById('step2').style.display = 'none';
-                    document.getElementById('step3').style.display = 'block';
-
-                    isViewerMode = true;
-                    document.getElementById('viewerModeBadge').style.display = 'block';
-                    document.getElementById('btnWipeSystem').style.display = 'none';
-                    document.getElementById('btnShareMatch').style.display = 'none';
-
+                    document.getElementById("step1").style.display = "none";
+                    document.getElementById("step2").style.display = "none";
+                    document.getElementById("step3").style.display = "block";
+                    
                     liveCalculate();
-                    updateUrlHashSilently(parsed.scores || {});
-                    return true;
-                }
-
-                if (parsed.source === 'url' && parsed.uuid) {
-                    matchUUID = parsed.uuid;
-                    isDouble = parsed.isDouble;
-                    numGroups = parsed.numGroups;
-                    numCourts = parsed.numCourts;
-                    numRounds = parsed.numRounds;
-                    playersPerGroup = parsed.playersPerGroup;
-                    nameMap = parsed.nameMap;
-                    generatedMatches = parsed.generatedMatches;
-
-                    document.getElementById('matchIdSpan').textContent = matchUUID;
-                    document.getElementById('matchIdTag').style.display = 'block';
-
-                    initBroadcastChannel();
-
-                    const localConfig = loadConfigFromStorage(matchUUID);
-                    const localScores = loadScoresFromStorage(matchUUID);
-
-                    if (localConfig && localScores && Object.keys(localScores).length > 0) {
-                        // Maintain existing config boundaries
-                    } else {
-                        saveFullDataToStorage(parsed.scores || {});
-                        if (parsed.scores) saveScoresToStorage(parsed.scores);
-                    }
-
-                    renderTimelineMatrix();
-                    renderMobileCards();
-                    renderRankTablesFramework();
-
-                    const scoresToUse = (localScores && Object.keys(localScores).length > 0) ? localScores : (parsed.scores || {});
-                    for (let id in scoresToUse) {
-                        let inputNode = document.getElementById(id);
-                        if (inputNode) inputNode.value = scoresToUse[id];
-                    }
-
-                    document.getElementById('step1').style.display = 'none';
-                    document.getElementById('step2').style.display = 'none';
-                    document.getElementById('step3').style.display = 'block';
-
-                    if (localStorage.getItem('yuyiqifei_admin_' + matchUUID) === 'true') {
-                        isViewerMode = false;
-                        document.getElementById('viewerModeBadge').style.display = 'none';
-                        document.getElementById('btnWipeSystem').style.display = 'block';
-                        document.getElementById('btnShareMatch').style.display = 'block';
-                    } else {
-                        isViewerMode = true;
-                        document.getElementById('viewerModeBadge').style.display = 'block';
-                        document.getElementById('btnWipeSystem').style.display = 'none';
-                        document.getElementById('btnShareMatch').style.display = 'none';
-                    }
-
-                    liveCalculate();
-                    return true;
-                }
-
-                if (parsed.source === 'url_uuid_only' && parsed.uuid) {
-                    matchUUID = parsed.uuid;
-                    const config = loadConfigFromStorage(matchUUID);
-                    if (config) {
-                        isDouble = config.isDouble;
-                        numGroups = config.numGroups;
-                        numCourts = config.numCourts;
-                        numRounds = config.numRounds;
-                        playersPerGroup = config.playersPerGroup;
-                        nameMap = config.nameMap;
-                        generatedMatches = config.generatedMatches;
-
-                        document.getElementById('matchIdSpan').textContent = matchUUID;
-                        document.getElementById('matchIdTag').style.display = 'block';
-
-                        initBroadcastChannel();
-
-                        renderTimelineMatrix();
-                        renderMobileCards();
-                        renderRankTablesFramework();
-
-                        const savedScores = loadScoresFromStorage(matchUUID);
-                        for (let id in savedScores) {
-                            let inputNode = document.getElementById(id);
-                            if (inputNode) inputNode.value = savedScores[id];
-                        }
-
-                        document.getElementById('step1').style.display = 'none';
-                        document.getElementById('step2').style.display = 'none';
-                        document.getElementById('step3').style.display = 'block';
-
-                        if (localStorage.getItem('yuyiqifei_admin_' + matchUUID) === 'true') {
-                            isViewerMode = false;
-                            document.getElementById('viewerModeBadge').style.display = 'none';
-                            document.getElementById('btnWipeSystem').style.display = 'block';
-                            document.getElementById('btnShareMatch').style.display = 'block';
-                        } else {
-                            isViewerMode = true;
-                            document.getElementById('viewerModeBadge').style.display = 'block';
-                            document.getElementById('btnWipeSystem').style.display = 'none';
-                            document.getElementById('btnShareMatch').style.display = 'none';
-                        }
-
-                        liveCalculate();
-                        return true;
-                    } else {
-                        alert('⚠️ 未找到比赛数据。\n\n可能原因：\n1. 您与记分员不在同一设备上\n2. 比赛数据已被清除\n\n请联系记分员重新分享包含完整数据的链接。');
-                        return false;
-                    }
-                }
-
-                return false;
+                } catch(err) {}
             }
 
-            async function checkAndRestoreHistory() {
-                const hasActiveMatch = localStorage.getItem('yuyiqifei_active') === 'true';
-                const storedMatchId = localStorage.getItem('yuyiqifei_matchId');
-
-                const hash = window.location.hash;
-                const hasUrlData = hash && (hash.startsWith('#match=') || hash.startsWith('#data='));
-
-                if (hasUrlData) {
-                    const success = restoreFromUrlHash();
-                    if (success) {
-                        setupStorageEventListener();
-                        if (isViewerMode && matchUUID) {
-                            setupLocalStoragePolling();
-                        }
-                        return;
-                    }
-                }
-
-                if (hasActiveMatch && storedMatchId) {
-                    const success = loadDataFromLocalStorage();
-                    if (success) {
-                        setupStorageEventListener();
-                        if (isViewerMode && matchUUID) {
-                            setupLocalStoragePolling();
-                        }
-                        return;
-                    }
-                }
-
-                onParamChange();
+            if (isViewerMode) {
+                setInterval(pollUrlHashChanges, 2000);
             }
+            return;
+        }
 
-            function setupStorageEventListener() {
-                window.addEventListener('storage', function(event) {
-                    if (!matchUUID) return;
-                    const scoresKey = `match_${matchUUID}_scores`;
-                    if (event.key === scoresKey && event.newValue && !isReceivingUpdate) {
-                        try {
-                            const newScores = JSON.parse(event.newValue);
-                            isReceivingUpdate = true;
-                            applyScoresFromBroadcast(newScores);
-                            isReceivingUpdate = false;
-                            showSyncIndicator();
-                        } catch (e) {}
-                    }
-                    if (event.key === 'yuyiqifei_active' && event.newValue === null && isViewerMode) {
-                        alert('⚠️ 记分员已重置比赛，页面将刷新。');
-                        window.location.reload();
-                    }
-                });
-            }
+        if (localStorage.getItem("yuyiqifei_active") === "true") {
+            loadDataFromLocalStorage();
+            alert("✨ 【羽翼齐飞】已为您自动恢复上次未打完的球场现场！");
+            return;
+        }
+        onParamChange();
+    }
 
-            function setupLocalStoragePolling() {
-                if (!matchUUID) return;
-                const scoresKey = `match_${matchUUID}_scores`;
-                let lastCheckedScores = null;
+    function resetAllTournament() {
+        if (confirm("确定要彻底删除当前比赛并重组新一局吗？该操作不可撤销！")) {
+            localStorage.clear(); window.location.hash = ""; location.reload();
+        }
+    }
 
-                setInterval(() => {
-                    if (isReceivingUpdate) return;
-                    try {
-                        const raw = localStorage.getItem(scoresKey);
-                        if (raw) {
-                            const scores = JSON.parse(raw);
-                            const currentStr = JSON.stringify(scores);
-                            if (lastCheckedScores !== null && currentStr !== lastCheckedScores) {
-                                isReceivingUpdate = true;
-                                applyScoresFromBroadcast(scores);
-                                isReceivingUpdate = false;
-                                showSyncIndicator();
-                            }
-                            lastCheckedScores = currentStr;
-                        }
-                    } catch (e) {}
-                }, 1500);
-            }
-
-            function resetAllTournament() {
-                if (confirm('确定要彻底删除当前比赛缓存并重组新一局吗？该操作不可撤销！')) {
-                    if (broadcastChannel && matchUUID) {
-                        try {
-                            broadcastChannel.postMessage({ type: 'match_reset', matchId: matchUUID, timestamp: Date.now() });
-                        } catch (e) {}
-                    }
-                    if (broadcastChannel) {
-                        try { broadcastChannel.close(); } catch (e) {}
-                        broadcastChannel = null;
-                    }
-                    if (matchUUID) {
-                        localStorage.removeItem(`match_${matchUUID}_config`);
-                        localStorage.removeItem(`match_${matchUUID}_scores`);
-                        localStorage.removeItem('yuyiqifei_admin_' + matchUUID);
-                    }
-                    localStorage.removeItem('yuyiqifei_active');
-                    localStorage.removeItem('yuyiqifei_matchId');
-                    localStorage.removeItem('yuyiqifei_isDouble');
-                    localStorage.removeItem('yuyiqifei_numGroups');
-                    localStorage.removeItem('yuyiqifei_numCourts');
-                    localStorage.removeItem('yuyiqifei_numRounds');
-                    localStorage.removeItem('yuyiqifei_playersPerGroup');
-                    localStorage.removeItem('yuyiqifei_nameMap');
-                    localStorage.removeItem('yuyiqifei_generatedMatches');
-                    localStorage.removeItem('yuyiqifei_scores');
-                    matchUUID = null;
-                    window.location.hash = '';
-                    location.reload();
-                }
-            }
-
-            // ==================== Lifecycle Event Drivers ====================
-            window.onload = function() {
-                checkAndRestoreHistory();
-
-                window.addEventListener('beforeunload', function() {
-                    if (broadcastChannel) {
-                        try { broadcastChannel.close(); } catch (e) {}
-                        broadcastChannel = null;
-                    }
-                });
-
-                window.addEventListener('pagehide', function() {});
-
-                window.addEventListener('pageshow', function() {
-                    if (matchUUID && !broadcastChannel) {
-                        initBroadcastChannel();
-                    }
-                    if (isViewerMode && matchUUID) {
-                        const savedScores = loadScoresFromStorage(matchUUID);
-                        if (savedScores && Object.keys(savedScores).length > 0) {
-                            isReceivingUpdate = true;
-                            applyScoresFromBroadcast(savedScores);
-                            isReceivingUpdate = false;
-                        }
-                    }
-                });
-
-                setInterval(() => {
-                    if (matchUUID && !broadcastChannel && typeof BroadcastChannel !== 'undefined') {
-                        initBroadcastChannel();
-                    }
-                }, 5000);
-            };
-
-            window.toggleCourtInput = toggleCourtInput;
-            window.onParamChange = onParamChange;
-            window.backToStep1 = backToStep1;
-            window.goToStep2 = goToStep2;
-            window.lockNamesAndBuildAll = lockNamesAndBuildAll;
-            window.liveCalculate = liveCalculate;
-            window.generateShareLink = generateShareLink;
-            window.resetAllTournament = resetAllTournament;
-        })();
-    </script>
+    window.onload = checkAndRestoreHistory;
+</script>
 </body>
 </html>
