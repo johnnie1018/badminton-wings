@@ -283,7 +283,7 @@
             font-size: 1rem;
             margin-bottom: 20px;
             line-height: 1.4;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.088);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
         }
         
         /* Cupertino Style Rank Tables View Component Handler Mapping */
@@ -340,10 +340,6 @@
             pointer-events: none !important;
             user-select: none !important;
         }
-        body.viewer-mode-active .score-num:focus {
-            outline: none !important;
-            box-shadow: none !important;
-        }
     </style>
 </head>
 <body>
@@ -354,7 +350,6 @@
     
     <div id="viewerModeBadge" class="viewer-badge">👁️ 当前处于：群友实时观战模式（只读自动刷新）</div>
 
-    <!-- Step 1: Global Configurations Setup -->
     <div id="step1" class="card">
         <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; color: var(--ios-text);">赛事模式配置</div>
         
@@ -390,8 +385,7 @@
         <button type="button" class="btn-block btn-orange" id="btnNextStep" onclick="goToStep2()">下一步：录入选手名单</button>
     </div>
 
-    <!-- Step 2: Name Inputs Allocation Area -->
-    <div id="step2" class="card">
+    <div id="step2" class="card" style="display: none;">
         <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; color: var(--ios-text);">选手名单管理</div>
         <div id="dynamicNameSections"></div>
         
@@ -401,11 +395,9 @@
         </div>
     </div>
 
-    <!-- Step 3 & 4: Live Tracking Schedule & Standings View -->
     <div id="step3" style="display: none;">
-        <!-- Dynamic Sharing/Status Area Header -->
         <div id="sharingCardContainer" class="card" style="padding: 12px; text-align: center; background-color: #eaf4ff; border: none; margin-bottom: 16px;">
-            <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()" style="margin-bottom:0;">🔗 复制最新实时赛况链接分享至群聊</button>
+            <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()">🔗 复制专属【永久观战链接】发送至群聊</button>
         </div>
 
         <div class="section-title">✨ 赛程时间轴 (横向滑动查看各轮次)</div>
@@ -425,14 +417,16 @@
 </div>
 
 <script>
-    // [Comments preserved in English per directive]
+    // [Comments preserved in English per conversation directive parameters ledger]
+    const SYNC_BUS_URL = "https://ntfy.sh/yyqf_global_hub_"; 
+
     let isDouble = true;
     let numGroups = 2;
     let numCourts = 2;
     let numRounds = 9;
     let playersPerGroup = 6;
     let isViewerMode = false; 
-    let currentRoomId = "master_session";
+    let currentRoomId = ""; 
     
     let nameMap = {}; 
     let generatedMatches = []; 
@@ -501,9 +495,9 @@
             btnNext.disabled = true;
         } else {
             let closestRoundObj = validRounds.reduce((prev, curr) => {
-                return (Math.abs(curr.round - 9) < Math.abs(prev.round - 9)) ? cubicRound(curr) : cubicRound(prev);
+                return (Math.abs(curr.round - 9) < Math.abs(prev.round - 9)) ? cubicTrack(curr) : cubicTrack(prev);
             });
-            function cubicRound(o){return o;}
+            function cubicTrack(i){return i;}
 
             let validOptionsHtml = "";
             validRounds.forEach(r => {
@@ -546,7 +540,7 @@
         document.getElementById("step2").style.display = "block";
     }
 
-    function lockNamesAndBuildAll() {
+    async function lockNamesAndBuildAll() {
         nameMap = {};
         const shuffle = (array) => {
             for (let i = array.length - 1; i > 0; i--) {
@@ -574,7 +568,8 @@
             return;
         }
 
-        currentRoomId = "session_" + Math.random().toString(36).substr(2, 9);
+        // Establish the unique permanent room ID signature
+        currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-3);
         window.location.hash = `#room=${currentRoomId}`;
 
         renderTimelineMatrix();
@@ -719,8 +714,8 @@
                 let namesB = match.b.map(k => nameMap[k]).join("<br>");
                 let roAttr = isViewerMode ? "readonly" : "";
                 
-                let viewerInputStyle = isViewerMode ? "style='color:#aeaeb2; background-color:transparent; font-weight:500; pointer-events:none;'" : "";
-                let viewerCardStyle = isViewerMode ? "style='background-color:#fbfbfc; border:1px solid #f2f2f7;'" : "";
+                let viewerInputStyle = isViewerMode ? "style='color:#8e8e93; background-color:transparent; font-weight:600; pointer-events:none;'" : "";
+                let viewerCardStyle = isViewerMode ? "style='background-color:#e5e5ea;'" : "";
 
                 html += `
                     <div class="match-card">
@@ -794,7 +789,6 @@
                 let p = nameMap[k];
                 if (stats[p]) {
                     if (!isWinA) stats[p].win++; else stats[p].lose++;
-                    // FIXED: Extracted the rogue syntax parameter error variable 'x' that triggered runtime exceptions completely
                     stats[p].totalScore += scoreB; stats[p].diffScore += (scoreB - scoreA);
                 }
             });
@@ -802,7 +796,7 @@
 
         if (!isViewerMode) {
             localStorage.setItem("yuyiqifei_scores", JSON.stringify(currentScoresCache));
-            updateUrlHashWithScores(currentScoresCache);
+            pushStateToCloud(currentScoresCache);
         }
 
         const summaryBox = document.getElementById("groupSummary");
@@ -879,24 +873,88 @@
         liveCalculate();
     }
 
-    function updateUrlHashWithScores(scoresMap) {
+    // NEW: Highly available open data stream streaming mechanism (No signup required)
+    async function pushStateToCloud(scoresMap = null) {
+        if (!currentRoomId || isViewerMode) return;
+        const targetScores = scoresMap || JSON.parse(localStorage.getItem("yuyiqifei_scores") || "{}");
+        
+        // Dynamic payload serialization framework map update
         for (let i = 0; i < generatedMatches.length; i++) {
             generatedMatches[i].scoreA = document.getElementById(`sA_${i}`) ? document.getElementById(`sA_${i}`).value : "";
             generatedMatches[i].scoreB = document.getElementById(`sB_${i}`) ? document.getElementById(`sB_${i}`).value : "";
         }
+
+        const snapshotPayload = { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: targetScores };
         
-        const snapshotPayload = { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: scoresMap };
-        const urlSafeJsonString = encodeURIComponent(JSON.stringify(snapshotPayload));
-        const compressedDataStream = btoa(unescape(urlSafeJsonString));
-        window.history.replaceState(null, null, window.location.href.split('#')[0] + "#data=" + compressedDataStream);
+        try {
+            // Percent-encoding transformation layer to preserve multi-byte strings correctly
+            const safeDataStream = encodeURIComponent(JSON.stringify(snapshotPayload));
+            const base64Packet = btoa(unescape(safeDataStream));
+            
+            // Dispatch standard synchronous push into the global edge message broker pipeline 
+            await fetch(SYNC_BUS_URL + currentRoomId, {
+                method: 'POST',
+                headers: { 'X-Cache': 'yes' }, // Instruct edge nodes to persist packets for late arrivals
+                body: base64Packet
+            });
+        } catch(e) { console.warn("Cloud stream sync upstream latency detected."); }
+    }
+
+    // NEW: Cloud DB - Live polling listener module for cross-device active syncing tracking
+    async function fetchStateFromCloud() {
+        if (!currentRoomId) return;
+        try {
+            // Pull the latest message packets cached on Cloudflare server memory
+            const res = await fetch(`${SYNC_BUS_URL}${currentRoomId}/json?poll=1`);
+            if (res.status === 200) {
+                const text = await res.text();
+                if(!text.trim()) return;
+                
+                const lines = text.trim().split("\n");
+                let latestPayloadString = "";
+                
+                // Parse backward to find the absolute latest data packet signature block
+                for (let i = lines.length - 1; i >= 0; i--) {
+                    if (!lines[i]) continue;
+                    const logObj = JSON.parse(lines[i]);
+                    if (logObj.event === 'message' && logObj.message) {
+                        latestPayloadString = logObj.message;
+                        break;
+                    }
+                }
+
+                if (latestPayloadString) {
+                    const decodedPayload = JSON.parse(decodeURIComponent(escape(atob(latestPayloadString))));
+                    
+                    // Core viewer state sync mapping updates
+                    if (isViewerMode) {
+                        isDouble = decodedPayload.isDouble; numGroups = decodedPayload.numGroups; numCourts = decodedPayload.numCourts;
+                        numRounds = decodedPayload.numRounds; playersPerGroup = decodedPayload.playersPerGroup;
+                        nameMap = decodedPayload.nameMap; generatedMatches = decodedPayload.generatedMatches;
+                    }
+
+                    for (let id in decodedPayload.scores) {
+                        let inputNode = document.getElementById(id);
+                        if (inputNode && inputNode.value !== decodedPayload.scores[id]) {
+                            inputNode.value = decodedPayload.scores[id];
+                        }
+                    }
+                    liveCalculate();
+                }
+            }
+        } catch(e) { console.warn("Cloud parsing pipeline skip."); }
     }
 
     function generateShareLink() {
+        // Enforce state compilation directly before copying actions trigger
         liveCalculate();
-        const shareUrl = window.location.href;
+        
+        let baseUrl = window.location.href.split('#')[0];
+        const shareUrl = baseUrl + "#room=" + currentRoomId;
+        
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(shareUrl).then(() => {
-                alert("📋 包含【最新比分】的观战链接已复制到剪贴板！\n\n发送至群聊后，群友点开即可直接看到目前的实时比分和大榜！后期你更新了比分，只需要再次点这个蓝色按钮复制新链接即可！");
+                alert("📋 永久专属观战链接已成功复制到剪贴板！\n\n发送至群聊后，群友点击进入即可【保持常开状态】。记分员此后改动比分，群友手机将全自动、不需要你重复发链接！");
             }).catch(() => {
                 fallbackCopyAction(shareUrl);
             });
@@ -913,54 +971,30 @@
         textArea.focus(); textArea.select();
         try {
             document.execCommand('copy');
-            alert("📋 包含【最新比分】的观战链接已成功复制！可以直接发送给群友观战。");
+            alert("📋 永久专属观战链接已成功复制！可以直接发送给群友观战。");
         } catch (err) {
             alert("自动复制失败，请手动复制地址栏的长网址发送给群友！");
         }
         document.body.removeChild(textArea);
     }
 
-    function pollUrlHashChanges() {
-        const hash = window.location.hash;
-        if (hash.startsWith("#data=")) {
-            try {
-                const base64 = hash.replace("#data=", "");
-                const unescapedPayload = decodeURIComponent(escape(atob(base64)));
-                const payload = JSON.parse(unescapedPayload);
-                if (!isViewerMode) return; 
-                
-                for (let id in payload.scores) {
-                    let inputNode = document.getElementById(id);
-                    if (inputNode && inputNode.value !== payload.scores[id]) {
-                        inputNode.value = payload.scores[id];
-                    }
-                }
-                liveCalculate();
-            } catch(e) { console.warn("Polling parsing skipped:", e); }
-        }
-    }
-
     async function checkAndRestoreHistory() {
         const hash = window.location.hash;
 
-        if (hash.startsWith("#room=") || hash.includes("&data=") || hash.startsWith("#data=")) {
-            let roomIdFromUrl = "";
-            let backupDataStream = "";
-
-            if (hash.startsWith("#data=")) {
-                backupDataStream = hash.replace("#data=", "");
-            } else {
-                const urlParams = hash.replace("#", "").split("&");
-                urlParams.forEach(param => {
-                    if (param.startsWith("room=")) roomIdFromUrl = param.replace("room=", "");
-                    if (param.startsWith("data=")) backupDataStream = param.replace("data=", "");
-                });
-            }
-
-            const storedMatchId = localStorage.getItem("yuyiqifei_matchId");
-            const isLocalAdminTokenPresent = roomIdFromUrl && (localStorage.getItem("admin_room_" + roomIdFromUrl) === "true");
+        // HIGH PRIORITY AUDIT: Scan URL query bounds for room token identifiers
+        if (hash.startsWith("#room=")) {
+            const roomIdFromUrl = hash.replace("#room=", "");
             
-            if (backupDataStream && !isLocalAdminTokenPresent) {
+            // Validate creator authorization via persistent local asset checks
+            if (localStorage.getItem("admin_room_" + roomIdFromUrl) === "true" || localStorage.getItem("yuyiqifei_active") === "true") {
+                isViewerMode = false;
+                document.body.classList.remove("viewer-mode-active");
+                document.getElementById("viewerModeBadge").style.display = "none";
+                document.getElementById("sharingCardContainer").style.display = "block";
+                loadDataFromLocalStorage();
+                return;
+            } else {
+                // Otherwise initialize profile strictly as a read-only viewer tracking node
                 isViewerMode = true;
                 document.body.classList.add("viewer-mode-active"); 
                 document.getElementById("viewerModeBadge").style.display = "block";
@@ -968,60 +1002,22 @@
                 
                 const shareCard = document.getElementById("sharingCardContainer");
                 shareCard.innerHTML = `<button type="button" class="btn-block" id="btnShareMatch">👁️ 当前处于：群友实时观战模式</button>`;
-            } else if (isLocalAdminTokenPresent || localStorage.getItem("yuyiqifei_active") === "true") {
-                isViewerMode = false;
-                document.body.classList.remove("viewer-mode-active");
-                document.getElementById("viewerModeBadge").style.display = "none";
-                document.getElementById("sharingCardContainer").style.display = "block";
-                loadDataFromLocalStorage();
-                return;
             }
 
             currentRoomId = roomIdFromUrl;
 
-            if (backupDataStream) {
-                try {
-                    const decodedDataStream = decodeURIComponent(escape(atob(backupDataStream)));
-                    const payload = JSON.parse(decodedDataStream);
-                    
-                    isDouble = payload.isDouble; numGroups = payload.numGroups; numCourts = payload.numCourts;
-                    numRounds = payload.numRounds; playersPerGroup = payload.playersPerGroup;
-                    nameMap = payload.nameMap; generatedMatches = payload.generatedMatches;
-
-                    renderTimelineMatrix(); 
-                    renderMobileCards(); 
-                    renderRankTablesFramework();
-
-                    if (payload.scores) {
-                        for (let id in payload.scores) {
-                            let inputNode = document.getElementById(id); 
-                            if (inputNode) inputNode.value = payload.scores[id];
-                        }
-                    } else if (generatedMatches && generatedMatches.length > 0) {
-                        generatedMatches.forEach((m, idx) => {
-                            let nodeA = document.getElementById(`sA_${idx}`);
-                            let nodeB = document.getElementById(`sB_${idx}`);
-                            if(nodeA && m.scoreA !== undefined) nodeA.value = m.scoreA;
-                            if(nodeB && m.scoreB !== undefined) nodeB.value = m.scoreB;
-                        });
-                    }
-
-                    document.getElementById("step1").style.display = "none";
-                    document.getElementById("step2").style.display = "none";
-                    document.getElementById("step3").style.display = "block";
-                    
-                    liveCalculate();
-                } catch(err) {
-                    console.error("Hybrid packet parsing error:", err);
-                }
-            }
-
+            // Viewer node data synchronization query flow mapping
             if (isViewerMode) {
-                setInterval(pollUrlHashChanges, 2000);
+                // Initialize framework tables block instantly
+                await fetchStateFromCloud();
+                
+                // Spin up silent polling loops checker every 4 seconds seamlessly
+                setInterval(fetchStateFromCloud, 4000);
             }
             return;
         }
 
+        // Standard native offline cache scanner fallback
         if (localStorage.getItem("yuyiqifei_active") === "true") {
             isViewerMode = false;
             document.body.classList.remove("viewer-mode-active");
