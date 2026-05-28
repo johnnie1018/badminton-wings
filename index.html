@@ -255,6 +255,7 @@
             background: #f2f2f7;
             padding: 3px 6px;
             border-radius: 20px;
+            transition: all 0.2s ease;
         }
         .score-num {
             width: 36px;
@@ -271,7 +272,8 @@
             color: var(--ios-primary-dark);
         }
         .score-num[readonly] {
-            color: #646466;
+            color: #8e8e93;
+            cursor: default;
         }
         .colon { font-weight: 700; color: #aeaeb2; margin: 0 2px; font-size: 1.1rem; }
 
@@ -326,6 +328,7 @@
     
     <div id="viewerModeBadge" class="viewer-badge">👁️ 当前处于：群友实时观战模式（只读自动刷新）</div>
 
+    <!-- Step 1: Global Configurations Setup -->
     <div id="step1" class="card">
         <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; color: var(--ios-text);">赛事模式配置</div>
         
@@ -361,6 +364,7 @@
         <button type="button" class="btn-block btn-orange" id="btnNextStep" onclick="goToStep2()">下一步：录入选手名单</button>
     </div>
 
+    <!-- Step 2: Name Inputs Allocation Area -->
     <div id="step2" class="card" style="display: none;">
         <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; color: var(--ios-text);">选手名单管理</div>
         <div id="dynamicNameSections"></div>
@@ -371,8 +375,10 @@
         </div>
     </div>
 
+    <!-- Step 3 & 4: Live Tracking Schedule & Standings View -->
     <div id="step3" style="display: none;">
-        <div class="card" style="padding: 12px; text-align: center; background-color: #eaf4ff; border: none; margin-bottom: 16px;">
+        <!-- Dynamic Sharing/Status Area Header -->
+        <div id="sharingCardContainer" class="card" style="padding: 12px; text-align: center; background-color: #eaf4ff; border: none; margin-bottom: 16px;">
             <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()" style="margin-bottom:0;">🔗 复制最新实时赛况链接分享至群聊</button>
         </div>
 
@@ -399,7 +405,7 @@
     let numRounds = 9;
     let playersPerGroup = 6;
     let isViewerMode = false; 
-    let currentRoomId = "master_session"; // Fixed anchor key for offline URL flow maps
+    let currentRoomId = "master_session";
     
     let nameMap = {}; 
     let generatedMatches = []; 
@@ -540,7 +546,6 @@
             return;
         }
 
-        // Build absolute master state record onto storage token
         currentRoomId = "session_" + Math.random().toString(36).substr(2, 9);
         window.location.hash = `#room=${currentRoomId}`;
 
@@ -675,10 +680,6 @@
         container.innerHTML = html;
     }
 
-    function RichmondRenderTimelineMatrixEmpty() {
-        document.getElementById("dynamicTimeline").innerHTML = `<div style='text-align:center; padding:20px; color:var(--ios-subtext); font-weight:500;'>⌛ 正在同步对阵，请稍候...</div>`;
-    }
-
     function renderMobileCards() {
         const container = document.getElementById("dynamicScheduleList");
         let html = "";
@@ -689,15 +690,19 @@
                 let namesA = match.a.map(k => nameMap[k]).join("<br>");
                 let namesB = match.b.map(k => nameMap[k]).join("<br>");
                 let roAttr = isViewerMode ? "readonly" : "";
+                
+                // FIXED: Viewer mode inputs style inject directly for visual graying feedback
+                let viewerInputStyle = isViewerMode ? "style='color:#aeaeb2; background-color:transparent; font-weight:500; pointer-events:none;'" : "";
+                let viewerCardStyle = isViewerMode ? "style='background-color:#fbfbfc; border:1px solid #f2f2f7;'" : "";
 
                 html += `
                     <div class="match-card">
                         <span class="court-label">${match.court}</span>
                         <div class="team-players team-a">${namesA}</div>
-                        <div class="score-area">
-                            <input type="number" inputmode="numeric" class="score-num" id="sA_${globalIdx}" ${roAttr} oninput="liveCalculate()">
+                        <div class="score-area" ${viewerCardStyle}>
+                            <input type="number" inputmode="numeric" class="score-num" id="sA_${globalIdx}" ${roAttr} ${viewerInputStyle} oninput="liveCalculate()">
                             <span class="colon">:</span>
-                            <input type="number" inputmode="numeric" class="score-num" id="sB_${globalIdx}" ${roAttr} oninput="liveCalculate()">
+                            <input type="number" inputmode="numeric" class="score-num" id="sB_${globalIdx}" ${roAttr} ${viewerInputStyle} oninput="liveCalculate()">
                         </div>
                         <div class="team-players team-b">${namesB}</div>
                     </div>`;
@@ -736,6 +741,10 @@
             const valB = document.getElementById(`sB_${i}`) ? document.getElementById(`sB_${i}`).value : "";
 
             currentScoresCache[`sA_${i}`] = valA; currentScoresCache[`sB_${i}`] = valB;
+            
+            generatedMatches[i].scoreA = valA;
+            generatedMatches[i].scoreB = valB;
+
             if (valA === "" || valB === "") continue;
 
             const scoreA = parseInt(valA), scoreB = parseInt(valB);
@@ -825,8 +834,6 @@
         generatedMatches = JSON.parse(localStorage.getItem("yuyiqifei_generatedMatches"));
         currentRoomId = localStorage.getItem("yuyiqifei_roomId") || "";
         
-        if (currentRoomId) window.location.hash = `#room=${currentRoomId}`;
-
         renderTimelineMatrix(); 
         renderMobileCards(); 
         renderRankTablesFramework();
@@ -844,21 +851,24 @@
         liveCalculate();
     }
 
-    // FIXED: Upstream data encoder with mandatory URL-safe encoding conversion layer
     function updateUrlHashWithScores(scoresMap) {
+        for (let i = 0; i < generatedMatches.length; i++) {
+            generatedMatches[i].scoreA = document.getElementById(`sA_${i}`) ? document.getElementById(`sA_${i}`).value : "";
+            generatedMatches[i].scoreB = document.getElementById(`sB_${i}`) ? document.getElementById(`sB_${i}`).value : "";
+        }
+        
         const snapshotPayload = { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: scoresMap };
-        // Step A: Perform explicit percent-encoding to safeguard multi-byte character alignments
         const urlSafeJsonString = encodeURIComponent(JSON.stringify(snapshotPayload));
-        // Step B: Compress robust string stream into base64 block structures securely
         const compressedDataStream = btoa(unescape(urlSafeJsonString));
         window.history.replaceState(null, null, window.location.href.split('#')[0] + "#data=" + compressedDataStream);
     }
 
     function generateShareLink() {
+        liveCalculate();
         const shareUrl = window.location.href;
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(shareUrl).then(() => {
-                alert("📋 专属观战链接已成功复制到剪贴板！\n\n发送至微信群后，群友点击即可进入观战，记分员在后续比赛中更新比分后，群友只需再次点击微信群内的这个链接，无需你重复发送！");
+                alert("📋 包含【最新比分】的观战链接已复制到剪贴板！\n\n发送至群聊后，群友点开即可直接看到目前的实时比分和大榜！后期你更新了比分，只需要再次点这个蓝色按钮复制新链接即可！");
             }).catch(() => {
                 fallbackCopyAction(shareUrl);
             });
@@ -875,23 +885,22 @@
         textArea.focus(); textArea.select();
         try {
             document.execCommand('copy');
-            alert("📋 专属观战链接已成功复制到剪贴板！可以直接发送给群友观战。");
+            alert("📋 包含【最新比分】的观战链接已成功复制！可以直接发送给群友观战。");
         } catch (err) {
             alert("自动复制失败，请手动复制地址栏的长网址发送给群友！");
         }
         document.body.removeChild(textArea);
     }
 
-    // FIXED: Downstream polling stream decoder with error catching mechanism
     function pollUrlHashChanges() {
         const hash = window.location.hash;
         if (hash.startsWith("#data=")) {
             try {
                 const base64 = hash.replace("#data=", "");
-                // Mirror decoder conversions accurately to extract frames safely
                 const unescapedPayload = decodeURIComponent(escape(atob(base64)));
                 const payload = JSON.parse(unescapedPayload);
                 if (!isViewerMode) return; 
+                
                 for (let id in payload.scores) {
                     let inputNode = document.getElementById(id);
                     if (inputNode && inputNode.value !== payload.scores[id]) {
@@ -922,25 +931,29 @@
 
             const storedMatchId = localStorage.getItem("yuyiqifei_matchId");
             const isLocalAdminTokenPresent = roomIdFromUrl && (localStorage.getItem("admin_room_" + roomIdFromUrl) === "true");
-            const isPayloadMatchUUIDAdmin = storedMatchId && hash.includes(storedMatchId);
-
-            if (isLocalAdminTokenPresent || isPayloadMatchUUIDAdmin || localStorage.getItem("yuyiqifei_active") === "true") {
+            
+            if (isLocalAdminTokenPresent || localStorage.getItem("yuyiqifei_active") === "true") {
                 isViewerMode = false;
                 document.getElementById("viewerModeBadge").style.display = "none";
+                document.getElementById("sharingCardContainer").style.display = "block";
                 loadDataFromLocalStorage();
                 return;
             } else {
                 isViewerMode = true;
                 document.getElementById("viewerModeBadge").style.display = "block";
                 document.getElementById("btnWipeSystem").style.display = "none";
-                document.getElementById("btnShareMatch").style.display = "none";
+                
+                // FIXED: UI Optimization for Viewer mode framework settings
+                const shareCard = document.getElementById("sharingCardContainer");
+                shareCard.style.backgroundColor = "transparent";
+                shareCard.style.padding = "0";
+                shareCard.innerHTML = `<div style="text-align:center; padding:12px; border-radius:var(--radius-main); background:rgba(142,142,147,0.08); color:var(--ios-subtext); font-weight:600; font-size:0.9rem;">👁️ 当前处于：群友实时观战模式</div>`;
             }
 
             currentRoomId = roomIdFromUrl;
 
             if (backupDataStream) {
                 try {
-                    // FIXED: Double-layered safe base64 packet translation layer
                     const decodedDataStream = decodeURIComponent(escape(atob(backupDataStream)));
                     const payload = JSON.parse(decodedDataStream);
                     
@@ -950,8 +963,18 @@
 
                     renderTimelineMatrix(); renderMobileCards(); renderRankTablesFramework();
 
-                    for (let id in payload.scores) {
-                        let inputNode = document.getElementById(id); if (inputNode) inputNode.value = payload.scores[id];
+                    if (payload.scores) {
+                        for (let id in payload.scores) {
+                            let inputNode = document.getElementById(id); 
+                            if (inputNode) inputNode.value = payload.scores[id];
+                        }
+                    } else if (generatedMatches && generatedMatches.length > 0) {
+                        generatedMatches.forEach((m, idx) => {
+                            let nodeA = document.getElementById(`sA_${idx}`);
+                            let nodeB = document.getElementById(`sB_${idx}`);
+                            if(nodeA && m.scoreA !== undefined) nodeA.value = m.scoreA;
+                            if(nodeB && m.scoreB !== undefined) nodeB.value = m.scoreB;
+                        });
                     }
 
                     document.getElementById("step1").style.display = "none";
@@ -961,18 +984,19 @@
                     liveCalculate();
                 } catch(err) {
                     console.error("Hybrid packet parsing error:", err);
-                    RichmondRenderTimelineMatrixEmpty();
                 }
             }
 
             if (isViewerMode) {
-                // Check address signature shifts every 2 seconds asynchronously
                 setInterval(pollUrlHashChanges, 2000);
             }
             return;
         }
 
         if (localStorage.getItem("yuyiqifei_active") === "true") {
+            isViewerMode = false;
+            document.getElementById("viewerModeBadge").style.display = "none";
+            document.getElementById("sharingCardContainer").style.display = "block";
             loadDataFromLocalStorage();
             alert("✨ 【羽翼齐飞】已为您自动恢复上次未打完的球场现场！");
             return;
