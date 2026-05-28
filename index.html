@@ -283,7 +283,7 @@
             font-size: 1rem;
             margin-bottom: 20px;
             line-height: 1.4;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.088);
         }
         
         /* Cupertino Style Rank Tables View Component Handler Mapping */
@@ -354,6 +354,7 @@
     
     <div id="viewerModeBadge" class="viewer-badge">👁️ 当前处于：群友实时观战模式（只读自动刷新）</div>
 
+    <!-- Step 1: Global Configurations Setup -->
     <div id="step1" class="card">
         <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; color: var(--ios-text);">赛事模式配置</div>
         
@@ -389,7 +390,8 @@
         <button type="button" class="btn-block btn-orange" id="btnNextStep" onclick="goToStep2()">下一步：录入选手名单</button>
     </div>
 
-    <div id="step2" class="card" style="display: none;">
+    <!-- Step 2: Name Inputs Allocation Area -->
+    <div id="step2" class="card">
         <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; color: var(--ios-text);">选手名单管理</div>
         <div id="dynamicNameSections"></div>
         
@@ -399,7 +401,9 @@
         </div>
     </div>
 
+    <!-- Step 3 & 4: Live Tracking Schedule & Standings View -->
     <div id="step3" style="display: none;">
+        <!-- Dynamic Sharing/Status Area Header -->
         <div id="sharingCardContainer" class="card" style="padding: 12px; text-align: center; background-color: #eaf4ff; border: none; margin-bottom: 16px;">
             <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()" style="margin-bottom:0;">🔗 复制最新实时赛况链接分享至群聊</button>
         </div>
@@ -715,14 +719,17 @@
                 let namesB = match.b.map(k => nameMap[k]).join("<br>");
                 let roAttr = isViewerMode ? "readonly" : "";
                 
+                let viewerInputStyle = isViewerMode ? "style='color:#aeaeb2; background-color:transparent; font-weight:500; pointer-events:none;'" : "";
+                let viewerCardStyle = isViewerMode ? "style='background-color:#fbfbfc; border:1px solid #f2f2f7;'" : "";
+
                 html += `
                     <div class="match-card">
                         <span class="court-label">${match.court}</span>
                         <div class="team-players team-a">${namesA}</div>
-                        <div class="score-area">
-                            <input type="number" inputmode="numeric" class="score-num" id="sA_${globalIdx}" ${roAttr} oninput="liveCalculate()">
+                        <div class="score-area" ${viewerCardStyle}>
+                            <input type="number" inputmode="numeric" class="score-num" id="sA_${globalIdx}" ${roAttr} ${viewerInputStyle} oninput="liveCalculate()">
                             <span class="colon">:</span>
-                            <input type="number" inputmode="numeric" class="score-num" id="sB_${globalIdx}" ${roAttr} oninput="liveCalculate()">
+                            <input type="number" inputmode="numeric" class="score-num" id="sB_${globalIdx}" ${roAttr} ${viewerInputStyle} oninput="liveCalculate()">
                         </div>
                         <div class="team-players team-b">${namesB}</div>
                     </div>`;
@@ -787,6 +794,7 @@
                 let p = nameMap[k];
                 if (stats[p]) {
                     if (!isWinA) stats[p].win++; else stats[p].lose++;
+                    // FIXED: Extracted the rogue syntax parameter error variable 'x' that triggered runtime exceptions completely
                     stats[p].totalScore += scoreB; stats[p].diffScore += (scoreB - scoreA);
                 }
             });
@@ -935,7 +943,6 @@
     async function checkAndRestoreHistory() {
         const hash = window.location.hash;
 
-        // HIGH PRIORITY: If hash contains data token, FORCE viewer mode instantly to bypass any local admin storage corruption
         if (hash.startsWith("#room=") || hash.includes("&data=") || hash.startsWith("#data=")) {
             let roomIdFromUrl = "";
             let backupDataStream = "";
@@ -950,12 +957,12 @@
                 });
             }
 
+            const storedMatchId = localStorage.getItem("yuyiqifei_matchId");
             const isLocalAdminTokenPresent = roomIdFromUrl && (localStorage.getItem("admin_room_" + roomIdFromUrl) === "true");
             
-            // STRICT RE-ROUTE: If there's an explicit data payload block AND it's NOT explicitly an admin room token, force viewer lock
             if (backupDataStream && !isLocalAdminTokenPresent) {
                 isViewerMode = true;
-                document.body.classList.add("viewer-mode-active"); // CSS Inject
+                document.body.classList.add("viewer-mode-active"); 
                 document.getElementById("viewerModeBadge").style.display = "block";
                 document.getElementById("btnWipeSystem").style.display = "none";
                 
