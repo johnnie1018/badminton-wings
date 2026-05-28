@@ -312,9 +312,8 @@
 </div>
 
 <script>
-    // --- ⚠️ KVDB.io Free Cloud Configuration Area ⚠️ ---
-    // You can customize this string to any unique key word to isolate your data partition natively
-    const KVDB_BUCKET_ID = "yuyiqifei_badminton_v1"; 
+    // NEW: Highly available open CORS public data infrastructure endpoint (No signup required)
+    const CLOUD_DATABASE_URL = "https://api.restful-api.dev/objects";
 
     let isDouble = true;
     let numGroups = 2;
@@ -322,7 +321,7 @@
     let numRounds = 9;
     let playersPerGroup = 6;
     let isViewerMode = false; 
-    let currentRoomId = ""; // Current active sub-key session ID identifier
+    let currentRoomId = ""; 
     
     let nameMap = {}; 
     let generatedMatches = []; 
@@ -462,10 +461,6 @@
             alert("无法计算出完美对齐矩阵，请返回调整！");
             return;
         }
-        
-        // Generate random unique room token key natively
-        currentRoomId = "room_" + Math.random().toString(36).substr(2, 9);
-        window.location.hash = `#room=${currentRoomId}`;
 
         renderTimelineMatrix();
         renderMobileCards();
@@ -474,9 +469,8 @@
         document.getElementById("step2").style.display = "none";
         document.getElementById("step3").style.display = "block";
         
-        saveGameFrameworkToStorage();
-        // Fire initial empty state upload payload onto KV store endpoint
-        await pushStateToCloud();
+        // Asynchronously request a dedicated cloud bucket row entry
+        await createCloudRoom();
         liveCalculate();
     }
 
@@ -686,7 +680,7 @@
 
         if (!isViewerMode) {
             localStorage.setItem("yuyiqifei_scores", JSON.stringify(currentScoresCache));
-            // Asynchronously dispatch points data packet to cloud storage
+            // Push match points snapshots upstream into DB entry mapping slots
             pushStateToCloud(currentScoresCache);
         }
 
@@ -734,41 +728,62 @@
         localStorage.setItem("yuyiqifei_generatedMatches", JSON.stringify(generatedMatches));
     }
 
-    // NEW: KVDB.io - Push complete state data object upstream via HTTP PUT
+    // NEW: Cloud DB - Init and generate a cloud database record row via standard REST POST
+    async function createCloudRoom() {
+        const payload = {
+            name: "YuYiQiFei_Badminton_Data",
+            data: { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: {} }
+        };
+        try {
+            const res = await fetch(CLOUD_DATABASE_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.id) {
+                currentRoomId = data.id;
+                window.location.hash = `#room=${currentRoomId}`;
+                saveGameFrameworkToStorage();
+            }
+        } catch(e) { console.error("Cloud database instantiation payload error", e); }
+    }
+
+    // NEW: Cloud DB - Update modified real-time score maps into database row entries via PUT
     async function pushStateToCloud(scoresMap = null) {
         if (!currentRoomId) return;
         const targetScores = scoresMap || JSON.parse(localStorage.getItem("yuyiqifei_scores") || "{}");
         
-        const payload = { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: targetScores };
-        const url = `https://kvdb.io/${KVDB_BUCKET_ID}/${currentRoomId}`;
-        
+        const payload = {
+            name: "YuYiQiFei_Badminton_Data",
+            data: { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: targetScores }
+        };
+        const url = `${CLOUD_DATABASE_URL}/${currentRoomId}`;
         try {
             await fetch(url, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-        } catch(e) { console.error("Cloud synchronization storage push error", e); }
+        } catch(e) { console.error("Cloud tracking streaming upload failure", e); }
     }
 
-    // NEW: KVDB.io - Fetch latest remote data mapping packet via HTTP GET (Polling)
+    // NEW: Cloud DB - Live viewer query component via polling GET executions
     async function fetchStateFromCloud() {
         if (!currentRoomId) return;
-        const url = `https://kvdb.io/${KVDB_BUCKET_ID}/${currentRoomId}`;
-        
+        const url = `${CLOUD_DATABASE_URL}/${currentRoomId}`;
         try {
             const res = await fetch(url);
             if (res.status === 200) {
-                const payload = await res.json();
+                const result = await res.json();
+                const payload = result.data; // Extract structural data nesting layer
                 
-                // If viewer, sync framework parameters just in case
                 if (isViewerMode) {
                     isDouble = payload.isDouble; numGroups = payload.numGroups; numCourts = payload.numCourts;
                     numRounds = payload.numRounds; playersPerGroup = payload.playersPerGroup;
                     nameMap = payload.nameMap; generatedMatches = payload.generatedMatches;
                 }
 
-                // Inject points values directly back into DOM elements safely
                 for (let id in payload.scores) {
                     let inputNode = document.getElementById(id);
                     if (inputNode && inputNode.value !== payload.scores[id]) {
@@ -777,7 +792,7 @@
                 }
                 liveCalculate();
             }
-        } catch(e) { console.error("Cloud pulling query execution network error", e); }
+        } catch(e) { console.error("Cloud data polling query execution failure", e); }
     }
 
     function generateShareLink() {
@@ -785,7 +800,7 @@
         const shareUrl = window.location.origin + window.location.pathname + "#room=" + currentRoomId;
         
         navigator.clipboard.writeText(shareUrl).then(() => {
-            alert("📋 永久观战网址已成功复制到剪贴板！发到微信群后，大家点开链接随时能看到最新比分，无须重复发链接。");
+            alert("📋 永久专属观战网址已成功复制！发到微信群后，大家点开链接随时能看到最新比分，无须重复发送链接。");
         }).catch(() => {
             alert("请手动复制浏览器地址栏的完整网址发送给群友观战！");
         });
@@ -794,7 +809,7 @@
     async function checkAndRestoreHistory() {
         const hash = window.location.hash;
 
-        // NEW: Intercept cloud shared room string tokens explicitly
+        // NEW: Intercept cloud shared room tokens from browser URL mappings
         if (hash.startsWith("#room=")) {
             isViewerMode = true;
             currentRoomId = hash.replace("#room=", "");
@@ -803,12 +818,13 @@
             document.getElementById("btnWipeSystem").style.display = "none";
             document.getElementById("btnShareMatch").style.display = "none";
 
-            // Fetch initial remote metadata snapshot to draw the tables framework
-            const url = `https://kvdb.io/${KVDB_BUCKET_ID}/${currentRoomId}`;
+            const url = `${CLOUD_DATABASE_URL}/${currentRoomId}`;
             try {
                 const res = await fetch(url);
                 if (res.status === 200) {
-                    const payload = await res.json();
+                    const result = await res.json();
+                    const payload = result.data; // Unpack response envelope 
+                    
                     isDouble = payload.isDouble; numGroups = payload.numGroups; numCourts = payload.numCourts;
                     numRounds = payload.numRounds; playersPerGroup = payload.playersPerGroup;
                     nameMap = payload.nameMap; generatedMatches = payload.generatedMatches;
@@ -825,17 +841,17 @@
                     
                     liveCalculate();
 
-                    // Spin up the asynchronous 5-second polling listener thread loop
+                    // Spin up the asynchronous 5-second polling runtime loop listener
                     setInterval(fetchStateFromCloud, 5000);
                 } else {
                     alert("未能在云端找到对应的房间数据，可能比赛已被清空。");
                     window.location.hash = ""; location.reload();
                 }
                 return;
-            } catch (e) { console.error("Cloud bootloader validation error", e); }
+            } catch (e) { console.error("Cloud reader schema bootstrap initialization issue", e); }
         }
 
-        // Native LocalStorage state check fallback logic
+        // Native LocalStorage local state parser fallback tracking 
         if (localStorage.getItem("yuyiqifei_active") === "true") {
             isDouble = localStorage.getItem("yuyiqifei_isDouble") === "true";
             numGroups = parseInt(localStorage.getItem("yuyiqifei_numGroups"));
