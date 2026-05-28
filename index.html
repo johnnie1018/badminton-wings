@@ -415,619 +415,539 @@
         <button type="button" class="btn-block btn-orange" id="btnWipeSystem" style="margin-top:16px; background-color: var(--ios-red); box-shadow: 0 4px 12px rgba(255, 59, 48, 0.15);" onclick="resetAllTournament()">清空整个赛事重新配置</button>
     </div>
 </div>
-
 <script>
-    // [Comments preserved in English per conversation directive parameters ledger]
-    const SYNC_BUS_URL = "https://ntfy.sh/yyqf_global_hub_"; 
+    const SYNC_BUS_URL = "https://ntfy.sh/yyqf_global_hub_";
 
     let isDouble = true;
     let numGroups = 2;
     let numCourts = 2;
     let numRounds = 9;
     let playersPerGroup = 6;
-    let isViewerMode = false; 
-    let currentRoomId = ""; 
-    
-    let nameMap = {}; 
-    let generatedMatches = []; 
 
-    function toggleCourtInput() {
-        const gNum = parseInt(document.getElementById("cfgGroups").value) || 1;
-        document.getElementById("courtInputRow").style.display = (gNum === 1) ? "none" : "block";
-    }
+    let isViewerMode = false;
+    let currentRoomId = "";
 
-    function onParamChange() {
-        isDouble = document.querySelector('input[name="matchType"]:checked').value === 'double';
-        numGroups = parseInt(document.getElementById("cfgGroups").value) || 1;
-        numCourts = numGroups === 1 ? 1 : (parseInt(document.getElementById("cfgCourts").value) || 1);
-        playersPerGroup = parseInt(document.getElementById("cfgPlayers").value) || 6;
+    let nameMap = {};
+    let generatedMatches = [];
 
-        const slotsPerMatch = isDouble ? 2 : 1;
-        const errorTips = document.getElementById("errorTips");
-        const selectEl = document.getElementById("cfgRoundsSelect");
-        const btnNext = document.getElementById("btnNextStep");
+    let cloudSyncTimer = null;
+    let cloudFetching = false;
 
-        if (numGroups > 1) {
-            const requiredPerRound = numCourts * slotsPerMatch;
-            if (playersPerGroup < requiredPerRound) {
-                errorTips.innerText = `❌ 人数不足！${numCourts}个场地进行${isDouble?'双':'单'}打，对抗赛每组至少需要 ${requiredPerRound} 人。`;
-                errorTips.style.display = "block";
-                selectEl.innerHTML = "<option value=''>请修正人数...</option>";
-                btnNext.disabled = true;
-                return;
-            }
-        } else {
-            const requiredTotal = isDouble ? 4 : 2;
-            if (playersPerGroup < requiredTotal) {
-                errorTips.innerText = `❌ 人数不足！内部轮转赛进行${isDouble?'双':'单'}打至少需要 ${requiredTotal} 人。`;
-                errorTips.style.display = "block";
-                selectEl.innerHTML = "<option value=''>请修正人数...</option>";
-                btnNext.disabled = true;
-                return;
-            }
-        }
-        errorTips.style.display = "none";
-        btnNext.disabled = false;
+    // =========================
+    // UTF8 SAFE BASE64
+    // =========================
 
-        let validRounds = [];
-        for (let targetPlay = 1; targetPlay <= 15; targetPlay++) {
-            let totalRound = 0;
-            if (numGroups > 1) {
-                let upper = playersPerGroup * targetPlay;
-                let lower = numCourts * slotsPerMatch;
-                if (upper % lower === 0) totalRound = upper / lower;
-            } else {
-                let upper = playersPerGroup * targetPlay;
-                let lower = slotsPerMatch * 2;
-                if (upper % lower === 0) totalRound = upper / lower;
-            }
+    function utf8ToBase64(str) {
+        const bytes = new TextEncoder().encode(str);
+        let binary = "";
 
-            if (totalRound > 0 && totalRound <= 30) {
-                if (numGroups === 1 && totalRound === 1 && targetPlay === 1) continue;
-                if (!validRounds.some(item => item.round === totalRound)) {
-                    validRounds.push({ round: totalRound, plays: targetPlay });
-                }
-            }
-        }
-
-        if (validRounds.length === 0) {
-            selectEl.innerHTML = "<option value=''>暂无完美匹配的对齐轮次，请调整人数</option>";
-            btnNext.disabled = true;
-        } else {
-            let closestRoundObj = validRounds.reduce((prev, curr) => {
-                return (Math.abs(curr.round - 9) < Math.abs(prev.round - 9)) ? cubicTrack(curr) : cubicTrack(prev);
-            });
-            function cubicTrack(i){return i;}
-
-            let validOptionsHtml = "";
-            validRounds.forEach(r => {
-                let isSelected = (r.round === closestRoundObj.round) ? "selected" : "";
-                validOptionsHtml += `<option value="${r.round}" ${isSelected}>共 ${r.round} 轮比赛 (每人上场 ${r.plays} 次)</option>`;
-            });
-            selectEl.innerHTML = validOptionsHtml;
-        }
-    }
-
-    function backToStep1() {
-        document.getElementById("step2").style.display = "none";
-        document.getElementById("step1").style.display = "block";
-    }
-
-    function goToStep2() {
-        numRounds = parseInt(document.getElementById("cfgRoundsSelect").value) || 6;
-        const nameSections = document.getElementById("dynamicNameSections");
-        nameSections.innerHTML = "";
-        
-        const groupColors = ["var(--ios-red)", "var(--ios-blue)", "#9b59b6", "var(--ios-orange)", "var(--ios-primary)"];
-        const defaultNamesPool = [
-            ["张三", "李四", "王五", "赵六", "钱七", "孙八", "周九", "吴十"],
-            ["阿华", "阿明", "阿强", "阿飞", "小丽", "小红", "小冬", "小宇"]
-        ];
-
-        for (let g = 1; g <= numGroups; g++) {
-            const color = groupColors[(g-1) % groupColors.length];
-            const groupLetter = String.fromCharCode(64 + g); 
-            let html = `<span class="group-name-title" style="color:${color}; font-weight:700; margin-top:10px; font-size:0.95rem;">● ${numGroups === 1 ? '选手名单管理' : groupLetter + ' 组选手名单'}</span>`;
-            html += `<div class="name-grid">`;
-            for (let i = 1; i <= playersPerGroup; i++) {
-                let defaultVal = (defaultNamesPool[g-1] && defaultNamesPool[g-1][i-1]) || "";
-                html += `<div class="name-item"><input type="text" id="inputName_G${g}_${i}" class="name-input" value="${defaultVal}" placeholder="选手姓名 ${i}"></div>`;
-            }
-            html += `</div>`;
-            nameSections.innerHTML += html;
-        }
-        document.getElementById("step1").style.display = "none";
-        document.getElementById("step2").style.display = "block";
-    }
-
-    async function lockNamesAndBuildAll() {
-        nameMap = {};
-        const shuffle = (array) => {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-            return array;
-        };
-
-        for (let g = 1; g <= numGroups; g++) {
-            let groupNames = [];
-            let groupLetter = String.fromCharCode(64 + g);
-            for (let i = 1; i <= playersPerGroup; i++) {
-                let val = document.getElementById(`inputName_G${g}_${i}`).value.trim();
-                groupNames.push(val || (numGroups === 1 ? `选手-${i}` : `${groupLetter}组-${i}`));
-            }
-            shuffle(groupNames);
-            for (let i = 1; i <= playersPerGroup; i++) {
-                nameMap[`G${g}_${i}`] = groupNames[i - 1];
-            }
-        }
-
-        if(!autoScheduleEngine()) {
-            alert("无法计算出完美对齐矩阵，请返回调整！");
-            return;
-        }
-
-        // Establish the unique permanent room ID signature
-        currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-3);
-        window.location.hash = `#room=${currentRoomId}`;
-
-        renderTimelineMatrix();
-        renderMobileCards();
-        renderRankTablesFramework();
-        
-        document.getElementById("step2").style.display = "none";
-        document.getElementById("step3").style.display = "block";
-        
-        saveGameFrameworkToStorage();
-        liveCalculate();
-    }
-
-    function autoScheduleEngine() {
-        const slotsPerMatch = isDouble ? 2 : 1;
-        let attempt = 0, maxAttempts = 200; 
-
-        while (attempt < maxAttempts) {
-            attempt++; generatedMatches = [];
-            let playedCount = {}, consecutive = {};  
-            for (let g = 1; g <= numGroups; g++) {
-                for (let i = 1; i <= playersPerGroup; i++) {
-                    let key = `G${g}_${i}`; playedCount[key] = 0; consecutive[key] = 0;
-                }
-            }
-
-            let failed = false;
-            const targetPlays = numGroups > 1 ? (numRounds * numCourts * slotsPerMatch) / playersPerGroup : (numRounds * slotsPerMatch * 2) / playersPerGroup;
-
-            for (let r = 1; r <= numRounds; r++) {
-                if (numGroups > 1) {
-                    let neededPerGroup = Array(numGroups + 1).fill(0), courtMatchups = [];
-                    for (let c = 0; c < numCourts; c++) {
-                        let gA = 1, gB = 2;
-                        if (numGroups > 2) {
-                            gA = ((r - 1 + c * 2) % numGroups) + 1; gB = ((r - 1 + c * 2 + 1) % numGroups) + 1;
-                        }
-                        courtMatchups.push({ gA, gB }); neededPerGroup[gA] += slotsPerMatch; neededPerGroup[gB] += slotsPerMatch;
-                    }
-
-                    let poolSelections = {};
-                    for (let g = 1; g <= numGroups; g++) {
-                        if (neededPerGroup[g] === 0) continue;
-                        let pList = [];
-                        for (let i = 1; i <= playersPerGroup; i++) {
-                            let k = `G${g}_${i}`; if (playedCount[k] < targetPlays) pList.push(k);
-                        }
-                        if(attempt > 1) pList.sort(() => Math.random() - 0.5);
-                        pList.sort((x, y) => {
-                            let cx = consecutive[x], cy = consecutive[y];
-                            if (cx >= 2 && cy < 2) return 1; if (cy >= 2 && cx < 2) return -1;
-                            return playedCount[x] - playedCount[y];
-                        });
-                        if (pList.length < neededPerGroup[g]) { failed = true; break; }
-                        poolSelections[g] = pList.slice(0, neededPerGroup[g]);
-                    }
-                    if (failed) break;
-
-                    let roundUsedKeys = new Set();
-                    for (let c = 0; c < numCourts; c++) {
-                        let { gA, gB } = courtMatchups[c], matchA = [], matchB = [];
-                        for (let s = 0; s < slotsPerMatch; s++) {
-                            let pA = poolSelections[gA].shift(), pB = poolSelections[gB].shift();
-                            matchA.push(pA); matchB.push(pB); roundUsedKeys.add(pA); roundUsedKeys.add(pB);
-                        }
-                        generatedMatches.push({ round: r, court: `${c + 1}号场`, a: matchA, b: matchB });
-                    }
-                    for (let k in consecutive) {
-                        if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } else { consecutive[k] = 0; }
-                    }
-                } else {
-                    let pList = [];
-                    for (let i = 1; i <= playersPerGroup; i++) {
-                        let k = `G1_${i}`; if (playedCount[k] < targetPlays) pList.push(k);
-                    }
-                    if(attempt > 1) pList.sort(() => Math.random() - 0.5);
-                    pList.sort((x, y) => {
-                        let cx = consecutive[x], cy = consecutive[y];
-                        if (cx >= 2 && cy < 2) return 1; if (cy >= 2 && cx < 2) return -1;
-                        return playedCount[x] - playedCount[y];
-                    });
-                    const totalNeeded = slotsPerMatch * 2; if (pList.length < totalNeeded) { failed = true; break; }
-                    let roundPicked = pList.slice(0, totalNeeded), matchA = [], matchB = [];
-                    for (let s = 0; s < slotsPerMatch; s++) { matchA.push(roundPicked.shift()); matchB.push(roundPicked.shift()); }
-                    generatedMatches.push({ round: r, court: `轮转对阵`, a: matchA, b: matchB });
-                    let roundUsedKeys = new Set([...matchA, ...matchB]);
-                    for (let k in consecutive) {
-                        if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } else { consecutive[k] = 0; }
-                    }
-                }
-            }
-            if (!failed) return true; 
-        }
-        return false;
-    }
-
-    function renderTimelineMatrix() {
-        const container = document.getElementById("dynamicTimeline");
-        container.innerHTML = "";
-        let allPlayerKeys = [];
-        for (let g = 1; g <= numGroups; g++) {
-            for (let i = 1; i <= playersPerGroup; i++) allPlayerKeys.push(`G${g}_${i}`);
-        }
-
-        let html = `<div style="overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius:10px;">
-                        <table style="width: 100%; border-collapse: collapse; min-width: 460px; font-size: 0.8rem; text-align: center;">
-                            <thead>
-                                <tr>
-                                    <th style="border: 1px solid #e5e5ea; padding: 10px 8px; background: #f2f2f7; position: sticky; left: 0; z-index: 3; min-width: 65px; font-weight:700; color:var(--ios-text); box-shadow: 1px 0 0 #e5e5ea;">队员</th>`;
-        for (let r = 1; r <= numRounds; r++) html += `<th style="border: 1px solid #e5e5ea; padding: 10px 4px; background: #f2f2f7; font-weight: 700; min-width: 38px; color:var(--ios-text);">R${r}</th>`;
-        html += `</tr></thead><tbody>`;
-
-        allPlayerKeys.forEach((pKey, idx) => {
-            const pName = nameMap[pKey];
-            const hue = (idx * 350) / allPlayerKeys.length;
-            const uniqueColor = `hsl(${hue}, 65%, 43%)`;
-            html += `<tr><td style="border: 1px solid #e5e5ea; padding: 10px 6px; font-weight: 700; background: #ffffff; position: sticky; left: 0; z-index: 2; box-shadow: 2px 0 4px rgba(0,0,0,0.02); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 75px; color:var(--ios-text);">${pName}</td>`;
-            for (let r = 1; r <= numRounds; r++) {
-                let roundMatches = generatedMatches.filter(m => m.round === r);
-                let playingMatch = roundMatches.find(m => m.a.includes(pKey) || m.b.includes(pKey));
-                if (playingMatch) {
-                    let textSymbol = (numGroups === 1) ? "上场" : playingMatch.court.replace("号场", "场");
-                    html += `<td style="border: 1px solid #e5e5ea; padding: 4px; background: ${uniqueColor}; color: white; font-weight: 700; font-size: 0.75rem; border-radius:4px;">${textSymbol}</td>`;
-                } else {
-                    html += `<td style="border: 1px solid #e5e5ea; padding: 4px; background: #fafafc; color: #c7c7cc; font-size: 0.75rem;">休</td>`;
-                }
-            }
-            html += `</tr>`;
+        bytes.forEach(b => {
+            binary += String.fromCharCode(b);
         });
-        html += `</tbody></table></div>`;
-        container.innerHTML = html;
+
+        return btoa(binary);
     }
 
-    function renderMobileCards() {
-        const container = document.getElementById("dynamicScheduleList");
-        let html = "";
-        for (let r = 1; r <= numRounds; r++) {
-            html += `<div class="round-container"><div class="round-title">第 ${r} 轮</div>`;
-            generatedMatches.filter(m => m.round === r).forEach((match) => {
-                const globalIdx = generatedMatches.indexOf(match);
-                let namesA = match.a.map(k => nameMap[k]).join("<br>");
-                let namesB = match.b.map(k => nameMap[k]).join("<br>");
-                let roAttr = isViewerMode ? "readonly" : "";
-                
-                let viewerInputStyle = isViewerMode ? "style='color:#8e8e93; background-color:transparent; font-weight:600; pointer-events:none;'" : "";
-                let viewerCardStyle = isViewerMode ? "style='background-color:#e5e5ea;'" : "";
+    function base64ToUtf8(base64) {
+        const binary = atob(base64);
 
-                html += `
-                    <div class="match-card">
-                        <span class="court-label">${match.court}</span>
-                        <div class="team-players team-a">${namesA}</div>
-                        <div class="score-area" ${viewerCardStyle}>
-                            <input type="number" inputmode="numeric" class="score-num" id="sA_${globalIdx}" ${roAttr} ${viewerInputStyle} oninput="liveCalculate()">
-                            <span class="colon">:</span>
-                            <input type="number" inputmode="numeric" class="score-num" id="sB_${globalIdx}" ${roAttr} ${viewerInputStyle} oninput="liveCalculate()">
-                        </div>
-                        <div class="team-players team-b">${namesB}</div>
-                    </div>`;
-            });
-            html += `</div>`;
-        }
-        container.innerHTML = html;
+        const bytes = Uint8Array.from(
+            binary,
+            c => c.charCodeAt(0)
+        );
+
+        return new TextDecoder().decode(bytes);
     }
 
-    function renderRankTablesFramework() {
-        const container = document.getElementById("dynamicRankTables"); container.innerHTML = "";
-        const groupColors = ["var(--ios-red)", "var(--ios-blue)", "#9b59b6", "var(--ios-orange)", "var(--ios-primary)"];
+    // =========================
+    // CLOUD PUSH
+    // =========================
 
-        for (let g = 1; g <= numGroups; g++) {
-            const color = groupColors[(g-1) % groupColors.length];
-            const groupLetter = String.fromCharCode(64 + g);
-            const title = numGroups === 1 ? `👑 全员个人战绩榜` : `🔴 ${groupLetter} 组战绩排名`;
-            container.innerHTML += `
-                <div style="font-weight: 700; color: ${color}; margin-top:16px; margin-bottom: 6px; font-size:0.9rem; padding-left:4px;">${title}</div>
-                <table class="rank-table">
-                    <thead><tr><th style="width: 15%;">排名</th><th style="width: 32%;">队员</th><th style="width: 21%;">胜 - 负</th><th style="width: 17%;">净胜</th><th style="width: 15%;">得分</th></tr></thead>
-                    <tbody id="rankBody_G${g}"></tbody>
-                </table>`;
-        }
-    }
+    async function pushStateToCloud(scoresMap = null) {
 
-    function liveCalculate() {
-        let stats = {};
-        for (let k in nameMap) stats[nameMap[k]] = { name: nameMap[k], win: 0, lose: 0, diffScore: 0, totalScore: 0, group: k.split('_')[0] };
+        if (!currentRoomId || isViewerMode) return;
 
-        let totalWinA = 0, totalWinB = 0, totalScoreA = 0, totalScoreB = 0;
-        let currentScoresCache = {}; 
+        const targetScores =
+            scoresMap ||
+            JSON.parse(
+                localStorage.getItem("yuyiqifei_scores") || "{}"
+            );
 
         for (let i = 0; i < generatedMatches.length; i++) {
-            const valA = document.getElementById(`sA_${i}`) ? document.getElementById(`sA_${i}`).value : "";
-            const valB = document.getElementById(`sB_${i}`) ? document.getElementById(`sB_${i}`).value : "";
 
-            currentScoresCache[`sA_${i}`] = valA; currentScoresCache[`sB_${i}`] = valB;
-            
-            generatedMatches[i].scoreA = valA;
-            generatedMatches[i].scoreB = valB;
+            generatedMatches[i].scoreA =
+                document.getElementById(`sA_${i}`)?.value || "";
+
+            generatedMatches[i].scoreB =
+                document.getElementById(`sB_${i}`)?.value || "";
+        }
+
+        const snapshotPayload = {
+            isDouble,
+            numGroups,
+            numCourts,
+            numRounds,
+            playersPerGroup,
+            nameMap,
+            generatedMatches,
+            scores: targetScores,
+            ts: Date.now()
+        };
+
+        try {
+
+            const jsonStr = JSON.stringify(snapshotPayload);
+
+            const base64Packet = utf8ToBase64(jsonStr);
+
+            await fetch(
+                SYNC_BUS_URL + currentRoomId,
+                {
+                    method: "POST",
+                    headers: {
+                        "Cache-Control": "no-cache"
+                    },
+                    body: base64Packet
+                }
+            );
+
+        } catch (e) {
+            console.warn("pushStateToCloud failed", e);
+        }
+    }
+
+    // =========================
+    // CLOUD FETCH
+    // =========================
+
+    async function fetchStateFromCloud() {
+
+        if (!currentRoomId) return;
+
+        if (cloudFetching) return;
+
+        cloudFetching = true;
+
+        try {
+
+            const res = await fetch(
+                `${SYNC_BUS_URL}${currentRoomId}/json?since=1&t=${Date.now()}`,
+                {
+                    headers: {
+                        "Cache-Control": "no-cache"
+                    }
+                }
+            );
+
+            if (!res.ok) {
+                cloudFetching = false;
+                return;
+            }
+
+            const text = await res.text();
+
+            if (!text.trim()) {
+                cloudFetching = false;
+                return;
+            }
+
+            const lines =
+                text
+                    .trim()
+                    .split("\n")
+                    .filter(Boolean);
+
+            if (lines.length === 0) {
+                cloudFetching = false;
+                return;
+            }
+
+            const latestLine = lines[lines.length - 1];
+
+            const latest = JSON.parse(latestLine);
+
+            if (!latest.message) {
+                cloudFetching = false;
+                return;
+            }
+
+            const decodedPayload = JSON.parse(
+                base64ToUtf8(latest.message)
+            );
+
+            // =====================
+            // 首次渲染
+            // =====================
+
+            const needRender =
+                !generatedMatches ||
+                generatedMatches.length === 0;
+
+            isDouble = decodedPayload.isDouble;
+            numGroups = decodedPayload.numGroups;
+            numCourts = decodedPayload.numCourts;
+            numRounds = decodedPayload.numRounds;
+            playersPerGroup = decodedPayload.playersPerGroup;
+
+            nameMap = decodedPayload.nameMap;
+            generatedMatches = decodedPayload.generatedMatches;
+
+            if (needRender) {
+
+                renderTimelineMatrix();
+
+                renderMobileCards();
+
+                renderRankTablesFramework();
+
+                document.getElementById("step1").style.display = "none";
+                document.getElementById("step2").style.display = "none";
+                document.getElementById("step3").style.display = "block";
+            }
+
+            // =====================
+            // 更新比分
+            // =====================
+
+            const scores = decodedPayload.scores || {};
+
+            for (let id in scores) {
+
+                const inputNode =
+                    document.getElementById(id);
+
+                if (!inputNode) continue;
+
+                if (inputNode.value !== scores[id]) {
+                    inputNode.value = scores[id];
+                }
+            }
+
+            liveCalculate(false);
+
+        } catch (e) {
+
+            console.warn(
+                "fetchStateFromCloud failed",
+                e
+            );
+
+        } finally {
+
+            cloudFetching = false;
+        }
+    }
+
+    // =========================
+    // LIVE CALCULATION
+    // =========================
+
+    function liveCalculate(needPush = true) {
+
+        let stats = {};
+
+        for (let k in nameMap) {
+
+            stats[nameMap[k]] = {
+                name: nameMap[k],
+                win: 0,
+                lose: 0,
+                diffScore: 0,
+                totalScore: 0,
+                group: k.split('_')[0]
+            };
+        }
+
+        let totalWinA = 0;
+        let totalWinB = 0;
+
+        let totalScoreA = 0;
+        let totalScoreB = 0;
+
+        let currentScoresCache = {};
+
+        for (let i = 0; i < generatedMatches.length; i++) {
+
+            const valA =
+                document.getElementById(`sA_${i}`)?.value || "";
+
+            const valB =
+                document.getElementById(`sB_${i}`)?.value || "";
+
+            currentScoresCache[`sA_${i}`] = valA;
+            currentScoresCache[`sB_${i}`] = valB;
 
             if (valA === "" || valB === "") continue;
 
-            const scoreA = parseInt(valA), scoreB = parseInt(valB);
-            if (scoreA === scoreB) continue; 
+            const scoreA = parseInt(valA);
+            const scoreB = parseInt(valB);
+
+            if (scoreA === scoreB) continue;
+
             const isWinA = scoreA > scoreB;
 
             if (numGroups === 2) {
-                totalScoreA += scoreA; totalScoreB += scoreB;
-                if (isWinA) totalWinA++; else totalWinB++;
+
+                totalScoreA += scoreA;
+                totalScoreB += scoreB;
+
+                if (isWinA) {
+                    totalWinA++;
+                } else {
+                    totalWinB++;
+                }
             }
 
             generatedMatches[i].a.forEach(k => {
-                let p = nameMap[k];
-                if (stats[p]) {
-                    if (isWinA) stats[p].win++; else stats[p].lose++;
-                    stats[p].totalScore += scoreA; stats[p].diffScore += (scoreA - scoreB);
+
+                const p = nameMap[k];
+
+                if (!stats[p]) return;
+
+                if (isWinA) {
+                    stats[p].win++;
+                } else {
+                    stats[p].lose++;
                 }
+
+                stats[p].totalScore += scoreA;
+                stats[p].diffScore += (scoreA - scoreB);
             });
+
             generatedMatches[i].b.forEach(k => {
-                let p = nameMap[k];
-                if (stats[p]) {
-                    if (!isWinA) stats[p].win++; else stats[p].lose++;
-                    stats[p].totalScore += scoreB; stats[p].diffScore += (scoreB - scoreA);
+
+                const p = nameMap[k];
+
+                if (!stats[p]) return;
+
+                if (!isWinA) {
+                    stats[p].win++;
+                } else {
+                    stats[p].lose++;
                 }
+
+                stats[p].totalScore += scoreB;
+                stats[p].diffScore += (scoreB - scoreA);
             });
         }
+
+        // =====================
+        // 本地保存
+        // =====================
 
         if (!isViewerMode) {
-            localStorage.setItem("yuyiqifei_scores", JSON.stringify(currentScoresCache));
-            pushStateToCloud(currentScoresCache);
+
+            localStorage.setItem(
+                "yuyiqifei_scores",
+                JSON.stringify(currentScoresCache)
+            );
+
+            if (needPush) {
+                pushStateToCloud(currentScoresCache);
+            }
         }
 
-        const summaryBox = document.getElementById("groupSummary");
+        // =====================
+        // SUMMARY
+        // =====================
+
+        const summaryBox =
+            document.getElementById("groupSummary");
+
         if (numGroups === 2) {
+
             let winnerText = "抗衡中...";
-            if (totalWinA > totalWinB) winnerText = "A 组红方领先 🏆";
-            else if (totalWinB > totalWinA) winnerText = "B 组蓝方领先 🏆";
-            else if (totalScoreA !== totalScoreB) winnerText = totalScoreA > totalScoreB ? "场次持平，A组凭借小分优势占优" : "场次持平，B组凭借小分优势占优";
-            
-            summaryBox.innerHTML = `<b>A 组红方 :</b> ${totalWinA} 胜 (${totalScoreA}分) <span style="margin:0 8px; color:rgba(255,255,255,0.3)">|</span> <b>B 组蓝方 :</b> ${totalWinB} 胜 (${totalScoreB}分)<br><div style="color:#ffcc00; font-size:0.85rem; font-weight:600; margin-top:5px;">${winnerText}</div>`;
+
+            if (totalWinA > totalWinB) {
+                winnerText = "A 组红方领先 🏆";
+            } else if (totalWinB > totalWinA) {
+                winnerText = "B 组蓝方领先 🏆";
+            }
+
+            summaryBox.innerHTML =
+                `<b>A 组红方 :</b> ${totalWinA} 胜 (${totalScoreA}分)
+                <span style="margin:0 8px;">|</span>
+                <b>B 组蓝方 :</b> ${totalWinB} 胜 (${totalScoreB}分)
+                <br>
+                <div style="margin-top:6px;color:#ffcc00;">
+                ${winnerText}
+                </div>`;
+
             summaryBox.style.display = "block";
+
         } else {
+
             summaryBox.style.display = "none";
         }
 
+        // =====================
+        // RANK
+        // =====================
+
         const sortRule = (x, y) => {
-            if (y.win !== x.win) return y.win - x.win;
-            if (y.diffScore !== x.diffScore) return y.diffScore - x.diffScore;
+
+            if (y.win !== x.win) {
+                return y.win - x.win;
+            }
+
+            if (y.diffScore !== x.diffScore) {
+                return y.diffScore - x.diffScore;
+            }
+
             return y.totalScore - x.totalScore;
         };
 
         for (let g = 1; g <= numGroups; g++) {
-            let subList = Object.values(stats).filter(p => p.group === `G${g}`).sort(sortRule);
-            let tbody = document.getElementById(`rankBody_G${g}`); if(!tbody) continue;
-            
+
+            const tbody =
+                document.getElementById(`rankBody_G${g}`);
+
+            if (!tbody) continue;
+
+            const subList =
+                Object.values(stats)
+                    .filter(
+                        p => p.group === `G${g}`
+                    )
+                    .sort(sortRule);
+
             let html = "";
+
             subList.forEach((p, idx) => {
-                let medal = idx === 0 ? "🥇" : (idx === 1 ? "🥈" : (idx === 2 ? "🥉" : `<span style="color:var(--ios-subtext); font-weight:500;">${idx + 1}</span>`));
-                html += `<tr><td style="font-weight:700;">${medal}</td><td style="font-weight:700; color:var(--ios-text);">${p.name}</td><td style="color:var(--ios-primary-dark); font-weight:600;">${p.win} - ${p.lose}</td><td style="font-weight:600; color:${p.diffScore >= 0 ? 'var(--ios-red)' : 'var(--ios-text)'}">${p.diffScore > 0 ? '+' + p.diffScore : p.diffScore}</td><td style="color:var(--ios-subtext); font-weight:500;">${p.totalScore}</td></tr>`;
+
+                let medal = idx + 1;
+
+                if (idx === 0) medal = "🥇";
+                if (idx === 1) medal = "🥈";
+                if (idx === 2) medal = "🥉";
+
+                html += `
+                    <tr>
+                        <td>${medal}</td>
+                        <td>${p.name}</td>
+                        <td>${p.win}-${p.lose}</td>
+                        <td>${p.diffScore}</td>
+                        <td>${p.totalScore}</td>
+                    </tr>
+                `;
             });
+
             tbody.innerHTML = html;
         }
     }
 
-    function saveGameFrameworkToStorage() {
-        localStorage.setItem("yuyiqifei_active", "true");
-        localStorage.setItem("yuyiqifei_roomId", currentRoomId);
-        localStorage.setItem("yuyiqifei_isDouble", isDouble);
-        localStorage.setItem("yuyiqifei_numGroups", numGroups);
-        localStorage.setItem("yuyiqifei_numCourts", numCourts);
-        localStorage.setItem("yuyiqifei_numRounds", numRounds);
-        localStorage.setItem("yuyiqifei_playersPerGroup", playersPerGroup);
-        localStorage.setItem("yuyiqifei_nameMap", JSON.stringify(nameMap));
-        localStorage.setItem("yuyiqifei_generatedMatches", JSON.stringify(generatedMatches));
-        if (currentRoomId) {
-            localStorage.setItem("admin_room_" + currentRoomId, "true");
-        }
-    }
-
-    function loadDataFromLocalStorage() {
-        isDouble = localStorage.getItem("yuyiqifei_isDouble") === "true";
-        numGroups = parseInt(localStorage.getItem("yuyiqifei_numGroups"));
-        numCourts = parseInt(localStorage.getItem("yuyiqifei_numCourts"));
-        numRounds = parseInt(localStorage.getItem("yuyiqifei_numRounds"));
-        playersPerGroup = parseInt(localStorage.getItem("yuyiqifei_playersPerGroup"));
-        nameMap = JSON.parse(localStorage.getItem("yuyiqifei_nameMap"));
-        generatedMatches = JSON.parse(localStorage.getItem("yuyiqifei_generatedMatches"));
-        currentRoomId = localStorage.getItem("yuyiqifei_roomId") || "";
-        
-        renderTimelineMatrix(); 
-        renderMobileCards(); 
-        renderRankTablesFramework();
-
-        const savedScores = JSON.parse(localStorage.getItem("yuyiqifei_scores") || "{}");
-        for (let id in savedScores) {
-            let inputNode = document.getElementById(id); 
-            if (inputNode) inputNode.value = savedScores[id];
-        }
-
-        document.getElementById("step1").style.display = "none";
-        document.getElementById("step2").style.display = "none";
-        document.getElementById("step3").style.display = "block";
-
-        liveCalculate();
-    }
-
-    // Fixed: Cloud data sync with correct JSON array parsing
-    async function fetchStateFromCloud() {
-        if (!currentRoomId) return;
-        try {
-            const res = await fetch(`${SYNC_BUS_URL}${currentRoomId}/json?poll=1`);
-            if (res.status === 200) {
-                const messages = await res.json();  // ✅ Direct JSON array
-                if (!messages || messages.length === 0) return;
-
-                const latestPayloadString = messages[messages.length - 1].message;
-                if (!latestPayloadString) return;
-
-                const decodedPayload = JSON.parse(decodeURIComponent(escape(atob(latestPayloadString))));
-
-                // Viewer mode: update structure and render UI if needed
-                if (isViewerMode) {
-                    const needRender = (!generatedMatches || generatedMatches.length === 0);
-                    isDouble = decodedPayload.isDouble;
-                    numGroups = decodedPayload.numGroups;
-                    numCourts = decodedPayload.numCourts;
-                    numRounds = decodedPayload.numRounds;
-                    playersPerGroup = decodedPayload.playersPerGroup;
-                    nameMap = decodedPayload.nameMap;
-                    generatedMatches = decodedPayload.generatedMatches;
-
-                    if (needRender) {
-                        renderTimelineMatrix();
-                        renderMobileCards();
-                        renderRankTablesFramework();
-                        document.getElementById("step1").style.display = "none";
-                        document.getElementById("step2").style.display = "none";
-                        document.getElementById("step3").style.display = "block";
-                    }
-                }
-
-                // Sync scores into inputs
-                for (let id in decodedPayload.scores) {
-                    const inputNode = document.getElementById(id);
-                    if (inputNode && inputNode.value !== decodedPayload.scores[id]) {
-                        inputNode.value = decodedPayload.scores[id];
-                    }
-                }
-
-                liveCalculate();
-            }
-        } catch(e) {
-            console.warn("Cloud parsing pipeline skip.", e);
-        }
-    }
+    // =========================
+    // SHARE LINK
+    // =========================
 
     function generateShareLink() {
+
         liveCalculate();
-        
-        let baseUrl = window.location.href.split('#')[0];
-        const shareUrl = baseUrl + "#room=" + currentRoomId;
-        
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(shareUrl).then(() => {
-                alert("📋 永久专属观战链接已成功复制到剪贴板！\n\n发送至群聊后，群友点击进入即可【保持常开状态】。记分员此后改动比分，群友手机将全自动、不需要你重复发链接！");
-            }).catch(() => {
-                fallbackCopyAction(shareUrl);
-            });
-        } else {
-            fallbackCopyAction(shareUrl);
-        }
+
+        const baseUrl =
+            window.location.href.split('#')[0];
+
+        const shareUrl =
+            baseUrl + "#room=" + currentRoomId;
+
+        navigator.clipboard.writeText(shareUrl);
+
+        alert(
+            "永久观战链接已复制，可直接发送群聊"
+        );
     }
 
-    function fallbackCopyAction(text) {
-        const textArea = document.createElement("textarea");
-        textArea.value = text;
-        textArea.style.position = "fixed"; textArea.style.left = "-999999px";
-        document.body.appendChild(textArea);
-        textArea.focus(); textArea.select();
-        try {
-            document.execCommand('copy');
-            alert("📋 永久专属观战链接已成功复制！可以直接发送给群友观战。");
-        } catch (err) {
-            alert("自动复制失败，请手动复制地址栏的长网址发送给群友！");
-        }
-        document.body.removeChild(textArea);
-    }
+    // =========================
+    // CHECK HISTORY
+    // =========================
 
     async function checkAndRestoreHistory() {
+
         const hash = window.location.hash;
 
+        // =====================
+        // VIEWER MODE
+        // =====================
+
         if (hash.startsWith("#room=")) {
-            const roomIdFromUrl = hash.replace("#room=", "");
-            
-            if (localStorage.getItem("admin_room_" + roomIdFromUrl) === "true" || localStorage.getItem("yuyiqifei_active") === "true") {
+
+            const roomIdFromUrl =
+                hash.replace("#room=", "");
+
+            const isAdmin =
+                localStorage.getItem(
+                    "admin_room_" + roomIdFromUrl
+                ) === "true";
+
+            if (isAdmin) {
+
                 isViewerMode = false;
-                document.body.classList.remove("viewer-mode-active");
-                document.getElementById("viewerModeBadge").style.display = "none";
-                document.getElementById("sharingCardContainer").style.display = "block";
+
+                currentRoomId = roomIdFromUrl;
+
                 loadDataFromLocalStorage();
+
                 return;
+
             } else {
+
                 isViewerMode = true;
-                document.body.classList.add("viewer-mode-active"); 
-                document.getElementById("viewerModeBadge").style.display = "block";
-                document.getElementById("btnWipeSystem").style.display = "none";
-                
-                const shareCard = document.getElementById("sharingCardContainer");
-                shareCard.innerHTML = `<button type="button" class="btn-block" id="btnShareMatch">👁️ 当前处于：群友实时观战模式</button>`;
-            }
 
-            currentRoomId = roomIdFromUrl;
+                currentRoomId = roomIdFromUrl;
 
-            if (isViewerMode) {
-                // Start data pull; first success will render the UI automatically
-                fetchStateFromCloud();
-                setInterval(fetchStateFromCloud, 4000);
+                document.body.classList.add(
+                    "viewer-mode-active"
+                );
+
+                document.getElementById(
+                    "viewerModeBadge"
+                ).style.display = "block";
+
+                document.getElementById(
+                    "btnWipeSystem"
+                ).style.display = "none";
+
+                const shareCard =
+                    document.getElementById(
+                        "sharingCardContainer"
+                    );
+
+                shareCard.innerHTML =
+                    `<button type="button"
+                    class="btn-block">
+                    👁️ 群友实时观战模式
+                    </button>`;
+
+                // 立即同步一次
+                await fetchStateFromCloud();
+
+                // 周期同步
+                cloudSyncTimer =
+                    setInterval(
+                        fetchStateFromCloud,
+                        2000
+                    );
+
+                return;
             }
-            return;
         }
 
-        if (localStorage.getItem("yuyiqifei_active") === "true") {
-            isViewerMode = false;
-            document.body.classList.remove("viewer-mode-active");
-            document.getElementById("viewerModeBadge").style.display = "none";
-            document.getElementById("sharingCardContainer").style.display = "block";
+        // =====================
+        // ADMIN RECOVERY
+        // =====================
+
+        if (
+            localStorage.getItem(
+                "yuyiqifei_active"
+            ) === "true"
+        ) {
+
             loadDataFromLocalStorage();
-            alert("✨ 【羽翼齐飞】已为您自动恢复上次未打完的球场现场！");
+
             return;
         }
+
         onParamChange();
-    }
-
-    // Cloud push remains unchanged
-    async function pushStateToCloud(scoresMap = null) {
-        if (!currentRoomId || isViewerMode) return;
-        const targetScores = scoresMap || JSON.parse(localStorage.getItem("yuyiqifei_scores") || "{}");
-        
-        for (let i = 0; i < generatedMatches.length; i++) {
-            generatedMatches[i].scoreA = document.getElementById(`sA_${i}`) ? document.getElementById(`sA_${i}`).value : "";
-            generatedMatches[i].scoreB = document.getElementById(`sB_${i}`) ? document.getElementById(`sB_${i}`).value : "";
-        }
-
-        const snapshotPayload = { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: targetScores };
-        
-        try {
-            const safeDataStream = encodeURIComponent(JSON.stringify(snapshotPayload));
-            const base64Packet = btoa(unescape(safeDataStream));
-            
-            await fetch(SYNC_BUS_URL + currentRoomId, {
-                method: 'POST',
-                headers: { 'X-Cache': 'yes' },
-                body: base64Packet
-            });
-        } catch(e) { console.warn("Cloud stream sync upstream latency detected."); }
-    }
-
-    function resetAllTournament() {
-        if (confirm("确定要彻底删除当前比赛并重组新一局吗？该操作不可撤销！")) {
-            localStorage.clear(); window.location.hash = ""; location.reload();
-        }
     }
 
     window.onload = checkAndRestoreHistory;
