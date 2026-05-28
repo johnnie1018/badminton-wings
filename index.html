@@ -245,6 +245,7 @@
     
     <div id="viewerModeBadge" class="viewer-badge">👁️ 当前处于：群友实时观战模式（只读自动刷新）</div>
 
+    <!-- Step 1: Global Configurations Setup -->
     <div id="step1" class="card">
         <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid var(--primary); padding-bottom: 5px;">第一步：赛事模式配置</div>
         
@@ -280,6 +281,7 @@
         <button type="button" class="btn-block btn-orange" id="btnNextStep" onclick="goToStep2()">下一步：录入选手名单</button>
     </div>
 
+    <!-- Step 2: Name Inputs Allocation Area -->
     <div id="step2" class="card" style="display: none;">
         <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid var(--primary); padding-bottom: 5px;">第二步：录入选手姓名</div>
         <div id="dynamicNameSections"></div>
@@ -290,6 +292,7 @@
         </div>
     </div>
 
+    <!-- Step 3 & 4: Live Tracking Schedule & Standings -->
     <div id="step3" style="display: none;">
         <div class="card" style="padding: 10px; text-align: center; border: 1px solid #b3e5fc; background-color: #e1f5fe;">
             <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()" style="margin-bottom:0;">🔗 复制专属【永久观战链接】发送至群聊</button>
@@ -312,7 +315,8 @@
 </div>
 
 <script>
-    const CLOUD_DATABASE_URL = "https://api.restful-api.dev/objects";
+    // NEW: Open anonymous data synchronization engine (Supports file:/// cross-protocol communication natively)
+    const SYNC_SERVICE_ENDPOINT = "https://kvdb.io/8xUofC7i2nC2Npx64fepgD"; 
 
     let isDouble = true;
     let numGroups = 2;
@@ -461,6 +465,12 @@
             return;
         }
 
+        // Securely instantiate sub-key identity mappings instantly
+        currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-4);
+        
+        let currentBaseUrl = window.location.href.split('#')[0];
+        window.location.hash = `#room=${currentRoomId}`;
+
         renderTimelineMatrix();
         renderMobileCards();
         renderRankTablesFramework();
@@ -468,12 +478,11 @@
         document.getElementById("step2").style.display = "none";
         document.getElementById("step3").style.display = "block";
         
-        // Save to native local isolation storage instantly to block race condition bugs
         saveGameFrameworkToStorage();
         liveCalculate();
 
-        // Fire asynchronous cloud request into backend without locking threads
-        await createCloudRoom();
+        // Push initial payload block directly upstream
+        await pushStateToCloud();
     }
 
     function autoScheduleEngine() {
@@ -732,7 +741,6 @@
         }
     }
 
-    // FIX 1: Native baseline storage loader function to bypass any network blockages
     function loadDataFromLocalStorage() {
         isDouble = localStorage.getItem("yuyiqifei_isDouble") === "true";
         numGroups = parseInt(localStorage.getItem("yuyiqifei_numGroups"));
@@ -762,52 +770,29 @@
         liveCalculate();
     }
 
-    async function createCloudRoom() {
-        const payload = {
-            name: "YuYiQiFei_Badminton_Data",
-            data: { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: {} }
-        };
-        try {
-            const res = await fetch(CLOUD_DATABASE_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            if (data.id) {
-                currentRoomId = data.id;
-                window.location.hash = `#room=${currentRoomId}`;
-                saveGameFrameworkToStorage(); 
-            }
-        } catch(e) { console.error("Cloud engine database bypass notice:", e); }
-    }
-
+    // NEW: Cloud DB - Direct asynchronous PUT transmission to bypass browser cors issues
     async function pushStateToCloud(scoresMap = null) {
         if (!currentRoomId) return;
         const targetScores = scoresMap || JSON.parse(localStorage.getItem("yuyiqifei_scores") || "{}");
         
-        const payload = {
-            name: "YuYiQiFei_Badminton_Data",
-            data: { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: targetScores }
-        };
-        const url = `${CLOUD_DATABASE_URL}/${currentRoomId}`;
+        const payload = { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: targetScores };
+        const url = `${SYNC_SERVICE_ENDPOINT}/${currentRoomId}`;
         try {
             await fetch(url, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-        } catch(e) { console.error("Cloud routing upstream delayed:", e); }
+        } catch(e) { console.error("Cloud upload streaming bypass:", e); }
     }
 
+    // NEW: Cloud DB - Polling framework utilizing standard native cross-origin GET requests
     async function fetchStateFromCloud() {
         if (!currentRoomId) return;
-        const url = `${CLOUD_DATABASE_URL}/${currentRoomId}`;
+        const url = `${SYNC_SERVICE_ENDPOINT}/${currentRoomId}`;
         try {
             const res = await fetch(url);
             if (res.status === 200) {
-                const result = await res.json();
-                const payload = result.data; 
+                const payload = await res.json();
                 
                 if (isViewerMode) {
                     isDouble = payload.isDouble; numGroups = payload.numGroups; numCourts = payload.numCourts;
@@ -823,30 +808,20 @@
                 }
                 liveCalculate();
             }
-        } catch(e) { console.error("Cloud data polling failure", e); }
+        } catch(e) { console.error("Cloud data polling query failure", e); }
     }
 
-    // FIX 2: Zero-blockage share handler. Automatically falls back to high-compatibility hash mode if roomId generation is delayed or blocked
     function generateShareLink() {
-        let baseUrl = window.location.href.split('#')[0];
-        let shareUrl = "";
-        
-        if (currentRoomId) {
-            // Standard Cloud Room Synchronous Linking
-            shareUrl = baseUrl + "#room=" + currentRoomId;
-        } else {
-            // Instant Static Data-stream Fallback for raw local files or CORS network blocks
-            const payload = {
-                isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches,
-                scores: JSON.parse(localStorage.getItem("yuyiqifei_scores") || "{}")
-            };
-            const base64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-            shareUrl = baseUrl + "#share=" + base64;
+        if (!currentRoomId) {
+            alert("正在初始化赛程，请稍候再试...");
+            return;
         }
+        let baseUrl = window.location.href.split('#')[0];
+        let shareUrl = baseUrl + "#room=" + currentRoomId;
         
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(shareUrl).then(() => {
-                alert("📋 专属观战网址已成功复制到剪贴板！可以直接发送给群友观战。");
+                alert("📋 专属观战网址已成功复制到剪贴板！发到微信群后，大家点开链接随时能看到最新比分，无须重复发送链接。");
             }).catch(() => {
                 fallbackCopyAction(shareUrl);
             });
@@ -865,7 +840,7 @@
         textArea.select();
         try {
             document.execCommand('copy');
-            alert("📋 专属观战网址已成功复制到剪贴板！可以直接发送给群友观战。");
+            alert("📋 专属观战网址已成功复制到剪贴板！发到微信群后，大家点开链接随时能看到最新比分，无须重复发送链接。");
         } catch (err) {
             alert("自动复制失败，请手动复制浏览器地址栏的完整网址发送给群友！");
         }
@@ -875,22 +850,17 @@
     async function checkAndRestoreHistory() {
         const hash = window.location.hash;
 
-        // Mode A: Parse Active Room tokens from Address block URL
         if (hash.startsWith("#room=")) {
             const roomIdFromUrl = hash.replace("#room=", "");
             
-            // FIX 3: Local storage authority validation gate
             if (localStorage.getItem("admin_room_" + roomIdFromUrl) === "true") {
                 isViewerMode = false;
                 document.getElementById("viewerModeBadge").style.display = "none";
-                
-                // If I am the admin, trigger absolute local cache load immediately to preserve offline changes
                 if (localStorage.getItem("yuyiqifei_active") === "true") {
                     loadDataFromLocalStorage();
                     return;
                 }
             } else {
-                // Otherwise treat identity strictly as a read-only viewer node tracking cloud data
                 isViewerMode = true;
                 document.getElementById("viewerModeBadge").style.display = "block";
                 document.getElementById("btnWipeSystem").style.display = "none";
@@ -899,14 +869,11 @@
 
             currentRoomId = roomIdFromUrl;
 
-            // Viewer node async downstream data fetch pipeline
-            const url = `${CLOUD_DATABASE_URL}/${currentRoomId}`;
+            const url = `${SYNC_SERVICE_ENDPOINT}/${currentRoomId}`;
             try {
                 const res = await fetch(url);
                 if (res.status === 200) {
-                    const result = await res.json();
-                    const payload = result.data; 
-                    
+                    const payload = await res.json();
                     isDouble = payload.isDouble; numGroups = payload.numGroups; numCourts = payload.numCourts;
                     numRounds = payload.numRounds; playersPerGroup = payload.playersPerGroup;
                     nameMap = payload.nameMap; generatedMatches = payload.generatedMatches;
@@ -922,9 +889,10 @@
                     document.getElementById("step3").style.display = "block";
                     
                     liveCalculate();
+                    
+                    // Trigger the 5-second asynchronous automatic polling system loop
                     setInterval(fetchStateFromCloud, 5000);
                 } else {
-                    // Fallback to local storage if public shared records are cleared out from remote mock db endpoints
                     if (localStorage.getItem("yuyiqifei_active") === "true") {
                         loadDataFromLocalStorage();
                     } else {
@@ -934,7 +902,6 @@
                 }
                 return;
             } catch (e) { 
-                console.error("Cloud pull failed, attempting local data load fallback...", e); 
                 if (localStorage.getItem("yuyiqifei_active") === "true") {
                     loadDataFromLocalStorage();
                     return;
@@ -942,22 +909,6 @@
             }
         }
 
-        // Mode B: Decompress embedded Base64 data hash streams natively
-        if (hash.startsWith("#share=")) {
-            try {
-                isViewerMode = true;
-                const base64 = hash.replace("#share=", "");
-                const payload = JSON.parse(decodeURIComponent(escape(atob(base64))));
-                isDouble = payload.isDouble; numGroups = payload.numGroups; numCourts = payload.numCourts; numRounds = payload.numRounds; playersPerGroup = payload.playersPerGroup; nameMap = payload.nameMap; generatedMatches = payload.generatedMatches;
-                document.getElementById("viewerModeBadge").style.display = "block"; document.getElementById("btnWipeSystem").style.display = "none"; document.getElementById("btnShareMatch").style.display = "none";
-                renderTimelineMatrix(); renderMobileCards(); renderRankTablesFramework();
-                for (let id in payload.scores) { let inputNode = document.getElementById(id); if (inputNode) inputNode.value = payload.scores[id]; }
-                document.getElementById("step1").style.display = "none"; document.getElementById("step2").style.display = "none"; document.getElementById("step3").style.display = "block";
-                liveCalculate(); return;
-            } catch(e) { console.error("Static snapshot extraction crashed", e); }
-        }
-
-        // Mode C: Direct blank local reload fallback data check routing 
         if (localStorage.getItem("yuyiqifei_active") === "true") {
             loadDataFromLocalStorage();
             alert("✨ 【羽翼齐飞】已为您自动恢复上次未打完的球场现场！");
