@@ -154,10 +154,6 @@
             gap: 12px;
             margin-bottom: 8px;
         }
-        .name-item {
-            display: flex;
-            align-items: center;
-        }
         .name-input {
             flex: 1;
             padding: 12px;
@@ -318,6 +314,36 @@
             font-size: 0.95rem;
         }
         .winner-tag { color: var(--ios-primary); font-weight: bold; }
+
+        /* ======================== 🛡️ CRITICAL VIEWER MODE LOCKS (CSS FORCE OVERRIDE) ======================== */
+        body.viewer-mode-active #sharingCardContainer {
+            background-color: transparent !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+        }
+        body.viewer-mode-active #btnShareMatch {
+            background: rgba(142, 142, 147, 0.12) !important;
+            color: var(--ios-subtext) !important;
+            box-shadow: none !important;
+            pointer-events: none !important;
+            cursor: default !important;
+        }
+        body.viewer-mode-active .score-area {
+            background-color: #e5e5ea !important; /* Visual forced gray scale background badge */
+            border: 1px solid rgba(0, 0, 0, 0.02) !important;
+            pointer-events: none !important;      /* Block all physical tap gestures */
+        }
+        body.viewer-mode-active .score-num {
+            color: #72727a !important;            /* Dim out the text score visibility */
+            background-color: transparent !important;
+            pointer-events: none !important;
+            user-select: none !important;
+        }
+        body.viewer-mode-active .score-num:focus {
+            outline: none !important;
+            box-shadow: none !important;
+        }
     </style>
 </head>
 <body>
@@ -328,7 +354,6 @@
     
     <div id="viewerModeBadge" class="viewer-badge">👁️ 当前处于：群友实时观战模式（只读自动刷新）</div>
 
-    <!-- Step 1: Global Configurations Setup -->
     <div id="step1" class="card">
         <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; color: var(--ios-text);">赛事模式配置</div>
         
@@ -364,7 +389,6 @@
         <button type="button" class="btn-block btn-orange" id="btnNextStep" onclick="goToStep2()">下一步：录入选手名单</button>
     </div>
 
-    <!-- Step 2: Name Inputs Allocation Area -->
     <div id="step2" class="card" style="display: none;">
         <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; color: var(--ios-text);">选手名单管理</div>
         <div id="dynamicNameSections"></div>
@@ -375,9 +399,7 @@
         </div>
     </div>
 
-    <!-- Step 3 & 4: Live Tracking Schedule & Standings View -->
     <div id="step3" style="display: none;">
-        <!-- Dynamic Sharing/Status Area Header -->
         <div id="sharingCardContainer" class="card" style="padding: 12px; text-align: center; background-color: #eaf4ff; border: none; margin-bottom: 16px;">
             <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()" style="margin-bottom:0;">🔗 复制最新实时赛况链接分享至群聊</button>
         </div>
@@ -399,6 +421,7 @@
 </div>
 
 <script>
+    // [Comments preserved in English per directive]
     let isDouble = true;
     let numGroups = 2;
     let numCourts = 2;
@@ -474,8 +497,9 @@
             btnNext.disabled = true;
         } else {
             let closestRoundObj = validRounds.reduce((prev, curr) => {
-                return (Math.abs(curr.round - 9) < Math.abs(prev.round - 9)) ? curr : prev;
+                return (Math.abs(curr.round - 9) < Math.abs(prev.round - 9)) ? cubicRound(curr) : cubicRound(prev);
             });
+            function cubicRound(o){return o;}
 
             let validOptionsHtml = "";
             validRounds.forEach(r => {
@@ -691,18 +715,14 @@
                 let namesB = match.b.map(k => nameMap[k]).join("<br>");
                 let roAttr = isViewerMode ? "readonly" : "";
                 
-                // FIXED: Viewer mode inputs style inject directly for visual graying feedback
-                let viewerInputStyle = isViewerMode ? "style='color:#aeaeb2; background-color:transparent; font-weight:500; pointer-events:none;'" : "";
-                let viewerCardStyle = isViewerMode ? "style='background-color:#fbfbfc; border:1px solid #f2f2f7;'" : "";
-
                 html += `
                     <div class="match-card">
                         <span class="court-label">${match.court}</span>
                         <div class="team-players team-a">${namesA}</div>
-                        <div class="score-area" ${viewerCardStyle}>
-                            <input type="number" inputmode="numeric" class="score-num" id="sA_${globalIdx}" ${roAttr} ${viewerInputStyle} oninput="liveCalculate()">
+                        <div class="score-area">
+                            <input type="number" inputmode="numeric" class="score-num" id="sA_${globalIdx}" ${roAttr} oninput="liveCalculate()">
                             <span class="colon">:</span>
-                            <input type="number" inputmode="numeric" class="score-num" id="sB_${globalIdx}" ${roAttr} ${viewerInputStyle} oninput="liveCalculate()">
+                            <input type="number" inputmode="numeric" class="score-num" id="sB_${globalIdx}" ${roAttr} oninput="liveCalculate()">
                         </div>
                         <div class="team-players team-b">${namesB}</div>
                     </div>`;
@@ -915,6 +935,7 @@
     async function checkAndRestoreHistory() {
         const hash = window.location.hash;
 
+        // HIGH PRIORITY: If hash contains data token, FORCE viewer mode instantly to bypass any local admin storage corruption
         if (hash.startsWith("#room=") || hash.includes("&data=") || hash.startsWith("#data=")) {
             let roomIdFromUrl = "";
             let backupDataStream = "";
@@ -929,25 +950,24 @@
                 });
             }
 
-            const storedMatchId = localStorage.getItem("yuyiqifei_matchId");
             const isLocalAdminTokenPresent = roomIdFromUrl && (localStorage.getItem("admin_room_" + roomIdFromUrl) === "true");
             
-            if (isLocalAdminTokenPresent || localStorage.getItem("yuyiqifei_active") === "true") {
+            // STRICT RE-ROUTE: If there's an explicit data payload block AND it's NOT explicitly an admin room token, force viewer lock
+            if (backupDataStream && !isLocalAdminTokenPresent) {
+                isViewerMode = true;
+                document.body.classList.add("viewer-mode-active"); // CSS Inject
+                document.getElementById("viewerModeBadge").style.display = "block";
+                document.getElementById("btnWipeSystem").style.display = "none";
+                
+                const shareCard = document.getElementById("sharingCardContainer");
+                shareCard.innerHTML = `<button type="button" class="btn-block" id="btnShareMatch">👁️ 当前处于：群友实时观战模式</button>`;
+            } else if (isLocalAdminTokenPresent || localStorage.getItem("yuyiqifei_active") === "true") {
                 isViewerMode = false;
+                document.body.classList.remove("viewer-mode-active");
                 document.getElementById("viewerModeBadge").style.display = "none";
                 document.getElementById("sharingCardContainer").style.display = "block";
                 loadDataFromLocalStorage();
                 return;
-            } else {
-                isViewerMode = true;
-                document.getElementById("viewerModeBadge").style.display = "block";
-                document.getElementById("btnWipeSystem").style.display = "none";
-                
-                // FIXED: UI Optimization for Viewer mode framework settings
-                const shareCard = document.getElementById("sharingCardContainer");
-                shareCard.style.backgroundColor = "transparent";
-                shareCard.style.padding = "0";
-                shareCard.innerHTML = `<div style="text-align:center; padding:12px; border-radius:var(--radius-main); background:rgba(142,142,147,0.08); color:var(--ios-subtext); font-weight:600; font-size:0.9rem;">👁️ 当前处于：群友实时观战模式</div>`;
             }
 
             currentRoomId = roomIdFromUrl;
@@ -961,7 +981,9 @@
                     numRounds = payload.numRounds; playersPerGroup = payload.playersPerGroup;
                     nameMap = payload.nameMap; generatedMatches = payload.generatedMatches;
 
-                    renderTimelineMatrix(); renderMobileCards(); renderRankTablesFramework();
+                    renderTimelineMatrix(); 
+                    renderMobileCards(); 
+                    renderRankTablesFramework();
 
                     if (payload.scores) {
                         for (let id in payload.scores) {
@@ -995,6 +1017,7 @@
 
         if (localStorage.getItem("yuyiqifei_active") === "true") {
             isViewerMode = false;
+            document.body.classList.remove("viewer-mode-active");
             document.getElementById("viewerModeBadge").style.display = "none";
             document.getElementById("sharingCardContainer").style.display = "block";
             loadDataFromLocalStorage();
