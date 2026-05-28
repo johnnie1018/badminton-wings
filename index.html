@@ -44,7 +44,6 @@
             margin-bottom: 15px;
         }
 
-        /* Viewer Mode badge indicator */
         .viewer-badge {
             background-color: #f39c12;
             color: white;
@@ -244,7 +243,7 @@
     <h1>羽翼齐飞</h1>
     <div class="subtitle">🏸 智能赛事编排与动态计分系统 🏸</div>
     
-    <div id="viewerModeBadge" class="viewer-badge">👁️ 当前处于：群友观战模式（锁定只读）</div>
+    <div id="viewerModeBadge" class="viewer-badge">👁️ 当前处于：群友实时观战模式（只读自动刷新）</div>
 
     <div id="step1" class="card">
         <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid var(--primary); padding-bottom: 5px;">第一步：赛事模式配置</div>
@@ -293,7 +292,7 @@
 
     <div id="step3" style="display: none;">
         <div class="card" style="padding: 10px; text-align: center; border: 1px solid #b3e5fc; background-color: #e1f5fe;">
-            <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()" style="margin-bottom:0;">🔗 复制并分享当前实时赛况</button>
+            <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()" style="margin-bottom:0;">🔗 复制专属【永久观战链接】发送至群聊</button>
         </div>
 
         <div class="section-title">✨ 赛程时间轴 (横向滑动查看各轮次)</div>
@@ -313,12 +312,17 @@
 </div>
 
 <script>
+    // --- ⚠️ KVDB.io Free Cloud Configuration Area ⚠️ ---
+    // You can customize this string to any unique key word to isolate your data partition natively
+    const KVDB_BUCKET_ID = "yuyiqifei_badminton_v1"; 
+
     let isDouble = true;
     let numGroups = 2;
     let numCourts = 2;
     let numRounds = 9;
     let playersPerGroup = 6;
-    let isViewerMode = false; // Flag to identify shared read-only viewing status
+    let isViewerMode = false; 
+    let currentRoomId = ""; // Current active sub-key session ID identifier
     
     let nameMap = {}; 
     let generatedMatches = []; 
@@ -431,7 +435,7 @@
         document.getElementById("step2").style.display = "block";
     }
 
-    function lockNamesAndBuildAll() {
+    async function lockNamesAndBuildAll() {
         nameMap = {};
         const shuffle = (array) => {
             for (let i = array.length - 1; i > 0; i--) {
@@ -459,6 +463,10 @@
             return;
         }
         
+        // Generate random unique room token key natively
+        currentRoomId = "room_" + Math.random().toString(36).substr(2, 9);
+        window.location.hash = `#room=${currentRoomId}`;
+
         renderTimelineMatrix();
         renderMobileCards();
         renderRankTablesFramework();
@@ -467,6 +475,8 @@
         document.getElementById("step3").style.display = "block";
         
         saveGameFrameworkToStorage();
+        // Fire initial empty state upload payload onto KV store endpoint
+        await pushStateToCloud();
         liveCalculate();
     }
 
@@ -674,9 +684,10 @@
             });
         }
 
-        // Only save to master local cache if we are NOT in viewer mode
         if (!isViewerMode) {
             localStorage.setItem("yuyiqifei_scores", JSON.stringify(currentScoresCache));
+            // Asynchronously dispatch points data packet to cloud storage
+            pushStateToCloud(currentScoresCache);
         }
 
         const summaryBox = document.getElementById("groupSummary");
@@ -713,6 +724,7 @@
 
     function saveGameFrameworkToStorage() {
         localStorage.setItem("yuyiqifei_active", "true");
+        localStorage.setItem("yuyiqifei_roomId", currentRoomId);
         localStorage.setItem("yuyiqifei_isDouble", isDouble);
         localStorage.setItem("yuyiqifei_numGroups", numGroups);
         localStorage.setItem("yuyiqifei_numCourts", numCourts);
@@ -722,62 +734,108 @@
         localStorage.setItem("yuyiqifei_generatedMatches", JSON.stringify(generatedMatches));
     }
 
-    // NEW: Analytical share link compiler mapping state schemas to URL hash parameters
+    // NEW: KVDB.io - Push complete state data object upstream via HTTP PUT
+    async function pushStateToCloud(scoresMap = null) {
+        if (!currentRoomId) return;
+        const targetScores = scoresMap || JSON.parse(localStorage.getItem("yuyiqifei_scores") || "{}");
+        
+        const payload = { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: targetScores };
+        const url = `https://kvdb.io/${KVDB_BUCKET_ID}/${currentRoomId}`;
+        
+        try {
+            await fetch(url, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        } catch(e) { console.error("Cloud synchronization storage push error", e); }
+    }
+
+    // NEW: KVDB.io - Fetch latest remote data mapping packet via HTTP GET (Polling)
+    async function fetchStateFromCloud() {
+        if (!currentRoomId) return;
+        const url = `https://kvdb.io/${KVDB_BUCKET_ID}/${currentRoomId}`;
+        
+        try {
+            const res = await fetch(url);
+            if (res.status === 200) {
+                const payload = await res.json();
+                
+                // If viewer, sync framework parameters just in case
+                if (isViewerMode) {
+                    isDouble = payload.isDouble; numGroups = payload.numGroups; numCourts = payload.numCourts;
+                    numRounds = payload.numRounds; playersPerGroup = payload.playersPerGroup;
+                    nameMap = payload.nameMap; generatedMatches = payload.generatedMatches;
+                }
+
+                // Inject points values directly back into DOM elements safely
+                for (let id in payload.scores) {
+                    let inputNode = document.getElementById(id);
+                    if (inputNode && inputNode.value !== payload.scores[id]) {
+                        inputNode.value = payload.scores[id];
+                    }
+                }
+                liveCalculate();
+            }
+        } catch(e) { console.error("Cloud pulling query execution network error", e); }
+    }
+
     function generateShareLink() {
-        const payload = {
-            isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches,
-            scores: JSON.parse(localStorage.getItem("yuyiqifei_scores") || "{}")
-        };
-        // Encode into secure base64 string to prevent Chinese character breakage
-        const base64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-        const shareUrl = window.location.origin + window.location.pathname + "#share=" + base64;
+        if (!currentRoomId) return;
+        const shareUrl = window.location.origin + window.location.pathname + "#room=" + currentRoomId;
         
         navigator.clipboard.writeText(shareUrl).then(() => {
-            alert("📋 实时赛况长链接已成功复制到剪贴板！可以直接粘贴发送给群友观战。");
+            alert("📋 永久观战网址已成功复制到剪贴板！发到微信群后，大家点开链接随时能看到最新比分，无须重复发链接。");
         }).catch(() => {
-            alert("请手动复制当前浏览器地址栏的完整网址发送给群友即可！");
+            alert("请手动复制浏览器地址栏的完整网址发送给群友观战！");
         });
     }
 
-    function checkAndRestoreHistory() {
-        // High-priority handler: scan and decode share hash payloads
-        if (window.location.hash.startsWith("#share=")) {
+    async function checkAndRestoreHistory() {
+        const hash = window.location.hash;
+
+        // NEW: Intercept cloud shared room string tokens explicitly
+        if (hash.startsWith("#room=")) {
+            isViewerMode = true;
+            currentRoomId = hash.replace("#room=", "");
+            
+            document.getElementById("viewerModeBadge").style.display = "block";
+            document.getElementById("btnWipeSystem").style.display = "none";
+            document.getElementById("btnShareMatch").style.display = "none";
+
+            // Fetch initial remote metadata snapshot to draw the tables framework
+            const url = `https://kvdb.io/${KVDB_BUCKET_ID}/${currentRoomId}`;
             try {
-                isViewerMode = true;
-                const base64 = window.location.hash.replace("#share=", "");
-                const payload = JSON.parse(decodeURIComponent(escape(atob(base64))));
-                
-                isDouble = payload.isDouble; numGroups = payload.numGroups; numCourts = payload.numCourts;
-                numRounds = payload.numRounds; playersPerGroup = payload.playersPerGroup;
-                nameMap = payload.nameMap; generatedMatches = payload.generatedMatches;
+                const res = await fetch(url);
+                if (res.status === 200) {
+                    const payload = await res.json();
+                    isDouble = payload.isDouble; numGroups = payload.numGroups; numCourts = payload.numCourts;
+                    numRounds = payload.numRounds; playersPerGroup = payload.playersPerGroup;
+                    nameMap = payload.nameMap; generatedMatches = payload.generatedMatches;
 
-                // Setup sub-components UI frames
-                document.getElementById("viewerModeBadge").style.display = "block";
-                document.getElementById("btnWipeSystem").style.display = "none"; // Hide reset buttons for viewers
-                document.getElementById("btnShareMatch").style.display = "none"; // Disable secondary sharing actions
-                
-                renderTimelineMatrix();
-                renderMobileCards();
-                renderRankTablesFramework();
+                    renderTimelineMatrix(); renderMobileCards(); renderRankTablesFramework();
 
-                // Inject score strings directly into inputs
-                for (let id in payload.scores) {
-                    let inputNode = document.getElementById(id);
-                    if (inputNode) inputNode.value = payload.scores[id];
+                    for (let id in payload.scores) {
+                        let inputNode = document.getElementById(id); if (inputNode) inputNode.value = payload.scores[id];
+                    }
+
+                    document.getElementById("step1").style.display = "none";
+                    document.getElementById("step2").style.display = "none";
+                    document.getElementById("step3").style.display = "block";
+                    
+                    liveCalculate();
+
+                    // Spin up the asynchronous 5-second polling listener thread loop
+                    setInterval(fetchStateFromCloud, 5000);
+                } else {
+                    alert("未能在云端找到对应的房间数据，可能比赛已被清空。");
+                    window.location.hash = ""; location.reload();
                 }
-
-                document.getElementById("step1").style.display = "none";
-                document.getElementById("step2").style.display = "none";
-                document.getElementById("step3").style.display = "block";
-                
-                liveCalculate();
                 return;
-            } catch(e) {
-                console.error("Failed to compile shared payload link", e);
-            }
+            } catch (e) { console.error("Cloud bootloader validation error", e); }
         }
 
-        // Low-priority handler: read native master cache fallback
+        // Native LocalStorage state check fallback logic
         if (localStorage.getItem("yuyiqifei_active") === "true") {
             isDouble = localStorage.getItem("yuyiqifei_isDouble") === "true";
             numGroups = parseInt(localStorage.getItem("yuyiqifei_numGroups"));
@@ -786,6 +844,7 @@
             playersPerGroup = parseInt(localStorage.getItem("yuyiqifei_playersPerGroup"));
             nameMap = JSON.parse(localStorage.getItem("yuyiqifei_nameMap"));
             generatedMatches = JSON.parse(localStorage.getItem("yuyiqifei_generatedMatches"));
+            if(localStorage.getItem("yuyiqifei_roomId")) currentRoomId = localStorage.getItem("yuyiqifei_roomId");
 
             renderTimelineMatrix(); renderMobileCards(); renderRankTablesFramework();
 
@@ -807,9 +866,7 @@
 
     function resetAllTournament() {
         if (confirm("确定要彻底删除当前比赛缓存并重组新一局吗？该操作不可撤销！")) {
-            localStorage.clear();
-            window.location.hash = ""; // Clear share flags safely
-            location.reload();
+            localStorage.clear(); window.location.hash = ""; location.reload();
         }
     }
 
