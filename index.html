@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>羽毛球排班计分系统(全景时间轴版)</title>
+    <title>羽毛球对抗/轮转赛通用智能系统</title>
     <style>
         :root {
             --primary: #1abc9c;
@@ -52,7 +52,6 @@
             font-weight: bold;
         }
 
-        /* Form Controls styling */
         .form-group {
             margin-bottom: 12px;
         }
@@ -82,7 +81,6 @@
             font-weight: normal !important;
         }
 
-        /* Name inputs layout setup (3 rows 2 cols optimization) */
         .group-name-title {
             font-weight: bold;
             display: block;
@@ -115,7 +113,6 @@
             box-sizing: border-box;
         }
 
-        /* Button elements UI mapping */
         .btn-block {
             width: 100%;
             border: none;
@@ -131,7 +128,6 @@
         .btn-teal { background-color: var(--primary); }
         .btn-teal:active { background-color: var(--primary-dark); }
 
-        /* Match scoring layout cards */
         .round-container {
             margin-bottom: 15px;
             background: #eaeded;
@@ -188,7 +184,6 @@
         }
         .colon { font-weight: bold; color: #7f8c8d; margin: 0 4px; }
 
-        /* Leaderboard and statistics styling table components */
         .summary-total {
             background: #2c3e50;
             color: white;
@@ -223,43 +218,42 @@
 <div class="container">
     <h1>羽毛球智能排班计分系统</h1>
 
-    <!-- Step 1: Configurations setup -->
     <div id="step1" class="card">
         <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid var(--primary); padding-bottom: 5px;">第一步：赛事模式配置</div>
         
         <div class="form-group">
             <label>比赛类型</label>
             <div class="radio-group">
-                <label class="radio-label"><input type="radio" name="matchType" value="single"> 单打 (1vs1)</label>
-                <label class="radio-label"><input type="radio" name="matchType" value="double" checked> 双打 (2vs2)</label>
+                <label class="radio-label"><input type="radio" name="matchType" value="single" onchange="onParamChange()"> 单打 (1vs1)</label>
+                <label class="radio-label"><input type="radio" name="matchType" value="double" checked onchange="onParamChange()"> 双打 (2vs2)</label>
             </div>
         </div>
 
         <div class="form-group">
             <label>分组数量 (组)</label>
-            <input type="number" id="cfgGroups" class="form-control" value="2" min="1" oninput="toggleCourtInput()">
+            <input type="number" id="cfgGroups" class="form-control" value="2" min="1" oninput="onParamChange(); toggleCourtInput();">
         </div>
 
         <div class="form-group" id="courtInputRow">
             <label>可用场地数量 (个)</label>
-            <input type="number" id="cfgCourts" class="form-control" value="2" min="1">
-        </div>
-
-        <div class="form-group">
-            <label>预计比赛轮数 (轮)</label>
-            <input type="number" id="cfgRounds" class="form-control" value="9" min="1">
+            <input type="number" id="cfgCourts" class="form-control" value="2" min="1" oninput="onParamChange()">
         </div>
 
         <div class="form-group">
             <label>每组人员数量 (人/组)</label>
-            <input type="number" id="cfgPlayers" class="form-control" value="6" min="2">
+            <input type="number" id="cfgPlayers" class="form-control" value="6" min="2" oninput="onParamChange()">
             <div id="errorTips" class="error-tips"></div>
         </div>
 
-        <button type="button" class="btn-block btn-orange" onclick="goToStep2()">下一步：录入选手名单</button>
+        <div class="form-group">
+            <label style="color: var(--primary-dark);">💡 选择比赛轮次 (已锁定出场数绝对相等)</label>
+            <select id="cfgRoundsSelect" class="form-control" style="border-color: var(--primary); font-weight: bold; color: var(--primary-dark);">
+                </select>
+        </div>
+
+        <button type="button" class="btn-block btn-orange" id="btnNextStep" onclick="goToStep2()">下一步：录入选手名单</button>
     </div>
 
-    <!-- Step 2: Name inputs allocation area -->
     <div id="step2" class="card" style="display: none;">
         <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid var(--primary); padding-bottom: 5px;">第二步：录入选手姓名</div>
         <div id="dynamicNameSections"></div>
@@ -270,9 +264,7 @@
         </div>
     </div>
 
-    <!-- Step 3 & 4: Live tracking schedule & standings -->
     <div id="step3" style="display: none;">
-        <!-- NEW: Timeline Grid Visualization View -->
         <div class="section-title">✨ 赛程时间轴 (横向滑动查看各轮次)</div>
         <div class="card" id="timelineWrapper" style="padding: 8px; overflow: hidden;">
             <div id="dynamicTimeline"></div>
@@ -299,13 +291,88 @@
     let nameMap = {}; 
     let generatedMatches = []; 
 
+    // Handle interactive visibility of the court element rows
     function toggleCourtInput() {
         const gNum = parseInt(document.getElementById("cfgGroups").value) || 1;
         const row = document.getElementById("courtInputRow");
-        if (gNum === 1) {
-            row.style.display = "none";
+        row.style.display = (gNum === 1) ? "none" : "block";
+    }
+
+    // Trigger calculation updates when configurations shift
+    function onParamChange() {
+        isDouble = document.querySelector('input[name="matchType"]:checked').value === 'double';
+        numGroups = parseInt(document.getElementById("cfgGroups").value) || 1;
+        numCourts = numGroups === 1 ? 1 : (parseInt(document.getElementById("cfgCourts").value) || 1);
+        playersPerGroup = parseInt(document.getElementById("cfgPlayers").value) || 6;
+
+        const slotsPerMatch = isDouble ? 2 : 1;
+        const errorTips = document.getElementById("errorTips");
+        const selectEl = document.getElementById("cfgRoundsSelect");
+        const btnNext = document.getElementById("btnNextStep");
+
+        // Preliminary structural limit check
+        if (numGroups > 1) {
+            const requiredPerRound = numCourts * slotsPerMatch;
+            if (playersPerGroup < requiredPerRound) {
+                errorTips.innerText = `❌ 人数不足！${numCourts}个场地进行${isDouble?'双':'单'}打，对抗赛每组至少需要 ${requiredPerRound} 人。`;
+                errorTips.style.display = "block";
+                selectEl.innerHTML = "<option value=''>请修正人数...</option>";
+                btnNext.disabled = true;
+                return;
+            }
         } else {
-            row.style.display = "block";
+            const requiredTotal = isDouble ? 4 : 2;
+            if (playersPerGroup < requiredTotal) {
+                errorTips.innerText = `❌ 人数不足！内部轮转赛进行${isDouble?'双':'单'}打至少需要 ${requiredTotal} 人。`;
+                errorTips.style.display = "block";
+                selectEl.innerHTML = "<option value=''>请修正人数...</option>";
+                btnNext.disabled = true;
+                return;
+            }
+        }
+        errorTips.style.display = "none";
+        btnNext.disabled = false;
+
+        // Mathematical calculation logic to define perfectly equal rounds list
+        let validOptionsHtml = "";
+        let countOptions = 0;
+
+        // Iterate through possible play counts per player to reverse-engineer valid total rounds
+        for (let targetPlay = 1; targetPlay <= 15; targetPlay++) {
+            let totalRound = 0;
+            if (numGroups > 1) {
+                // Formula for group vs group: Rounds * Courts * PlayersPerMatch = TotalGroupPlayers * targetPlay
+                // Rounds = (PlayersPerGroup * targetPlay) / (numCourts * slotsPerMatch)
+                let upper = playersPerGroup * targetPlay;
+                let lower = numCourts * slotsPerMatch;
+                if (upper % lower === 0) {
+                    totalRound = upper / lower;
+                }
+            } else {
+                // Formula for single group rotation: Rounds * (PlayersPerMatch * 2) = TotalPlayers * targetPlay
+                // Rounds = (playersPerGroup * targetPlay) / (slotsPerMatch * 2)
+                let upper = playersPerGroup * targetPlay;
+                let lower = slotsPerMatch * 2;
+                if (upper % lower === 0) {
+                    totalRound = upper / lower;
+                }
+            }
+
+            // Exclude rounds out of standard tournament range or physically unfeasible scenarios
+            if (totalRound > 0 && totalRound <= 30) {
+                // Guarantee minimum resting window to respect the maximum 2 consecutive games constraint
+                if (numGroups === 1 && totalRound === 1 && targetPlay === 1) continue;
+                
+                validOptionsHtml += `<option value="${totalRound}" ${totalRound === 9 ? 'selected':''}>共 ${totalRound} 轮比赛 (每人刚好上场 ${targetPlay} 次)</option>`;
+                countOptions++;
+            }
+        }
+
+        if (countOptions === 0) {
+            selectEl.innerHTML = "<option value=''>暂无完美匹配的对齐轮次，请调整人数</option>";
+            btnNext.disabled = true;
+        } else {
+            selectEl.innerHTML = validOptionsHtml;
         }
     }
 
@@ -315,31 +382,7 @@
     }
 
     function goToStep2() {
-        isDouble = document.querySelector('input[name="matchType"]:checked').value === 'double';
-        numGroups = parseInt(document.getElementById("cfgGroups").value) || 1;
-        numCourts = numGroups === 1 ? 1 : (parseInt(document.getElementById("cfgCourts").value) || 1);
-        numRounds = parseInt(document.getElementById("cfgRounds").value) || 5;
-        playersPerGroup = parseInt(document.getElementById("cfgPlayers").value) || 6;
-
-        const slotsPerMatch = isDouble ? 2 : 1;
-        const errorTips = document.getElementById("errorTips");
-        
-        if (numGroups > 1) {
-            const requiredPerRound = numCourts * slotsPerMatch;
-            if (playersPerGroup < requiredPerRound) {
-                errorTips.innerText = `❌ 人数不足！${numCourts}个场地打${isDouble?'双':'单'}打，对抗赛每组至少需要 ${requiredPerRound} 人。`;
-                errorTips.style.display = "block";
-                return;
-            }
-        } else {
-            const requiredTotal = isDouble ? 4 : 2;
-            if (playersPerGroup < requiredTotal) {
-                errorTips.innerText = `❌ 人数不足！内部轮转赛进行${isDouble?'双':'单'}打至少需要 ${requiredTotal} 人。`;
-                errorTips.style.display = "block";
-                return;
-            }
-        }
-        errorTips.style.display = "none";
+        numRounds = parseInt(document.getElementById("cfgRoundsSelect").value) || 6;
 
         const nameSections = document.getElementById("dynamicNameSections");
         nameSections.innerHTML = "";
@@ -382,9 +425,13 @@
             }
         }
 
-        autoScheduleEngine();
+        // Execute core scheduling generation
+        let success = autoScheduleEngine();
+        if(!success) {
+            alert("在当前限制条件下无法计算出完美的绝对对齐矩阵，请返回重新调整参与人数或轮次！");
+            return;
+        }
         
-        // Render components including the new Visual Timeline Matrix
         renderTimelineMatrix();
         renderMobileCards();
         renderRankTablesFramework();
@@ -395,43 +442,107 @@
         liveCalculate();
     }
 
+    // Core Scheduling Engine using deterministic tracking with loop fallback
     function autoScheduleEngine() {
-        generatedMatches = [];
         const slotsPerMatch = isDouble ? 2 : 1;
+        let attempt = 0;
+        let maxAttempts = 200; // Prevention counter against theoretical convergence lockups
 
-        let playedCount = {};  
-        let consecutive = {};  
-        for (let g = 1; g <= numGroups; g++) {
-            for (let i = 1; i <= playersPerGroup; i++) {
-                let key = `G${g}_${i}`;
-                playedCount[key] = 0;
-                consecutive[key] = 0;
-            }
-        }
-
-        for (let r = 1; r <= numRounds; r++) {
-            if (numGroups > 1) {
-                let neededPerGroup = Array(numGroups + 1).fill(0);
-                let courtMatchups = [];
-
-                for (let c = 0; c < numCourts; c++) {
-                    let gA = 1; 
-                    let gB = 2;
-                    if (numGroups > 2) {
-                        gA = ((r - 1 + c * 2) % numGroups) + 1;
-                        gB = ((r - 1 + c * 2 + 1) % numGroups) + 1;
-                    }
-                    courtMatchups.push({ gA, gB });
-                    neededPerGroup[gA] += slotsPerMatch;
-                    neededPerGroup[gB] += slotsPerMatch;
+        while (attempt < maxAttempts) {
+            attempt++;
+            generatedMatches = [];
+            
+            let playedCount = {};  
+            let consecutive = {};  
+            for (let g = 1; g <= numGroups; g++) {
+                for (let i = 1; i <= playersPerGroup; i++) {
+                    let key = `G${g}_${i}`;
+                    playedCount[key] = 0;
+                    consecutive[key] = 0;
                 }
+            }
 
-                let poolSelections = {};
-                for (let g = 1; g <= numGroups; g++) {
-                    if (neededPerGroup[g] === 0) continue;
-                    
+            let failed = false;
+            const targetPlays = numGroups > 1 ? 
+                (numRounds * numCourts * slotsPerMatch) / playersPerGroup : 
+                (numRounds * slotsPerMatch * 2) / playersPerGroup;
+
+            for (let r = 1; r <= numRounds; r++) {
+                if (numGroups > 1) {
+                    // =============== Mode A: Group vs Group Anti-Consecutive Matching ===============
+                    let neededPerGroup = Array(numGroups + 1).fill(0);
+                    let courtMatchups = [];
+
+                    for (let c = 0; c < numCourts; c++) {
+                        let gA = 1, gB = 2;
+                        if (numGroups > 2) {
+                            gA = ((r - 1 + c * 2) % numGroups) + 1;
+                            gB = ((r - 1 + c * 2 + 1) % numGroups) + 1;
+                        }
+                        courtMatchups.push({ gA, gB });
+                        neededPerGroup[gA] += slotsPerMatch;
+                        neededPerGroup[gB] += slotsPerMatch;
+                    }
+
+                    let poolSelections = {};
+                    for (let g = 1; g <= numGroups; g++) {
+                        if (neededPerGroup[g] === 0) continue;
+                        
+                        let pList = [];
+                        for (let i = 1; i <= playersPerGroup; i++) {
+                            let k = `G${g}_${i}`;
+                            // Exclude those already hitting the max match caps
+                            if (playedCount[k] < targetPlays) pList.push(k);
+                        }
+
+                        // Shuffle sub-pool dynamically during retries to unlock mathematical deadlocks
+                        if(attempt > 1) pList.sort(() => Math.random() - 0.5);
+
+                        // Primary sort logic priority check: Avoid 3 consecutive games > balance play frequency
+                        pList.sort((x, y) => {
+                            let cx = consecutive[x], cy = consecutive[y];
+                            if (cx >= 2 && cy < 2) return 1;
+                            if (cy >= 2 && cx < 2) return -1;
+                            return playedCount[x] - playedCount[y];
+                        });
+
+                        if (pList.length < neededPerGroup[g]) { failed = true; break; }
+                        poolSelections[g] = pList.slice(0, neededPerGroup[g]);
+                    }
+
+                    if (failed) break;
+
+                    let roundUsedKeys = new Set();
+                    for (let c = 0; c < numCourts; c++) {
+                        let { gA, gB } = courtMatchups[c];
+                        let matchA = [], matchB = [];
+                        
+                        for (let s = 0; s < slotsPerMatch; s++) {
+                            let pA = poolSelections[gA].shift();
+                            let pB = poolSelections[gB].shift();
+                            matchA.push(pA);
+                            matchB.push(pB);
+                            roundUsedKeys.add(pA);
+                            roundUsedKeys.add(pB);
+                        }
+
+                        generatedMatches.push({ round: r, court: `${c + 1}号场`, a: matchA, b: matchB });
+                    }
+
+                    for (let k in consecutive) {
+                        if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } 
+                        else { consecutive[k] = 0; }
+                    }
+
+                } else {
+                    // =============== Mode B: Internal Single Group Rotation Matching ===============
                     let pList = [];
-                    for (let i = 1; i <= playersPerGroup; i++) pList.push(`G${g}_${i}`);
+                    for (let i = 1; i <= playersPerGroup; i++) {
+                        let k = `G1_${i}`;
+                        if (playedCount[k] < targetPlays) pList.push(k);
+                    }
+
+                    if(attempt > 1) pList.sort(() => Math.random() - 0.5);
 
                     pList.sort((x, y) => {
                         let cx = consecutive[x], cy = consecutive[y];
@@ -440,73 +551,31 @@
                         return playedCount[x] - playedCount[y];
                     });
 
-                    poolSelections[g] = pList.slice(0, neededPerGroup[g]);
-                }
-
-                let roundUsedKeys = new Set();
-                for (let c = 0; c < numCourts; c++) {
-                    let { gA, gB } = courtMatchups[c];
-                    let matchA = [], matchB = [];
+                    const totalNeeded = slotsPerMatch * 2; 
+                    if (pList.length < totalNeeded) { failed = true; break; }
                     
+                    let roundPicked = pList.slice(0, totalNeeded);
+                    let matchA = [], matchB = [];
                     for (let s = 0; s < slotsPerMatch; s++) {
-                        let pA = poolSelections[gA].shift();
-                        let pB = poolSelections[gB].shift();
-                        matchA.push(pA);
-                        matchB.push(pB);
-                        roundUsedKeys.add(pA);
-                        roundUsedKeys.add(pB);
+                        matchA.push(roundPicked.shift());
+                        matchB.push(roundPicked.shift());
                     }
 
-                    generatedMatches.push({
-                        round: r,
-                        court: `${c + 1}号场`,
-                        a: matchA,
-                        b: matchB
-                    });
-                }
+                    generatedMatches.push({ round: r, court: `轮转对阵`, a: matchA, b: matchB });
 
-                for (let k in consecutive) {
-                    if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } 
-                    else { consecutive[k] = 0; }
-                }
-
-            } else {
-                let pList = [];
-                for (let i = 1; i <= playersPerGroup; i++) pList.push(`G1_${i}`);
-
-                pList.sort((x, y) => {
-                    let cx = consecutive[x], cy = consecutive[y];
-                    if (cx >= 2 && cy < 2) return 1;
-                    if (cy >= 2 && cx < 2) return -1;
-                    return playedCount[x] - playedCount[y];
-                });
-
-                const totalNeeded = slotsPerMatch * 2; 
-                let roundPicked = pList.slice(0, totalNeeded);
-
-                let matchA = [], matchB = [];
-                for (let s = 0; s < slotsPerMatch; s++) {
-                    matchA.push(roundPicked.shift());
-                    matchB.push(roundPicked.shift());
-                }
-
-                generatedMatches.push({
-                    round: r,
-                    court: `轮转对阵`,
-                    a: matchA,
-                    b: matchB
-                });
-
-                let roundUsedKeys = new Set([...matchA, ...matchB]);
-                for (let k in consecutive) {
-                    if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } 
-                    else { consecutive[k] = 0; }
+                    let roundUsedKeys = new Set([...matchA, ...matchB]);
+                    for (let k in consecutive) {
+                        if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } 
+                        else { consecutive[k] = 0; }
+                    }
                 }
             }
+
+            if (!failed) return true; // Successfully scheduled without constraint breakages
         }
+        return false;
     }
 
-    // NEW: Analytical Visual Timeline Matrix Renderer with sticky left column mapping
     function renderTimelineMatrix() {
         const container = document.getElementById("dynamicTimeline");
         container.innerHTML = "";
@@ -531,7 +600,6 @@
 
         allPlayerKeys.forEach((pKey, idx) => {
             const pName = nameMap[pKey];
-            // Assign unique distinct color using dynamic HSL loop
             const hue = (idx * 360) / allPlayerKeys.length;
             const uniqueColor = `hsl(${hue}, 70%, 45%)`;
 
@@ -704,6 +772,9 @@
             document.getElementById("step1").style.display = "block";
         }
     }
+
+    // Initialize select element lists on script load
+    window.onload = onParamChange;
 </script>
 </body>
 </html>
