@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>羽毛球对抗/轮转赛通用智能系统</title>
+    <title>羽毛球排班计分系统(全景时间轴版)</title>
     <style>
         :root {
             --primary: #1abc9c;
@@ -52,7 +52,7 @@
             font-weight: bold;
         }
 
-        /* 表单样式 */
+        /* Form Controls styling */
         .form-group {
             margin-bottom: 12px;
         }
@@ -82,7 +82,7 @@
             font-weight: normal !important;
         }
 
-        /* 姓名录入排版 (3行2排自适应) */
+        /* Name inputs layout setup (3 rows 2 cols optimization) */
         .group-name-title {
             font-weight: bold;
             display: block;
@@ -115,7 +115,7 @@
             box-sizing: border-box;
         }
 
-        /* 按钮 */
+        /* Button elements UI mapping */
         .btn-block {
             width: 100%;
             border: none;
@@ -131,7 +131,7 @@
         .btn-teal { background-color: var(--primary); }
         .btn-teal:active { background-color: var(--primary-dark); }
 
-        /* 赛程卡片 */
+        /* Match scoring layout cards */
         .round-container {
             margin-bottom: 15px;
             background: #eaeded;
@@ -188,7 +188,7 @@
         }
         .colon { font-weight: bold; color: #7f8c8d; margin: 0 4px; }
 
-        /* 大榜样式 */
+        /* Leaderboard and statistics styling table components */
         .summary-total {
             background: #2c3e50;
             color: white;
@@ -223,7 +223,7 @@
 <div class="container">
     <h1>羽毛球智能排班计分系统</h1>
 
-    <!-- 阶段 1：全局核心参数配置 -->
+    <!-- Step 1: Configurations setup -->
     <div id="step1" class="card">
         <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid var(--primary); padding-bottom: 5px;">第一步：赛事模式配置</div>
         
@@ -259,7 +259,7 @@
         <button type="button" class="btn-block btn-orange" onclick="goToStep2()">下一步：录入选手名单</button>
     </div>
 
-    <!-- 阶段 2：名单录入区域 -->
+    <!-- Step 2: Name inputs allocation area -->
     <div id="step2" class="card" style="display: none;">
         <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid var(--primary); padding-bottom: 5px;">第二步：录入选手姓名</div>
         <div id="dynamicNameSections"></div>
@@ -270,8 +270,14 @@
         </div>
     </div>
 
-    <!-- 阶段 3 & 4：赛程与大榜 -->
+    <!-- Step 3 & 4: Live tracking schedule & standings -->
     <div id="step3" style="display: none;">
+        <!-- NEW: Timeline Grid Visualization View -->
+        <div class="section-title">✨ 赛程时间轴 (横向滑动查看各轮次)</div>
+        <div class="card" id="timelineWrapper" style="padding: 8px; overflow: hidden;">
+            <div id="dynamicTimeline"></div>
+        </div>
+
         <div class="section-title">第三步：比分录入表单</div>
         <div id="dynamicScheduleList"></div>
 
@@ -290,10 +296,9 @@
     let numRounds = 9;
     let playersPerGroup = 6;
     
-    let nameMap = {}; // 存储结构： { "G1_1": "张三", "G2_1": "李四" }
+    let nameMap = {}; 
     let generatedMatches = []; 
 
-    // 根据分组数量，动态隐藏或显示场地输入框
     function toggleCourtInput() {
         const gNum = parseInt(document.getElementById("cfgGroups").value) || 1;
         const row = document.getElementById("courtInputRow");
@@ -316,7 +321,6 @@
         numRounds = parseInt(document.getElementById("cfgRounds").value) || 5;
         playersPerGroup = parseInt(document.getElementById("cfgPlayers").value) || 6;
 
-        // 基础参数合法性安全拦截
         const slotsPerMatch = isDouble ? 2 : 1;
         const errorTips = document.getElementById("errorTips");
         
@@ -328,7 +332,6 @@
                 return;
             }
         } else {
-            // 单组轮转赛
             const requiredTotal = isDouble ? 4 : 2;
             if (playersPerGroup < requiredTotal) {
                 errorTips.innerText = `❌ 人数不足！内部轮转赛进行${isDouble?'双':'单'}打至少需要 ${requiredTotal} 人。`;
@@ -338,7 +341,6 @@
         }
         errorTips.style.display = "none";
 
-        // 动态渲染名单录入框
         const nameSections = document.getElementById("dynamicNameSections");
         nameSections.innerHTML = "";
         
@@ -351,7 +353,7 @@
 
         for (let g = 1; g <= numGroups; g++) {
             const color = groupColors[(g-1) % groupColors.length];
-            const groupLetter = String.fromCharCode(64 + g); // A, B, C...
+            const groupLetter = String.fromCharCode(64 + g); 
             const titleText = numGroups === 1 ? `选手名单管理` : `${groupLetter} 组选手名单`;
             
             let html = `<span class="group-name-title" style="color:${color};">● ${titleText}</span>`;
@@ -374,17 +376,16 @@
     }
 
     function lockNamesAndBuildAll() {
-        nameMap = {};
         for (let g = 1; g <= numGroups; g++) {
             for (let i = 1; i <= playersPerGroup; i++) {
                 nameMap[`G${g}_${i}`] = document.getElementById(`inputName_G${g}_${i}`).value.trim() || `${String.fromCharCode(64+g)}${i}`;
             }
         }
 
-        // 调用核心排班调度引擎
         autoScheduleEngine();
         
-        // 渲染界面
+        // Render components including the new Visual Timeline Matrix
+        renderTimelineMatrix();
         renderMobileCards();
         renderRankTablesFramework();
         
@@ -394,14 +395,12 @@
         liveCalculate();
     }
 
-    // 核心通用智能排班引擎
     function autoScheduleEngine() {
         generatedMatches = [];
         const slotsPerMatch = isDouble ? 2 : 1;
 
-        // 全局状态跟踪器
-        let playedCount = {};  // 各人总出场数
-        let consecutive = {};  // 各人连续上场数
+        let playedCount = {};  
+        let consecutive = {};  
         for (let g = 1; g <= numGroups; g++) {
             for (let i = 1; i <= playersPerGroup; i++) {
                 let key = `G${g}_${i}`;
@@ -412,11 +411,9 @@
 
         for (let r = 1; r <= numRounds; r++) {
             if (numGroups > 1) {
-                // =============== 模式一：组间对抗赛排序 ===============
                 let neededPerGroup = Array(numGroups + 1).fill(0);
                 let courtMatchups = [];
 
-                // 分配每台场地本轮对阵的组别
                 for (let c = 0; c < numCourts; c++) {
                     let gA = 1; 
                     let gB = 2;
@@ -429,7 +426,6 @@
                     neededPerGroup[gB] += slotsPerMatch;
                 }
 
-                // 统一抽取各组符合限制条件的队员
                 let poolSelections = {};
                 for (let g = 1; g <= numGroups; g++) {
                     if (neededPerGroup[g] === 0) continue;
@@ -437,7 +433,6 @@
                     let pList = [];
                     for (let i = 1; i <= playersPerGroup; i++) pList.push(`G${g}_${i}`);
 
-                    // 排序优先级： 严格不连续打3场 > 照顾低出场率
                     pList.sort((x, y) => {
                         let cx = consecutive[x], cy = consecutive[y];
                         if (cx >= 2 && cy < 2) return 1;
@@ -448,7 +443,6 @@
                     poolSelections[g] = pList.slice(0, neededPerGroup[g]);
                 }
 
-                // 派发人员上场并记录状态
                 let roundUsedKeys = new Set();
                 for (let c = 0; c < numCourts; c++) {
                     let { gA, gB } = courtMatchups[c];
@@ -471,18 +465,15 @@
                     });
                 }
 
-                // 更新状态机
                 for (let k in consecutive) {
                     if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } 
                     else { consecutive[k] = 0; }
                 }
 
             } else {
-                // =============== 模式二：单组内部轮转赛排序 ===============
                 let pList = [];
                 for (let i = 1; i <= playersPerGroup; i++) pList.push(`G1_${i}`);
 
-                // 排序检索
                 pList.sort((x, y) => {
                     let cx = consecutive[x], cy = consecutive[y];
                     if (cx >= 2 && cy < 2) return 1;
@@ -490,7 +481,7 @@
                     return playedCount[x] - playedCount[y];
                 });
 
-                const totalNeeded = slotsPerMatch * 2; // 单打2人，双打4人
+                const totalNeeded = slotsPerMatch * 2; 
                 let roundPicked = pList.slice(0, totalNeeded);
 
                 let matchA = [], matchB = [];
@@ -506,7 +497,6 @@
                     b: matchB
                 });
 
-                // 更新连续性
                 let roundUsedKeys = new Set([...matchA, ...matchB]);
                 for (let k in consecutive) {
                     if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } 
@@ -516,9 +506,60 @@
         }
     }
 
+    // NEW: Analytical Visual Timeline Matrix Renderer with sticky left column mapping
+    function renderTimelineMatrix() {
+        const container = document.getElementById("dynamicTimeline");
+        container.innerHTML = "";
+
+        let allPlayerKeys = [];
+        for (let g = 1; g <= numGroups; g++) {
+            for (let i = 1; i <= playersPerGroup; i++) {
+                allPlayerKeys.push(`G${g}_${i}`);
+            }
+        }
+
+        let html = `<div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                        <table style="width: 100%; border-collapse: collapse; min-width: 480px; font-size: 0.8rem; text-align: center;">
+                            <thead>
+                                <tr>
+                                    <th style="border: 1px solid #e2e8f0; padding: 8px 6px; background: #f8fafc; position: sticky; left: 0; z-index: 3; min-width: 65px; box-shadow: 1px 0 0 #e2e8f0;">队员</th>`;
+        
+        for (let r = 1; r <= numRounds; r++) {
+            html += `<th style="border: 1px solid #e2e8f0; padding: 8px 4px; background: #f8fafc; font-weight: bold; min-width: 42px;">R${r}</th>`;
+        }
+        html += `</tr></thead><tbody>`;
+
+        allPlayerKeys.forEach((pKey, idx) => {
+            const pName = nameMap[pKey];
+            // Assign unique distinct color using dynamic HSL loop
+            const hue = (idx * 360) / allPlayerKeys.length;
+            const uniqueColor = `hsl(${hue}, 70%, 45%)`;
+
+            html += `<tr>
+                        <td style="border: 1px solid #e2e8f0; padding: 8px 4px; font-weight: bold; background: #ffffff; position: sticky; left: 0; z-index: 2; box-shadow: 2px 0 4px rgba(0,0,0,0.04); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70px;">${pName}</td>`;
+
+            for (let r = 1; r <= numRounds; r++) {
+                let roundMatches = generatedMatches.filter(m => m.round === r);
+                let playingMatch = roundMatches.find(m => m.a.includes(pKey) || m.b.includes(pKey));
+
+                if (playingMatch) {
+                    let textSymbol = playingMatch.court.replace("号场", "场");
+                    if (numGroups === 1) textSymbol = "上场";
+                    html += `<td style="border: 1px solid #e2e8f0; padding: 4px; background: ${uniqueColor}; color: white; font-weight: bold; font-size: 0.75rem;">${textSymbol}</td>`;
+                } else {
+                    html += `<td style="border: 1px solid #e2e8f0; padding: 4px; background: #f1f5f9; color: #94a3b8; font-size: 0.7rem;">休</td>`;
+                }
+            }
+            html += `</tr>`;
+        });
+
+        html += `</tbody></table></div>`;
+        container.innerHTML = html;
+    }
+
     function renderMobileCards() {
         const container = document.getElementById("dynamicScheduleList");
-        html = "";
+        let html = "";
         
         for (let r = 1; r <= numRounds; r++) {
             html += `<div class="round-container">
@@ -593,7 +634,6 @@
 
             const isWinA = scoreA > scoreB;
 
-            // 仅在纯两组对抗赛时累计大组分
             if (numGroups === 2) {
                 totalScoreA += scoreA;
                 totalScoreB += scoreB;
@@ -615,7 +655,6 @@
             });
         }
 
-        // 显示或隐藏双组对抗大看板
         const summaryBox = document.getElementById("groupSummary");
         if (numGroups === 2) {
             let winnerText = "抗衡中...";
@@ -633,14 +672,12 @@
             summaryBox.style.display = "none";
         }
 
-        // 胜负优先级排序：胜场 > 净胜小分 > 总得分
         const sortRule = (x, y) => {
             if (y.win !== x.win) return y.win - x.win;
             if (y.diffScore !== x.diffScore) return y.diffScore - x.diffScore;
             return y.totalScore - x.totalScore;
         };
 
-        // 渲染各自独立的表格
         for (let g = 1; g <= numGroups; g++) {
             let subList = Object.values(stats).filter(p => p.group === `G${g}`).sort(sortRule);
             let tbody = document.getElementById(`rankBody_G${g}`);
