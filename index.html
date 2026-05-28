@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>羽毛球AB双打对抗赛(全开实时版)</title>
+    <title>羽毛球AB对抗赛(通用智能排班版)</title>
     <style>
         :root {
             --primary: #1abc9c;
@@ -36,14 +36,12 @@
             color: #1a252f;
         }
 
-        .notice {
-            background-color: #e8f8f5;
-            border-left: 4px solid var(--primary);
-            padding: 10px;
+        .card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
             margin-bottom: 15px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            line-height: 1.4;
         }
 
         .section-title {
@@ -54,29 +52,53 @@
             font-weight: bold;
         }
 
-        /* 步骤1：人名录入区 (3行2排布局) */
-        .name-box {
-            background: var(--card-bg);
-            border-radius: 8px;
-            padding: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-            margin-bottom: 15px;
+        /* 步骤1：配置表单样式 */
+        .form-group {
+            margin-bottom: 12px;
         }
+        .form-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #34495e;
+        }
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        .radio-group {
+            display: flex;
+            gap: 20px;
+            margin-top: 5px;
+        }
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: normal !important;
+            cursor: pointer;
+        }
+
+        /* 步骤2：名字录入（自适应3行2排或动态多行2排） */
         .name-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr); 
             gap: 12px 15px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
         .name-item {
             display: flex;
             align-items: center;
             font-size: 0.9rem;
-            color: #555;
         }
         .name-label-text {
             font-weight: bold;
-            min-width: 25px;
+            min-width: 30px;
+            color: #7f8c8d;
         }
         .name-input {
             flex: 1;
@@ -84,34 +106,29 @@
             border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 0.95rem;
-            text-align: left;
             width: 100%;
             box-sizing: border-box;
-        }
-        .name-input:focus {
-            border-color: var(--primary);
-            outline: none;
         }
 
         /* 按钮 */
         .btn-block {
             width: 100%;
-            background-color: #e67e22;
-            color: white;
             border: none;
             padding: 14px;
             font-size: 1rem;
             border-radius: 6px;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 3px 6px rgba(230, 126, 34, 0.2);
-            -webkit-tap-highlight-color: transparent;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+            color: white;
+            transition: background 0.2s;
         }
-        .btn-block:active {
-            background-color: #d35400;
-        }
+        .btn-orange { background-color: #e67e22; }
+        .btn-orange:active { background-color: #d35400; }
+        .btn-teal { background-color: var(--primary); }
+        .btn-teal:active { background-color: var(--primary-dark); }
 
-        /* 步骤2：卡片式赛程 */
+        /* 步骤3：赛程展现 */
         .round-container {
             margin-bottom: 15px;
             background: #eaeded;
@@ -132,20 +149,17 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.03);
         }
         .match-card:last-child { margin-bottom: 0; }
-        
         .court-label {
             font-size: 0.75rem;
             background: #95a5a6;
             color: white;
             padding: 2px 5px;
             border-radius: 3px;
-            min-width: 35px;
+            min-width: 40px;
             text-align: center;
         }
-        
         .team-players {
             width: 33%;
             font-weight: 600;
@@ -154,7 +168,6 @@
         }
         .team-a { color: var(--red); text-align: right; }
         .team-b { color: var(--blue); text-align: left; }
-        
         .score-area {
             display: flex;
             align-items: center;
@@ -170,18 +183,9 @@
             border-radius: 4px;
             font-weight: bold;
         }
-        .score-num:focus {
-            border-color: var(--primary);
-            outline: none;
-            background-color: #fafffb;
-        }
-        .colon {
-            font-weight: bold;
-            color: #7f8c8d;
-            margin: 0 4px;
-        }
+        .colon { font-weight: bold; color: #7f8c8d; margin: 0 4px; }
 
-        /* 步骤3：实时统计结果 */
+        /* 大榜样式 */
         .summary-total {
             background: #2c3e50;
             color: white;
@@ -191,80 +195,84 @@
             font-size: 0.95rem;
             margin-bottom: 15px;
             line-height: 1.5;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
         }
-        
         .rank-table {
             width: 100%;
             border-collapse: collapse;
             background: var(--card-bg);
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
             margin-bottom: 20px;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.05);
         }
         .rank-table th, .rank-table td {
-            padding: 10px 8px;
+            padding: 10px 6px;
             text-align: center;
             border-bottom: 1px solid #edf2f7;
         }
-        .rank-table th {
-            background: #f8f9fa;
-            font-weight: 600;
-            font-size: 0.8rem;
-            color: #7f8c8d;
-        }
-        
-        .winner-tag {
-            color: #2ecc71;
-            font-weight: bold;
-        }
+        .rank-table th { background: #f8f9fa; color: #7f8c8d; font-size: 0.8rem; }
+        .winner-tag { color: #2ecc71; font-weight: bold; }
+        .error-tips { color: var(--red); font-size: 0.85rem; margin-top: 5px; display: none;}
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>羽毛球双打AB对抗赛</h1>
-    
-    <div class="notice">
-        <strong>⚡ 实时重排机制：</strong>直接在下方录入比分，大榜会<strong>立刻自动计算并重新排序</strong>。如果修改了上方名单，点击“同步修改姓名”按钮即可实时刷新赛程表上显示的名字。
-    </div>
+    <h1>羽毛球对抗赛智能管理系统</h1>
 
-    <div class="section-title">1. 录入两组人员姓名</div>
-    <div class="name-box">
-        <span style="color:var(--red); font-weight:bold; display:block; margin-bottom:8px;">🔴 A 组红方队员</span>
-        <div class="name-grid">
-            <div class="name-item"><span class="name-label-text">A1:</span><input type="text" id="name_A1" class="name-input" value="张三"></div>
-            <div class="name-item"><span class="name-label-text">A2:</span><input type="text" id="name_A2" class="name-input" value="李四"></div>
-            <div class="name-item"><span class="name-label-text">A3:</span><input type="text" id="name_A3" class="name-input" value="王五"></div>
-            <div class="name-item"><span class="name-label-text">A4:</span><input type="text" id="name_A4" class="name-input" value="赵六"></div>
-            <div class="name-item"><span class="name-label-text">A5:</span><input type="text" id="name_A5" class="name-input" value="钱七"></div>
-            <div class="name-item"><span class="name-label-text">A6:</span><input type="text" id="name_A6" class="name-input" value="孙八"></div>
-        </div>
+    <div id="step1" class="card">
+        <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid var(--primary); padding-bottom: 5px;">第一步：赛事参数配置</div>
         
-        <span style="color:var(--blue); font-weight:bold; display:block; margin-top:15px; margin-bottom:8px;">🔵 B 组蓝方队员</span>
-        <div class="name-grid">
-            <div class="name-item"><span class="name-label-text">B1:</span><input type="text" id="name_B1" class="name-input" value="阿华"></div>
-            <div class="name-item"><span class="name-label-text">B2:</span><input type="text" id="name_B2" class="name-input" value="阿明"></div>
-            <div class="name-item"><span class="name-label-text">B3:</span><input type="text" id="name_B3" class="name-input" value="阿强"></div>
-            <div class="name-item"><span class="name-label-text">B4:</span><input type="text" id="name_B4" class="name-input" value="阿飞"></div>
-            <div class="name-item"><span class="name-label-text">B5:</span><input type="text" id="name_B5" class="name-input" value="小丽"></div>
-            <div class="name-item"><span class="name-label-text">B6:</span><input type="text" id="name_B6" class="name-input" value="小红"></div>
+        <div class="form-group">
+            <label>比赛类型</label>
+            <div class="radio-group">
+                <label class="radio-label"><input type="radio" name="matchType" value="single"> 单打 (1vs1)</label>
+                <label class="radio-label"><input type="radio" name="matchType" value="double" checked> 双打 (2vs2)</label>
+            </div>
         </div>
-        <button type="button" class="btn-block" style="margin-top:5px;" onclick="syncNamesOnly()">同步修改姓名到下方赛程</button>
+
+        <div class="form-group">
+            <label>可用场地数量 (个)</label>
+            <input type="number" id="cfgCourts" class="form-control" value="2" min="1">
+        </div>
+
+        <div class="form-group">
+            <label>预计比赛轮数 (轮)</label>
+            <input type="number" id="cfgRounds" class="form-control" value="9" min="1">
+        </div>
+
+        <div class="form-group">
+            <label>每组人员数量 (人/组)</label>
+            <input type="number" id="cfgPlayers" class="form-control" value="6" min="2">
+            <div id="errorTips" class="error-tips"></div>
+        </div>
+
+        <button type="button" class="btn-block btn-orange" onclick="goToStep2()">下一步：录入选手名单</button>
     </div>
 
-    <div id="scheduleSection">
-        <div class="section-title">2. 比分录入表单</div>
-        <div id="scheduleList"></div>
-    </div>
-
-    <div id="resultsSection">
-        <div class="section-title">3. 实时结果展示</div>
+    <div id="step2" class="card" style="display: none;">
+        <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid var(--primary); padding-bottom: 5px;">第二步：录入两组选手姓名</div>
         
+        <span style="color:var(--red); font-weight:bold; display:block; margin-bottom:8px;">🔴 A 组红方队员名单</span>
+        <div class="name-grid" id="containerInputsA"></div>
+        
+        <span style="color:var(--blue); font-weight:bold; display:block; margin-top:15px; margin-bottom:8px;">🔵 B 组蓝方队员名单</span>
+        <div class="name-grid" id="containerInputsB"></div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <button type="button" class="btn-block btn-orange" style="width: 35%; background-color: #95a5a6;" onclick="backToStep1()">返回修改</button>
+            <button type="button" class="btn-block btn-teal" style="width: 65%;" onclick="lockNamesAndBuildAll()">锁定名单并生成赛程</button>
+        </div>
+    </div>
+
+    <div id="step3" style="display: none;">
+        <div class="section-title">第三步：比分录入与实时战绩大榜</div>
+        <div id="dynamicScheduleList"></div>
+
+        <div class="section-title">第四步：实时大榜排名</div>
         <div class="summary-total" id="groupSummary"></div>
 
-        <div style="font-weight: bold; color: var(--red); margin-bottom: 5px;">🔴 A 组内部排名 (胜场 > 净胜分 > 得分)</div>
+        <div style="font-weight: bold; color: var(--red); margin-bottom: 5px;">🔴 A 组内部战绩排名</div>
         <table class="rank-table">
             <thead>
                 <tr>
@@ -278,7 +286,7 @@
             <tbody id="rankA"></tbody>
         </table>
 
-        <div style="font-weight: bold; color: var(--blue); margin-bottom: 5px;">🔵 B 组内部排名 (胜场 > 净胜分 > 得分)</div>
+        <div style="font-weight: bold; color: var(--blue); margin-bottom: 5px;">🔵 B 组内部战绩排名</div>
         <table class="rank-table">
             <thead>
                 <tr>
@@ -291,73 +299,190 @@
             </thead>
             <tbody id="rankB"></tbody>
         </table>
+        
+        <button type="button" class="btn-block btn-orange" style="margin-top:10px; background-color: #e74c3c;" onclick="resetAllTournament()">清空比赛并重新开局</button>
     </div>
 </div>
 
 <script>
-    // 完美的9轮、双场地、出场次数绝对均等矩阵
-    const baseMatches = [
-        { r: 1, c: "C1", a: ["A1", "A2"], b: ["B1", "B2"] }, { r: 1, c: "C2", a: ["A3", "A4"], b: ["B3", "B4"] },
-        { r: 2, c: "C1", a: ["A5", "A6"], b: ["B5", "B6"] }, { r: 2, c: "C2", a: ["A1", "A3"], b: ["B2", "B5"] },
-        { r: 3, c: "C1", a: ["A2", "A6"], b: ["B1", "B4"] }, { r: 3, c: "C2", a: ["A4", "A5"], b: ["B3", "B6"] },
-        { r: 4, c: "C1", a: ["A1", "A5"], b: ["B1", "B3"] }, { r: 4, c: "C2", a: ["A2", "A4"], b: ["B4", "B6"] },
-        { r: 5, c: "C1", a: ["A3", "A6"], b: ["B2", "B5"] }, { r: 5, c: "C2", a: ["A1", "A4"], b: ["B1", "B6"] },
-        { r: 6, c: "C1", a: ["A2", "A5"], b: ["B2", "B4"] }, { r: 6, c: "C2", a: ["A3", "A6"], b: ["B3", "B5"] },
-        { r: 7, c: "C1", a: ["A1", "A6"], b: ["B2", "B6"] }, { r: 7, c: "C2", a: ["A2", "A3"], b: ["B1", "B5"] },
-        { r: 8, c: "C1", a: ["A4", "A5"], b: ["B3", "B4"] }, { r: 8, c: "C2", a: ["A1", "A2"], b: ["B3", "B6"] },
-        { r: 9, c: "C1", a: ["A3", "A5"], b: ["B1", "B2"] }, { r: 9, c: "C2", a: ["A4", "A6"], b: ["B4", "B5"] }
-    ];
+    // Global parameters configuration
+    let isDouble = true;
+    let numCourts = 2;
+    let numRounds = 9;
+    let playersPerGroup = 6;
+    
+    let nameMapA = {};
+    let nameMapB = {};
+    let generatedMatches = []; // Holds scheduled match metadata
 
-    let nameMap = {};
-
-    // 页面首次载入时，根据默认名字直接生成赛程和初始大榜
-    function initOnLoad() {
-        updateNameMap();
-        renderScheduleList(true); // 初次渲染，保留比分值
-        liveCalculate();
+    function backToStep1() {
+        document.getElementById("step2").style.display = "none";
+        document.getElementById("step1").style.display = "block";
     }
 
-    function updateNameMap() {
-        for(let i=1; i<=6; i++) {
-            nameMap["A" + i] = document.getElementById(`name_A${i}`).value.trim() || ("A" + i);
-            nameMap["B" + i] = document.getElementById(`name_B${i}`).value.trim() || ("B" + i);
+    function goToStep2() {
+        isDouble = document.querySelector('input[name="matchType"]:checked').value === 'double';
+        numCourts = parseInt(document.getElementById("cfgCourts").value) || 1;
+        numRounds = parseInt(document.getElementById("cfgRounds").value) || 5;
+        playersPerGroup = parseInt(document.getElementById("cfgPlayers").value) || 6;
+
+        // Validation checking for legal setup
+        const requiredPerRound = isDouble ? (numCourts * 2) : (numCourts * 1);
+        const errorTips = document.getElementById("errorTips");
+        
+        if (playersPerGroup < requiredPerRound) {
+            errorTips.innerText = `❌ 人数不足！${numCourts}个场地打${isDouble?'双':'单'}打，每轮每组至少需要 ${requiredPerRound} 人。`;
+            errorTips.style.display = "block";
+            return;
         }
+        errorTips.style.display = "none";
+
+        // Dynamic generation of 3-rows-2-columns style name inputs
+        renderNameInputGrid("containerInputsA", "A", playersPerGroup);
+        renderNameInputGrid("containerInputsB", "B", playersPerGroup);
+
+        document.getElementById("step1").style.display = "none";
+        document.getElementById("step2").style.display = "block";
     }
 
-    // 纯改名字时的触发函数
-    function syncNamesOnly() {
-        updateNameMap();
-        renderScheduleList(false); // 动态刷新名字，但不清空用户已经录入的比分
+    function renderNameInputGrid(containerId, groupLetter, count) {
+        const container = document.getElementById(containerId);
+        let html = "";
+        const defaultNames = {
+            "A": ["张三", "李四", "王五", "赵六", "钱七", "孙八", "周九", "吴十"],
+            "B": ["阿华", "阿明", "阿强", "阿飞", "小丽", "小红", "小冬", "小宇"]
+        };
+
+        for (let i = 1; i <= count; i++) {
+            let defaultVal = defaultNames[groupLetter][i-1] || (groupLetter + i);
+            html += `
+                <div class="name-item">
+                    <span class="name-label-text">${groupLetter}${i}:</span>
+                    <input type="text" id="inputName_${groupLetter}_${i}" class="name-input" value="${defaultVal}">
+                </div>`;
+        }
+        container.innerHTML = html;
+    }
+
+    function lockNamesAndBuildAll() {
+        // Build internal code to real name maps
+        nameMapA = {};
+        nameMapB = {};
+        for (let i = 1; i <= playersPerGroup; i++) {
+            nameMapA["A" + i] = document.getElementById(`inputName_A_${i}`).value.trim() || ("A" + i);
+            nameMapB["B" + i] = document.getElementById(`inputName_B_${i}`).value.trim() || ("B" + i);
+        }
+
+        // Run schedule allocation scheduler algorithm
+        let scheduleSuccess = autoScheduleEngine();
+        if(!scheduleSuccess) return;
+
+        // Render cards layout
+        renderMobileCards();
+        
+        document.getElementById("step2").style.display = "none";
+        document.getElementById("step3").style.display = "block";
+        
+        // Initial clean state calculation
         liveCalculate();
     }
 
-    // 渲染赛程卡片组件
-    function renderScheduleList(isFirstTime) {
-        const container = document.getElementById("scheduleList");
+    // Core Scheduling Engine (Greedy approach with strict backtracking logic)
+    function autoScheduleEngine() {
+        generatedMatches = [];
+        const slotsPerMatch = isDouble ? 2 : 1;
+        const slotsPerRound = numCourts * slotsPerMatch;
+
+        // Track state variables
+        let playedCountA = Array(playersPerGroup + 1).fill(0);
+        let playedCountB = Array(playersPerGroup + 1).fill(0);
+        let consecutiveA = Array(playersPerGroup + 1).fill(0);
+        let consecutiveB = Array(playersPerGroup + 1).fill(0);
+
+        for (let r = 1; r <= numRounds; r++) {
+            let roundSelectedA = [];
+            let roundSelectedB = [];
+
+            // Helper inner picker function
+            const pickPlayersForRound = (consecutiveArr, playedArr, globalSelected) => {
+                let pool = [];
+                for (let i = 1; i <= playersPerGroup; i++) pool.push(i);
+
+                // Sort algorithm order prioritizes: 
+                // 1. Avoid consecutive > 1 (hard constraints)
+                // 2. Play Count balance (fairness)
+                pool.sort((x, y) => {
+                    let cx = consecutiveArr[x], cy = consecutiveArr[y];
+                    if (cx >= 2 && cy < 2) return 1;
+                    if (cy >= 2 && cx < 2) return -1;
+                    return playedArr[x] - playedArr[y];
+                });
+
+                return pool.slice(0, slotsPerRound);
+            };
+
+            let roundA = pickPlayersForRound(consecutiveA, playedCountA, roundSelectedA);
+            let roundB = pickPlayersForRound(consecutiveB, playedCountB, roundSelectedB);
+
+            // Update matching pools index status states
+            for (let i = 1; i <= playersPerGroup; i++) {
+                if (roundA.includes(i)) {
+                    playedCountA[i]++;
+                    consecutiveA[i]++;
+                } else {
+                    consecutiveA[i] = 0;
+                }
+
+                if (roundB.includes(i)) {
+                    playedCountB[i]++;
+                    consecutiveB[i]++;
+                } else {
+                    consecutiveB[i] = 0;
+                }
+            }
+
+            // Slice out individuals into court distribution slots
+            for (let c = 0; c < numCourts; c++) {
+                let matchA = [], matchB = [];
+                for (let s = 0; s < slotsPerMatch; s++) {
+                    matchA.push("A" + roundA[c * slotsPerMatch + s]);
+                    matchB.push("B" + roundB[c * slotsPerMatch + s]);
+                }
+                generatedMatches.push({
+                    round: r,
+                    court: `${c + 1}号场`,
+                    a: matchA,
+                    b: matchB
+                });
+            }
+        }
+        return true;
+    }
+
+    function renderMobileCards() {
+        const container = document.getElementById("dynamicScheduleList");
         let html = "";
         
-        for (let r = 1; r <= 9; r++) {
+        for (let r = 1; r <= numRounds; r++) {
             html += `<div class="round-container">
                         <div class="round-title">第 ${r} 轮</div>`;
             
-            baseMatches.filter(m => m.r === r).forEach((match) => {
-                const globalIdx = baseMatches.indexOf(match);
-                const courtName = match.c === "C1" ? "1号场" : "2号场";
+            generatedMatches.filter(m => m.round === r).forEach((match) => {
+                const globalIdx = generatedMatches.indexOf(match);
                 
-                // 保留已经填写的比分
-                const oldValA = !isFirstTime && document.getElementById(`sA_${globalIdx}`) ? document.getElementById(`sA_${globalIdx}`).value : "";
-                const oldValB = !isFirstTime && document.getElementById(`sB_${globalIdx}`) ? document.getElementById(`sB_${globalIdx}`).value : "";
+                let namesA = match.a.map(code => nameMapA[code]).join("<br>");
+                let namesB = match.b.map(code => nameMapB[code]).join("<br>");
 
                 html += `
                     <div class="match-card">
-                        <span class="court-label">${courtName}</span>
-                        <div class="team-players team-a">${nameMap[match.a[0]]}<br>${nameMap[match.a[1]]}</div>
+                        <span class="court-label">${match.court}</span>
+                        <div class="team-players team-a">${namesA}</div>
                         <div class="score-area">
-                            <input type="number" inputmode="numeric" class="score-num" id="sA_${globalIdx}" value="${oldValA}" oninput="liveCalculate()">
+                            <input type="number" inputmode="numeric" class="score-num" id="sA_${globalIdx}" oninput="liveCalculate()">
                             <span class="colon">:</span>
-                            <input type="number" inputmode="numeric" class="score-num" id="sB_${globalIdx}" value="${oldValB}" oninput="liveCalculate()">
+                            <input type="number" inputmode="numeric" class="score-num" id="sB_${globalIdx}" oninput="liveCalculate()">
                         </div>
-                        <div class="team-players team-b">${nameMap[match.b[0]]}<br>${nameMap[match.b[1]]}</div>
+                        <div class="team-players team-b">${namesB}</div>
                     </div>`;
             });
             html += `</div>`;
@@ -365,17 +490,14 @@
         container.innerHTML = html;
     }
 
-    // 完全实时的自动化统计算法
     function liveCalculate() {
-        let playerStats = {};
-        for(let i=1; i<=6; i++) {
-            playerStats[nameMap["A" + i]] = { name: nameMap["A" + i], win: 0, lose: 0, diffScore: 0, totalScore: 0 };
-            playerStats[nameMap["B" + i]] = { name: nameMap["B" + i], win: 0, lose: 0, diffScore: 0, totalScore: 0 };
-        }
+        let statsA = {}, statsB = {};
+        for (let k in nameMapA) statsA[nameMapA[k]] = { name: nameMapA[k], win: 0, lose: 0, diffScore: 0, totalScore: 0 };
+        for (let k in nameMapB) statsB[nameMapB[k]] = { name: nameMapB[k], win: 0, lose: 0, diffScore: 0, totalScore: 0 };
 
         let totalWinA = 0, totalWinB = 0, totalScoreA = 0, totalScoreB = 0;
 
-        for (let i = 0; i < baseMatches.length; i++) {
+        for (let i = 0; i < generatedMatches.length; i++) {
             const elA = document.getElementById(`sA_${i}`);
             const elB = document.getElementById(`sB_${i}`);
             const valA = elA ? elA.value : "";
@@ -392,62 +514,57 @@
             const isWinA = scoreA > scoreB;
             if (isWinA) totalWinA++; else totalWinB++;
 
-            baseMatches[i].a.forEach(code => {
-                let p = nameMap[code];
-                if(playerStats[p]) {
-                    if (isWinA) playerStats[p].win++; else playerStats[p].lose++;
-                    playerStats[p].totalScore += scoreA;
-                    playerStats[p].diffScore += (scoreA - scoreB);
+            generatedMatches[i].a.forEach(code => {
+                let p = nameMapA[code];
+                if(statsA[p]) {
+                    if (isWinA) statsA[p].win++; else statsA[p].lose++;
+                    statsA[p].totalScore += scoreA;
+                    statsA[p].diffScore += (scoreA - scoreB);
                 }
             });
 
-            baseMatches[i].b.forEach(code => {
-                let p = nameMap[code];
-                if(playerStats[p]) {
-                    if (!isWinA) playerStats[p].win++; else playerStats[p].lose++;
-                    playerStats[p].totalScore += scoreB;
-                    playerStats[p].diffScore += (scoreB - scoreA);
+            generatedMatches[i].b.forEach(code => {
+                let p = nameMapB[code];
+                if(statsB[p]) {
+                    if (!isWinA) statsB[p].win++; else statsB[p].lose++;
+                    statsB[p].totalScore += scoreB;
+                    statsB[p].diffScore += (scoreB - scoreA);
                 }
             });
         }
 
-        // 大组关系呈现
-        let winnerText = "对抗赛火热进行中...";
-        if (totalWinA > totalWinB) winnerText = "<span class='winner-tag'>A 组红方暂时领先! 🏆</span>";
-        else if (totalWinB > totalWinA) winnerText = "<span class='winner-tag'>B 组蓝方暂时领先! 🏆</span>";
+        // Group summary display layout
+        let winnerText = "比赛激战中...";
+        if (totalWinA > totalWinB) winnerText = "<span class='winner-tag'>A 组暂时领先! 🏆</span>";
+        else if (totalWinB > totalWinA) winnerText = "<span class='winner-tag'>B 组暂时领先! 🏆</span>";
         else if (totalScoreA !== totalScoreB) {
-            winnerText = totalScoreA > totalScoreB ? "胜场战平，A 组凭总小分微弱领先" : "胜场战平，B 组凭总小分微弱领先";
+            winnerText = totalScoreA > totalScoreB ? "胜场战平，A 组凭总小分领先" : "胜场战平，B 组凭总小分领先";
         } else if (totalWinA > 0) {
-            winnerText = "🤝 胜场与得分完全一致，局势极度胶着！";
+            winnerText = "🤝 双方绝对战平，比分咬得极紧！";
         }
 
         document.getElementById("groupSummary").innerHTML = `
-            <b>A 组红方总计：</b> ${totalWinA} 胜 (${totalScoreA} 分) <br>
+            <b>A 组总战绩：</b> ${totalWinA} 胜 (${totalScoreA} 分) <br>
             <span style="color:#bdc3c7;font-size:0.8rem;">VS</span><br>
-            <b>B 组蓝方总计：</b> ${totalWinB} 胜 (${totalScoreB} 分)<br>
+            <b>B 组总战绩：</b> ${totalWinB} 胜 (${totalScoreB} 分)<br>
             <div style="margin-top:5px;font-size:0.85rem;color:#f1c40f;">${winnerText}</div>
         `;
 
-        // 排序优先级：胜场 > 净胜小分 > 总得分
+        // Priority sorting rules handler
         const sortRule = (x, y) => {
             if (y.win !== x.win) return y.win - x.win;
             if (y.diffScore !== x.diffScore) return y.diffScore - x.diffScore;
             return y.totalScore - x.totalScore;
         };
 
-        let listA = [], listB = [];
-        for(let i=1; i<=6; i++) {
-            listA.push(playerStats[nameMap["A" + i]]);
-            listB.push(playerStats[nameMap["B" + i]]);
-        }
-        listA.sort(sortRule);
-        listB.sort(sortRule);
+        let listA = Object.values(statsA).sort(sortRule);
+        let listB = Object.values(statsB).sort(sortRule);
 
-        renderTableRows("rankA", listA);
-        renderTableRows("rankB", listB);
+        renderRankRows("rankA", listA);
+        renderRankRows("rankB", listB);
     }
 
-    function renderTableRows(elementId, sortedData) {
+    function renderRankRows(elementId, sortedData) {
         const tbody = document.getElementById(elementId);
         let html = "";
         sortedData.forEach((p, idx) => {
@@ -463,8 +580,12 @@
         tbody.innerHTML = html;
     }
 
-    // 页面加载完毕后立即触发初始化
-    window.onload = initOnLoad;
+    function resetAllTournament() {
+        if(confirm("确定要清空当前的全部比赛积分，重新配置新的比赛吗？")) {
+            document.getElementById("step3").style.display = "none";
+            document.getElementById("step1").style.display = "block";
+        }
+    }
 </script>
 </body>
 </html>
