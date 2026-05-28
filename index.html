@@ -292,7 +292,7 @@
 
     <div id="step3" style="display: none;">
         <div class="card" style="padding: 10px; text-align: center; border: 1px solid #b3e5fc; background-color: #e1f5fe;">
-            <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()" style="margin-bottom:0;">🔗 复制专属【永久观战链接】发送至群聊</button>
+            <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()" style="margin-bottom:0;">🔗 复制最新实时赛况链接分享至群聊</button>
         </div>
 
         <div class="section-title">✨ 赛程时间轴 (横向滑动查看各轮次)</div>
@@ -312,16 +312,12 @@
 </div>
 
 <script>
-    // Public open JSON storage cluster endpoint
-    const CLOUD_DATABASE_URL = "https://api.restful-api.dev/objects";
-
     let isDouble = true;
     let numGroups = 2;
     let numCourts = 2;
     let numRounds = 9;
     let playersPerGroup = 6;
     let isViewerMode = false; 
-    let currentRoomId = ""; 
     
     let nameMap = {}; 
     let generatedMatches = []; 
@@ -434,7 +430,7 @@
         document.getElementById("step2").style.display = "block";
     }
 
-    async function lockNamesAndBuildAll() {
+    function lockNamesAndBuildAll() {
         nameMap = {};
         const shuffle = (array) => {
             for (let i = array.length - 1; i > 0; i--) {
@@ -462,10 +458,6 @@
             return;
         }
 
-        // Generate a random ID natively to prevent asynchronous room generation race-conditions
-        currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-4);
-        window.location.hash = `#room=${currentRoomId}`;
-
         renderTimelineMatrix();
         renderMobileCards();
         renderRankTablesFramework();
@@ -475,9 +467,6 @@
         
         saveGameFrameworkToStorage();
         liveCalculate();
-
-        // Fire implicit background cloud generation thread silently
-        createCloudRoom();
     }
 
     function autoScheduleEngine() {
@@ -686,7 +675,8 @@
 
         if (!isViewerMode) {
             localStorage.setItem("yuyiqifei_scores", JSON.stringify(currentScoresCache));
-            pushStateToCloud(currentScoresCache);
+            // FIX: Realtime address-bar streaming mapping without any network latency
+            updateUrlHashWithScores(currentScoresCache);
         }
 
         const summaryBox = document.getElementById("groupSummary");
@@ -723,7 +713,6 @@
 
     function saveGameFrameworkToStorage() {
         localStorage.setItem("yuyiqifei_active", "true");
-        localStorage.setItem("yuyiqifei_roomId", currentRoomId);
         localStorage.setItem("yuyiqifei_isDouble", isDouble);
         localStorage.setItem("yuyiqifei_numGroups", numGroups);
         localStorage.setItem("yuyiqifei_numCourts", numCourts);
@@ -731,9 +720,6 @@
         localStorage.setItem("yuyiqifei_playersPerGroup", playersPerGroup);
         localStorage.setItem("yuyiqifei_nameMap", JSON.stringify(nameMap));
         localStorage.setItem("yuyiqifei_generatedMatches", JSON.stringify(generatedMatches));
-        if (currentRoomId) {
-            localStorage.setItem("admin_room_" + currentRoomId, "true");
-        }
     }
 
     function loadDataFromLocalStorage() {
@@ -744,9 +730,6 @@
         playersPerGroup = parseInt(localStorage.getItem("yuyiqifei_playersPerGroup"));
         nameMap = JSON.parse(localStorage.getItem("yuyiqifei_nameMap"));
         generatedMatches = JSON.parse(localStorage.getItem("yuyiqifei_generatedMatches"));
-        currentRoomId = localStorage.getItem("yuyiqifei_roomId") || "";
-        
-        if (currentRoomId) window.location.hash = `#room=${currentRoomId}`;
 
         renderTimelineMatrix(); 
         renderMobileCards(); 
@@ -765,83 +748,21 @@
         liveCalculate();
     }
 
-    async function createCloudRoom() {
-        if (!currentRoomId) return;
-        const payload = {
-            id: currentRoomId, // Natively provision custom keys to the endpoint template mapping
-            name: "YuYiQiFei_Badminton_Data",
-            data: { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: {} }
-        };
-        try {
-            await fetch(CLOUD_DATABASE_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-        } catch(e) { console.error("Cloud bypass handled gracefully", e); }
-    }
-
-    async function pushStateToCloud(scoresMap = null) {
-        if (!currentRoomId) return;
-        const targetScores = scoresMap || JSON.parse(localStorage.getItem("yuyiqifei_scores") || "{}");
-        
-        const payload = {
-            name: "YuYiQiFei_Badminton_Data",
-            data: { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: targetScores }
-        };
-        const url = `${CLOUD_DATABASE_URL}/${currentRoomId}`;
-        try {
-            await fetch(url, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-        } catch(e) { console.error("Upstream delayed", e); }
-    }
-
-    async function fetchStateFromCloud() {
-        if (!currentRoomId) return;
-        const url = `${CLOUD_DATABASE_URL}/${currentRoomId}`;
-        try {
-            const res = await fetch(url);
-            if (res.status === 200) {
-                const result = await res.json();
-                const payload = result.data; 
-                
-                if (isViewerMode) {
-                    isDouble = payload.isDouble; numGroups = payload.numGroups; numCourts = payload.numCourts;
-                    numRounds = payload.numRounds; playersPerGroup = payload.playersPerGroup;
-                    nameMap = payload.nameMap; generatedMatches = payload.generatedMatches;
-                }
-
-                for (let id in payload.scores) {
-                    let inputNode = document.getElementById(id);
-                    if (inputNode && inputNode.value !== payload.scores[id]) {
-                        inputNode.value = payload.scores[id];
-                    }
-                }
-                liveCalculate();
-            }
-        } catch(e) { console.error("Cloud data polling silent skip", e); }
-    }
-
-    // NEW: Hybrid Multi-channel Link Generator. Combines room identity with a fail-safe data compressed snapshot payload
-    function generateShareLink() {
-        let baseUrl = window.location.href.split('#')[0];
-        
-        // Always build a compression snapshot block mapping to prevent any 404/database retrieval failures downstream
-        const snapshotPayload = {
-            isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches,
-            scores: JSON.parse(localStorage.getItem("yuyiqifei_scores") || "{}")
-        };
+    // NEW: Analytical URL Address Bar real-time synchronization tracking engine
+    function updateUrlHashWithScores(scoresMap) {
+        const snapshotPayload = { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: scoresMap };
         const compressedDataStream = btoa(unescape(encodeURIComponent(JSON.stringify(snapshotPayload))));
-        
-        // Assemble the hybrid cross-environment link signature format
-        let shareUrl = `${baseUrl}#room=${currentRoomId || 'offline'}&data=${compressedDataStream}`;
+        // Natively update address token stream silently without screen flashes
+        window.history.replaceState(null, null, window.location.href.split('#')[0] + "#data=" + compressedDataStream);
+    }
+
+    function generateShareLink() {
+        // Fetch current address bar layout which natively embeds latest score states maps
+        const shareUrl = window.location.href;
         
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(shareUrl).then(() => {
-                alert("📋 永久专属观战网址已成功复制到剪贴板！发到微信群后，大家点开链接即可【实时刷新】或【快照离线】完美查看最新比分大榜。");
+                alert("📋 专属观战网址已成功复制到剪贴板！发到微信群后，大家点开链接随时可以看到目前最新的战绩大榜。");
             }).catch(() => {
                 fallbackCopyAction(shareUrl);
             });
@@ -853,84 +774,85 @@
     function fallbackCopyAction(text) {
         const textArea = document.createElement("textarea");
         textArea.value = text;
-        textArea.style.position = "fixed"; 
-        textArea.style.left = "-999999px";
+        textArea.style.position = "fixed"; textArea.style.left = "-999999px";
         document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
+        textArea.focus(); textArea.select();
         try {
             document.execCommand('copy');
-            alert("📋 永久专属观战网址已成功复制！发到微信群后，群友点开即可【实时自动刷新】。");
+            alert("📋 专属观战网址已成功复制到剪贴板！发到微信群后，群友点开即可实时观战。");
         } catch (err) {
             alert("自动复制失败，请手动复制浏览器地址栏的完整网址发送给群友！");
         }
         document.body.removeChild(textArea);
     }
 
+    // NEW: Live URL polling listener function mapping upstream changes downstream
+    function pollUrlHashChanges() {
+        const hash = window.location.hash;
+        if (hash.startsWith("#data=")) {
+            try {
+                const base64 = hash.replace("#data=", "");
+                const payload = JSON.parse(decodeURIComponent(escape(atob(base64))));
+                
+                // Block cross-updates if I am the admin record keeper to prevent local loss
+                if (!isViewerMode) return; 
+
+                for (let id in payload.scores) {
+                    let inputNode = document.getElementById(id);
+                    if (inputNode && inputNode.value !== payload.scores[id]) {
+                        inputNode.value = payload.scores[id];
+                    }
+                }
+                liveCalculate();
+            } catch(e) { console.error("URL polling stream execution failure", e); }
+        }
+    }
+
     async function checkAndRestoreHistory() {
         const hash = window.location.hash;
 
-        // NEW: Hybrid Cross-environment Packet Handler and Bootstrap Decoder
-        if (hash.includes("room=") || hash.includes("data=")) {
-            let roomIdFromUrl = "";
-            let backupDataStream = "";
-
-            // Parse parameters correctly out of modern structured layout blocks
-            const urlParams = hash.replace("#", "").split("&");
-            urlParams.forEach(param => {
-                if (param.startsWith("room=")) roomIdFromUrl = param.replace("room=", "");
-                if (param.startsWith("data=")) backupDataStream = param.replace("data=", "");
-            });
-
-            // Identity gate logic verification checker mapping rules
-            if (roomIdFromUrl && localStorage.getItem("admin_room_" + roomIdFromUrl) === "true") {
+        if (hash.startsWith("#data=")) {
+            // Check identity mapping gate via checking native offline active storage slots
+            if (localStorage.getItem("yuyiqifei_active") === "true") {
+                // If I have local tournament framework records, I am verified as the Admin keeper
                 isViewerMode = false;
                 document.getElementById("viewerModeBadge").style.display = "none";
-                if (localStorage.getItem("yuyiqifei_active") === "true") {
-                    loadDataFromLocalStorage();
-                    return;
-                }
+                loadDataFromLocalStorage();
+                return;
             } else {
+                // Otherwise identify this node profile as a read-only Viewer tracking data streams
                 isViewerMode = true;
                 document.getElementById("viewerModeBadge").style.display = "block";
                 document.getElementById("btnWipeSystem").style.display = "none";
                 document.getElementById("btnShareMatch").style.display = "none";
             }
 
-            currentRoomId = roomIdFromUrl;
+            try {
+                const base64 = hash.replace("#data=", "");
+                const payload = JSON.parse(decodeURIComponent(escape(atob(base64))));
+                
+                isDouble = payload.isDouble; numGroups = payload.numGroups; numCourts = payload.numCourts;
+                numRounds = payload.numRounds; playersPerGroup = payload.playersPerGroup;
+                nameMap = payload.nameMap; generatedMatches = payload.generatedMatches;
 
-            // FIRST PRIORITY COOPERATION: Extract backward snapshot block first to achieve instantaneous render without database network latency
-            if (backupDataStream) {
-                try {
-                    const payload = JSON.parse(decodeURIComponent(escape(atob(backupDataStream))));
-                    isDouble = payload.isDouble; numGroups = payload.numGroups; numCourts = payload.numCourts;
-                    numRounds = payload.numRounds; playersPerGroup = payload.playersPerGroup;
-                    nameMap = payload.nameMap; generatedMatches = payload.generatedMatches;
+                renderTimelineMatrix(); renderMobileCards(); renderRankTablesFramework();
 
-                    renderTimelineMatrix(); renderMobileCards(); renderRankTablesFramework();
+                for (let id in payload.scores) {
+                    let inputNode = document.getElementById(id); if (inputNode) inputNode.value = payload.scores[id];
+                }
 
-                    for (let id in payload.scores) {
-                        let inputNode = document.getElementById(id); if (inputNode) inputNode.value = payload.scores[id];
-                    }
+                document.getElementById("step1").style.display = "none";
+                document.getElementById("step2").style.display = "none";
+                document.getElementById("step3").style.display = "block";
+                
+                liveCalculate();
 
-                    document.getElementById("step1").style.display = "none";
-                    document.getElementById("step2").style.display = "none";
-                    document.getElementById("step3").style.display = "block";
-                    
-                    liveCalculate();
-                } catch(err) { console.error("Fallback payload rendering failure:", err); }
-            }
-
-            // SECOND PRIORITY COOPERATION: Spin up silent real-time cloud data polling loops without interfering the main thread visibility
-            if (isViewerMode && currentRoomId && currentRoomId !== "offline") {
-                // Fetch initially to reconcile changes and then poll every 5 seconds seamlessly
-                fetchStateFromCloud();
-                setInterval(fetchStateFromCloud, 5000);
-            }
-            return;
+                // Setup native URL state scanning intervals to update the page instantly if link gets pushed again
+                setInterval(pollUrlHashChanges, 2000);
+                return;
+            } catch(e) { console.error("Snapshot extraction failed", e); }
         }
 
-        // Standard native offline local cache restorer module configuration handler
         if (localStorage.getItem("yuyiqifei_active") === "true") {
             loadDataFromLocalStorage();
             alert("✨ 【羽翼齐飞】已为您自动恢复上次未打完的球场现场！");
