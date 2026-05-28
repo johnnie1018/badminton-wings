@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>羽毛球对抗/轮转赛通用智能系统</title>
+    <title>羽翼齐飞 - 智能对抗与轮转赛事系统</title>
     <style>
         :root {
             --primary: #1abc9c;
@@ -30,10 +30,18 @@
         }
 
         h1 {
-            font-size: 1.3rem;
+            font-size: 1.6rem;
             text-align: center;
             margin: 15px 0 5px 0;
             color: #1a252f;
+            letter-spacing: 2px;
+        }
+
+        .subtitle {
+            text-align: center;
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            margin-bottom: 15px;
         }
 
         .card {
@@ -216,7 +224,8 @@
 <body>
 
 <div class="container">
-    <h1>羽毛球智能排班计分系统</h1>
+    <h1>羽翼齐飞</h1>
+    <div class="subtitle">🏸 智能赛事编排与动态计分系统 🏸</div>
 
     <div id="step1" class="card">
         <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid var(--primary); padding-bottom: 5px;">第一步：赛事模式配置</div>
@@ -341,28 +350,18 @@
         for (let targetPlay = 1; targetPlay <= 15; targetPlay++) {
             let totalRound = 0;
             if (numGroups > 1) {
-                // Formula for group vs group: Rounds * Courts * PlayersPerMatch = TotalGroupPlayers * targetPlay
-                // Rounds = (PlayersPerGroup * targetPlay) / (numCourts * slotsPerMatch)
                 let upper = playersPerGroup * targetPlay;
                 let lower = numCourts * slotsPerMatch;
-                if (upper % lower === 0) {
-                    totalRound = upper / lower;
-                }
+                if (upper % lower === 0) totalRound = upper / lower;
             } else {
-                // Formula for single group rotation: Rounds * (PlayersPerMatch * 2) = TotalPlayers * targetPlay
-                // Rounds = (playersPerGroup * targetPlay) / (slotsPerMatch * 2)
                 let upper = playersPerGroup * targetPlay;
                 let lower = slotsPerMatch * 2;
-                if (upper % lower === 0) {
-                    totalRound = upper / lower;
-                }
+                if (upper % lower === 0) totalRound = upper / lower;
             }
 
             // Exclude rounds out of standard tournament range or physically unfeasible scenarios
             if (totalRound > 0 && totalRound <= 30) {
-                // Guarantee minimum resting window to respect the maximum 2 consecutive games constraint
                 if (numGroups === 1 && totalRound === 1 && targetPlay === 1) continue;
-                
                 validOptionsHtml += `<option value="${totalRound}" ${totalRound === 9 ? 'selected':''}>共 ${totalRound} 轮比赛 (每人刚好上场 ${targetPlay} 次)</option>`;
                 countOptions++;
             }
@@ -446,7 +445,7 @@
     function autoScheduleEngine() {
         const slotsPerMatch = isDouble ? 2 : 1;
         let attempt = 0;
-        let maxAttempts = 200; // Prevention counter against theoretical convergence lockups
+        let maxAttempts = 200; 
 
         while (attempt < maxAttempts) {
             attempt++;
@@ -491,14 +490,11 @@
                         let pList = [];
                         for (let i = 1; i <= playersPerGroup; i++) {
                             let k = `G${g}_${i}`;
-                            // Exclude those already hitting the max match caps
                             if (playedCount[k] < targetPlays) pList.push(k);
                         }
 
-                        // Shuffle sub-pool dynamically during retries to unlock mathematical deadlocks
                         if(attempt > 1) pList.sort(() => Math.random() - 0.5);
 
-                        // Primary sort logic priority check: Avoid 3 consecutive games > balance play frequency
                         pList.sort((x, y) => {
                             let cx = consecutive[x], cy = consecutive[y];
                             if (cx >= 2 && cy < 2) return 1;
@@ -571,11 +567,12 @@
                 }
             }
 
-            if (!failed) return true; // Successfully scheduled without constraint breakages
+            if (!failed) return true; 
         }
         return false;
     }
 
+    // Analytical Visual Timeline Matrix Renderer with sticky left column mapping
     function renderTimelineMatrix() {
         const container = document.getElementById("dynamicTimeline");
         container.innerHTML = "";
@@ -773,7 +770,6 @@
         }
     }
 
-    // Initialize select element lists on script load
     window.onload = onParamChange;
 </script>
 </body>
