@@ -186,7 +186,7 @@
         .btn-block {
             width: 100%;
             border: none;
-            padding: 15px;
+            padding: 14px;
             font-size: 1rem;
             border-radius: var(--radius-main);
             font-weight: 600;
@@ -316,12 +316,6 @@
             font-size: 0.95rem;
         }
         .winner-tag { color: var(--ios-primary); font-weight: bold; }
-        
-        /* Sticky Timeline Grid View Styling Layout Components Map Mapping */
-        #timelineWrapper {
-            border: 1px solid rgba(0,0,0,0.02);
-            border-radius: var(--radius-main);
-        }
     </style>
 </head>
 <body>
@@ -332,6 +326,7 @@
     
     <div id="viewerModeBadge" class="viewer-badge">👁️ 当前处于：群友实时观战模式（只读自动刷新）</div>
 
+    <!-- Step 1: Global Configurations Setup -->
     <div id="step1" class="card">
         <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; color: var(--ios-text);">赛事模式配置</div>
         
@@ -367,6 +362,7 @@
         <button type="button" class="btn-block btn-orange" id="btnNextStep" onclick="goToStep2()">下一步：录入选手名单</button>
     </div>
 
+    <!-- Step 2: Name Inputs Allocation Area -->
     <div id="step2" class="card" style="display: none;">
         <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; color: var(--ios-text);">选手名单管理</div>
         <div id="dynamicNameSections"></div>
@@ -377,6 +373,7 @@
         </div>
     </div>
 
+    <!-- Step 3 & 4: Live Tracking Schedule & Standings View -->
     <div id="step3" style="display: none;">
         <div class="card" style="padding: 12px; text-align: center; background-color: #eaf4ff; border: none; margin-bottom: 16px;">
             <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()" style="margin-bottom:0;">🔗 复制最新实时赛况链接分享至群聊</button>
@@ -759,6 +756,7 @@
                 let p = nameMap[k];
                 if (stats[p]) {
                     if (!isWinA) stats[p].win++; else stats[p].lose++;
+                    stats[p].totalScore += scoreB; stats[p].diffScore += (scoreB - x);
                     stats[p].totalScore += scoreB; stats[p].diffScore += (scoreB - scoreA);
                 }
             });
@@ -795,7 +793,8 @@
             let html = "";
             subList.forEach((p, idx) => {
                 let medal = idx === 0 ? "🥇" : (idx === 1 ? "🥈" : (idx === 2 ? "🥉" : `<span style="color:var(--ios-subtext); font-weight:500;">${idx + 1}</span>`));
-                html += `<tr><td style="font-weight:700;">${medal}</td><td style="font-weight:700; color:var(--ios-text);">${p.name}</td><td style="color:var(--ios-primary-dark); font-weight:600;">${p.win}胜 - ${p.lose}负</td><td style="font-weight:600; color:${p.diffScore >= 0 ? 'var(--ios-red)' : 'var(--ios-text)'}">${p.diffScore > 0 ? '+' + p.diffScore : p.diffScore}</td><td style="color:var(--ios-subtext); font-weight:500;">${p.totalScore}</td></tr>`;
+                // FIX: Removed text string formatting '胜' and '负' descriptors for numeric alignments
+                html += `<tr><td style="font-weight:700;">${medal}</td><td style="font-weight:700; color:var(--ios-text);">${p.name}</td><td style="color:var(--ios-primary-dark); font-weight:600;">${p.win} - ${p.lose}</td><td style="font-weight:600; color:${p.diffScore >= 0 ? 'var(--ios-red)' : 'var(--ios-text)'}">${p.diffScore > 0 ? '+' + p.diffScore : p.diffScore}</td><td style="color:var(--ios-subtext); font-weight:500;">${p.totalScore}</td></tr>`;
             });
             tbody.innerHTML = html;
         }
@@ -914,13 +913,16 @@
                 });
             }
 
-            if (roomIdFromUrl && localStorage.getItem("admin_room_" + roomIdFromUrl) === "true") {
+            // FIX: High priority master privilege checks. Confirm admin credentials in permanent cache mapping beforehand
+            const storedMatchId = localStorage.getItem("yuyiqifei_matchId");
+            const isLocalAdminTokenPresent = roomIdFromUrl && (localStorage.getItem("admin_room_" + roomIdFromUrl) === "true");
+            const isPayloadMatchUUIDAdmin = storedMatchId && hash.includes(storedMatchId);
+
+            if (isLocalAdminTokenPresent || isPayloadMatchUUIDAdmin || localStorage.getItem("yuyiqifei_active") === "true") {
                 isViewerMode = false;
                 document.getElementById("viewerModeBadge").style.display = "none";
-                if (localStorage.getItem("yuyiqifei_active") === "true") {
-                    loadDataFromLocalStorage();
-                    return;
-                }
+                loadDataFromLocalStorage();
+                return;
             } else {
                 isViewerMode = true;
                 document.getElementById("viewerModeBadge").style.display = "block";
