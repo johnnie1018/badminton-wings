@@ -873,80 +873,57 @@
         liveCalculate();
     }
 
-    // NEW: Highly available open data stream streaming mechanism (No signup required)
-    async function pushStateToCloud(scoresMap = null) {
-        if (!currentRoomId || isViewerMode) return;
-        const targetScores = scoresMap || JSON.parse(localStorage.getItem("yuyiqifei_scores") || "{}");
-        
-        // Dynamic payload serialization framework map update
-        for (let i = 0; i < generatedMatches.length; i++) {
-            generatedMatches[i].scoreA = document.getElementById(`sA_${i}`) ? document.getElementById(`sA_${i}`).value : "";
-            generatedMatches[i].scoreB = document.getElementById(`sB_${i}`) ? document.getElementById(`sB_${i}`).value : "";
-        }
-
-        const snapshotPayload = { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: targetScores };
-        
-        try {
-            // Percent-encoding transformation layer to preserve multi-byte strings correctly
-            const safeDataStream = encodeURIComponent(JSON.stringify(snapshotPayload));
-            const base64Packet = btoa(unescape(safeDataStream));
-            
-            // Dispatch standard synchronous push into the global edge message broker pipeline 
-            await fetch(SYNC_BUS_URL + currentRoomId, {
-                method: 'POST',
-                headers: { 'X-Cache': 'yes' }, // Instruct edge nodes to persist packets for late arrivals
-                body: base64Packet
-            });
-        } catch(e) { console.warn("Cloud stream sync upstream latency detected."); }
-    }
-
-    // NEW: Cloud DB - Live polling listener module for cross-device active syncing tracking
+    // Fixed: Cloud data sync with correct JSON array parsing
     async function fetchStateFromCloud() {
         if (!currentRoomId) return;
         try {
-            // Pull the latest message packets cached on Cloudflare server memory
             const res = await fetch(`${SYNC_BUS_URL}${currentRoomId}/json?poll=1`);
             if (res.status === 200) {
-                const text = await res.text();
-                if(!text.trim()) return;
-                
-                const lines = text.trim().split("\n");
-                let latestPayloadString = "";
-                
-                // Parse backward to find the absolute latest data packet signature block
-                for (let i = lines.length - 1; i >= 0; i--) {
-                    if (!lines[i]) continue;
-                    const logObj = JSON.parse(lines[i]);
-                    if (logObj.event === 'message' && logObj.message) {
-                        latestPayloadString = logObj.message;
-                        break;
+                const messages = await res.json();  // ✅ Direct JSON array
+                if (!messages || messages.length === 0) return;
+
+                const latestPayloadString = messages[messages.length - 1].message;
+                if (!latestPayloadString) return;
+
+                const decodedPayload = JSON.parse(decodeURIComponent(escape(atob(latestPayloadString))));
+
+                // Viewer mode: update structure and render UI if needed
+                if (isViewerMode) {
+                    const needRender = (!generatedMatches || generatedMatches.length === 0);
+                    isDouble = decodedPayload.isDouble;
+                    numGroups = decodedPayload.numGroups;
+                    numCourts = decodedPayload.numCourts;
+                    numRounds = decodedPayload.numRounds;
+                    playersPerGroup = decodedPayload.playersPerGroup;
+                    nameMap = decodedPayload.nameMap;
+                    generatedMatches = decodedPayload.generatedMatches;
+
+                    if (needRender) {
+                        renderTimelineMatrix();
+                        renderMobileCards();
+                        renderRankTablesFramework();
+                        document.getElementById("step1").style.display = "none";
+                        document.getElementById("step2").style.display = "none";
+                        document.getElementById("step3").style.display = "block";
                     }
                 }
 
-                if (latestPayloadString) {
-                    const decodedPayload = JSON.parse(decodeURIComponent(escape(atob(latestPayloadString))));
-                    
-                    // Core viewer state sync mapping updates
-                    if (isViewerMode) {
-                        isDouble = decodedPayload.isDouble; numGroups = decodedPayload.numGroups; numCourts = decodedPayload.numCourts;
-                        numRounds = decodedPayload.numRounds; playersPerGroup = decodedPayload.playersPerGroup;
-                        nameMap = decodedPayload.nameMap; generatedMatches = decodedPayload.generatedMatches;
+                // Sync scores into inputs
+                for (let id in decodedPayload.scores) {
+                    const inputNode = document.getElementById(id);
+                    if (inputNode && inputNode.value !== decodedPayload.scores[id]) {
+                        inputNode.value = decodedPayload.scores[id];
                     }
-
-                    for (let id in decodedPayload.scores) {
-                        let inputNode = document.getElementById(id);
-                        if (inputNode && inputNode.value !== decodedPayload.scores[id]) {
-                            inputNode.value = decodedPayload.scores[id];
-                        }
-                    }
-                    liveCalculate();
                 }
+
+                liveCalculate();
             }
-        } catch(e) { console.warn("Cloud parsing pipeline skip."); }
+        } catch(e) {
+            console.warn("Cloud parsing pipeline skip.", e);
+        }
     }
 
     function generateShareLink() {
-        // Enforce state compilation directly before copying actions trigger
         liveCalculate();
         
         let baseUrl = window.location.href.split('#')[0];
@@ -981,11 +958,9 @@
     async function checkAndRestoreHistory() {
         const hash = window.location.hash;
 
-        // HIGH PRIORITY AUDIT: Scan URL query bounds for room token identifiers
         if (hash.startsWith("#room=")) {
             const roomIdFromUrl = hash.replace("#room=", "");
             
-            // Validate creator authorization via persistent local asset checks
             if (localStorage.getItem("admin_room_" + roomIdFromUrl) === "true" || localStorage.getItem("yuyiqifei_active") === "true") {
                 isViewerMode = false;
                 document.body.classList.remove("viewer-mode-active");
@@ -994,7 +969,6 @@
                 loadDataFromLocalStorage();
                 return;
             } else {
-                // Otherwise initialize profile strictly as a read-only viewer tracking node
                 isViewerMode = true;
                 document.body.classList.add("viewer-mode-active"); 
                 document.getElementById("viewerModeBadge").style.display = "block";
@@ -1006,18 +980,14 @@
 
             currentRoomId = roomIdFromUrl;
 
-            // Viewer node data synchronization query flow mapping
             if (isViewerMode) {
-                // Initialize framework tables block instantly
-                await fetchStateFromCloud();
-                
-                // Spin up silent polling loops checker every 4 seconds seamlessly
+                // Start data pull; first success will render the UI automatically
+                fetchStateFromCloud();
                 setInterval(fetchStateFromCloud, 4000);
             }
             return;
         }
 
-        // Standard native offline cache scanner fallback
         if (localStorage.getItem("yuyiqifei_active") === "true") {
             isViewerMode = false;
             document.body.classList.remove("viewer-mode-active");
@@ -1028,6 +998,30 @@
             return;
         }
         onParamChange();
+    }
+
+    // Cloud push remains unchanged
+    async function pushStateToCloud(scoresMap = null) {
+        if (!currentRoomId || isViewerMode) return;
+        const targetScores = scoresMap || JSON.parse(localStorage.getItem("yuyiqifei_scores") || "{}");
+        
+        for (let i = 0; i < generatedMatches.length; i++) {
+            generatedMatches[i].scoreA = document.getElementById(`sA_${i}`) ? document.getElementById(`sA_${i}`).value : "";
+            generatedMatches[i].scoreB = document.getElementById(`sB_${i}`) ? document.getElementById(`sB_${i}`).value : "";
+        }
+
+        const snapshotPayload = { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: targetScores };
+        
+        try {
+            const safeDataStream = encodeURIComponent(JSON.stringify(snapshotPayload));
+            const base64Packet = btoa(unescape(safeDataStream));
+            
+            await fetch(SYNC_BUS_URL + currentRoomId, {
+                method: 'POST',
+                headers: { 'X-Cache': 'yes' },
+                body: base64Packet
+            });
+        } catch(e) { console.warn("Cloud stream sync upstream latency detected."); }
     }
 
     function resetAllTournament() {
