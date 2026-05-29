@@ -10,11 +10,11 @@
             --ios-card: #ffffff;
             --ios-text: #1c1c1e;
             --ios-subtext: #8e8e93;
-            --ios-primary: #34c759;     /* Apple Green */
+            --ios-primary: #34c759;     
             --ios-primary-dark: #248a3d;
-            --ios-orange: #ff9500;      /* Apple Orange */
-            --ios-blue: #007aff;        /* Apple Blue */
-            --ios-red: #ff3b30;         /* Apple Red */
+            --ios-orange: #ff9500;      
+            --ios-blue: #007aff;        
+            --ios-red: #ff3b30;         
             --ios-gray: #e5e5ea;
             --radius-main: 14px;
             --radius-sub: 10px;
@@ -53,7 +53,6 @@
             font-weight: 500;
         }
 
-        /* iOS Loading Overlay */
         .loading-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -74,7 +73,6 @@
         }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        /* iOS Toast Badge */
         .viewer-badge {
             background-color: var(--ios-orange);
             color: white;
@@ -88,7 +86,6 @@
             box-shadow: 0 4px 12px rgba(255, 149, 0, 0.2);
         }
 
-        /* iOS Style Grouped Cards */
         .card {
             background: var(--ios-card);
             border-radius: var(--radius-main);
@@ -107,7 +104,6 @@
             letter-spacing: 0.3px;
         }
 
-        /* Form Controls Setup */
         .form-group {
             margin-bottom: 16px;
             border-bottom: 1px solid rgba(0, 0, 0, 0.05);
@@ -169,7 +165,6 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         }
 
-        /* iOS Capsule Inputs Grid Layout */
         .name-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -200,7 +195,6 @@
             font-weight: 400;
         }
 
-        /* iOS Spec Button Element Layout Mapping */
         .btn-block {
             width: 100%;
             border: none;
@@ -228,7 +222,6 @@
         .btn-title { font-size: 1.05rem; }
         .btn-subtitle { font-size: 0.75rem; opacity: 0.85; margin-top: 4px; font-weight: 500; }
         
-        /* App Style Match Rows Card Box Layout Mapping */
         .round-container {
             margin-bottom: 20px;
             background: transparent;
@@ -254,7 +247,6 @@
             overflow: hidden;
         }
         
-        /* Active State */
         .match-card-unlocked {
             background-color: #ffffff;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
@@ -265,7 +257,6 @@
         .match-card-unlocked .score-num { color: var(--ios-text); }
         .match-card-unlocked .team-players { color: #2c3e50; }
         
-        /* Locked State */
         .match-card-locked {
             background-color: #e2e8f0; 
             box-shadow: none;
@@ -284,7 +275,6 @@
             gap: 6px; 
         }
         
-        /* Absolute positioned badge */
         .court-label {
             position: absolute;
             top: 0;
@@ -298,7 +288,6 @@
             z-index: 1;
         }
         
-        /* Horizontal player names layout */
         .team-players {
             flex: 1;
             font-weight: 700;
@@ -333,7 +322,6 @@
         }
         .colon { font-weight: 700; color: #aeaeb2; margin: 0 2px; font-size: 1.1rem; }
 
-        /* iOS Capsule Action Lock Switch Button Style */
         .action-lock-btn {
             width: 100%;
             padding: 10px;
@@ -348,20 +336,33 @@
         .btn-state-unlocked { background-color: rgba(0, 122, 255, 0.08); color: var(--ios-blue); }
         .btn-state-locked { background-color: rgba(142, 142, 147, 0.12); color: #48484a; }
 
-        /* iOS Total Indicator Summary Component View Layout */
+        /* ======================== 战绩与结算面板进阶排版 ======================== */
         .summary-total {
+            border-radius: var(--radius-main);
+            padding: 16px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: all 0.4s ease;
+        }
+        /* 比赛进行中状态 */
+        .summary-ongoing {
             background: #1c1c1e;
             color: white;
-            padding: 16px;
-            border-radius: var(--radius-main);
-            text-align: center;
-            font-size: 1rem;
-            margin-bottom: 20px;
-            line-height: 1.4;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
         }
+        /* 比赛完结庆祝状态 (动画与强烈暖色) */
+        .summary-finished {
+            background: linear-gradient(135deg, #FF3B30, #FF9500); 
+            color: #ffffff;
+            box-shadow: 0 8px 24px rgba(255, 149, 0, 0.3);
+            border: 2px solid #FFD60A;
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.9); opacity: 0.5; }
+            100% { transform: scale(1); opacity: 1; }
+        }
         
-        /* Cupertino Style Rank Tables View Component Handler Mapping */
         .rank-table {
             width: 100%;
             border-collapse: collapse;
@@ -369,8 +370,22 @@
             border-radius: var(--radius-main);
             overflow: hidden;
             margin-bottom: 20px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.01);
+            transition: all 0.3s ease;
         }
+        /* 冠军组高光 UI */
+        .table-winner {
+            border: 2px solid #FF9500;
+            box-shadow: 0 4px 16px rgba(255, 149, 0, 0.15);
+            background-color: #fffcf2; 
+        }
+        .table-winner th { background-color: #fffae8 !important; color: #d97706 !important; }
+        /* 惜败组置灰 UI */
+        .table-loser {
+            opacity: 0.65;
+            filter: grayscale(0.5);
+            border: 1px solid #e5e5ea;
+        }
+        
         .rank-table th, .rank-table td {
             padding: 12px 10px;
             text-align: center;
@@ -388,9 +403,7 @@
         .rank-table td {
             font-size: 0.95rem;
         }
-        .winner-tag { color: var(--ios-primary); font-weight: bold; }
 
-        /* ======================== 🛡️ CRITICAL VIEWER MODE LOCKS ======================== */
         body.viewer-mode-active #sharingCardContainer {
             background-color: transparent !important;
             padding: 0 !important;
@@ -502,7 +515,7 @@
         <div id="dynamicScheduleList"></div>
 
         <div class="section-title">第四步：实时战绩展示</div>
-        <div class="summary-total" id="groupSummary" style="display: none;"></div>
+        <div id="groupSummary" style="display: none;"></div>
         <div id="dynamicRankTables"></div>
         
         <button type="button" class="btn-block btn-orange" id="btnWipeSystem" style="margin-top:16px; background-color: var(--ios-red); box-shadow: 0 4px 12px rgba(255, 59, 48, 0.15);" onclick="resetAllTournament()">
@@ -512,7 +525,6 @@
 </div>
 
 <script>
-    // Global Constants and State Variables
     const SYNC_BUS_URL = "https://ntfy.sh/yyqf_global_hub_"; 
 
     let isDouble = true;
@@ -663,15 +675,12 @@
         }
 
         currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-3);
-        
-        // Push pure short URL immediately without data payload 
         window.history.replaceState(null, null, window.location.href.split('#')[0] + "#room=" + currentRoomId);
 
         generatedMatches.forEach(m => { m.isLocked = false; m.scoreA = ""; m.scoreB = ""; });
 
         renderTimelineMatrix();
         renderMobileCards();
-        renderRankTablesFramework();
         
         document.getElementById("step2").style.display = "none";
         document.getElementById("step3").style.display = "block";
@@ -843,23 +852,6 @@
         container.innerHTML = html;
     }
 
-    function renderRankTablesFramework() {
-        const container = document.getElementById("dynamicRankTables"); container.innerHTML = "";
-        const groupColors = ["var(--ios-red)", "var(--ios-blue)", "#9b59b6", "var(--ios-orange)", "var(--ios-primary)"];
-
-        for (let g = 1; g <= numGroups; g++) {
-            const color = groupColors[(g-1) % groupColors.length];
-            const groupLetter = String.fromCharCode(64 + g);
-            const title = numGroups === 1 ? `👑 全员个人战绩榜` : `🔴 ${groupLetter} 组战绩排名`;
-            container.innerHTML += `
-                <div style="font-weight: 700; color: ${color}; margin-top:16px; margin-bottom: 6px; font-size:0.9rem; padding-left:4px;">${title}</div>
-                <table class="rank-table">
-                    <thead><tr><th style="width: 15%;">排名</th><th style="width: 32%;">队员</th><th style="width: 21%;">胜 - 负</th><th style="width: 17%;">净胜</th><th style="width: 15%;">得分</th></tr></thead>
-                    <tbody id="rankBody_G${g}"></tbody>
-                </table>`;
-        }
-    }
-
     function cacheInputValuesOnly(idx) {
         let valA = document.getElementById(`sA_${idx}`) ? document.getElementById(`sA_${idx}`).value : "";
         let valB = document.getElementById(`sB_${idx}`) ? document.getElementById(`sB_${idx}`).value : "";
@@ -896,30 +888,34 @@
         liveCalculate(true); 
     }
 
+    // Dynamic UI Engine for Ranks and Leaderboards
     function liveCalculate(shouldPushToCloud = true) {
         let stats = {};
         for (let k in nameMap) stats[nameMap[k]] = { name: nameMap[k], win: 0, lose: 0, diffScore: 0, totalScore: 0, group: k.split('_')[0] };
 
         let totalWinA = 0, totalWinB = 0, totalScoreA = 0, totalScoreB = 0;
         let currentScoresCache = {}; 
+        
+        // Progress Evaluators
+        let totalMatchCount = generatedMatches.length;
+        let lockedMatchCount = 0;
 
         for (let i = 0; i < generatedMatches.length; i++) {
             let valA = generatedMatches[i].scoreA || "";
             let valB = generatedMatches[i].scoreB || "";
 
             currentScoresCache[`sA_${i}`] = valA; currentScoresCache[`sB_${i}`] = valB;
-            if (valA === "" || valB === "") continue;
+            
+            if (generatedMatches[i].isLocked) {
+                lockedMatchCount++;
+                const scoreA = parseInt(valA), scoreB = parseInt(valB);
+                const isWinA = scoreA > scoreB;
 
-            const scoreA = parseInt(valA), scoreB = parseInt(valB);
-            if (scoreA === scoreB) continue; 
-            const isWinA = scoreA > scoreB;
+                if (numGroups === 2) {
+                    totalScoreA += scoreA; totalScoreB += scoreB;
+                    if (isWinA) totalWinA++; else totalWinB++;
+                }
 
-            if (numGroups === 2) {
-                totalScoreA += scoreA; totalScoreB += scoreB;
-                if (isWinA) totalWinA++; else totalWinB++;
-            }
-
-            if(generatedMatches[i].isLocked) {
                 generatedMatches[i].a.forEach(k => {
                     let p = nameMap[k];
                     if (stats[p]) {
@@ -936,6 +932,8 @@
                 });
             }
         }
+        
+        const isAllFinished = (totalMatchCount > 0 && lockedMatchCount === totalMatchCount);
 
         if (!isViewerMode) {
             localStorage.setItem("yuyiqifei_scores", JSON.stringify(currentScoresCache));
@@ -944,18 +942,54 @@
             }
         }
 
+        // ==========================
+        // 1. Group Summary Rendering
+        // ==========================
         const summaryBox = document.getElementById("groupSummary");
+        let winningGroup = ""; 
+
         if (numGroups === 2) {
-            let winnerText = "抗衡中...";
-            if (totalWinA > totalWinB) winnerText = "A 组红方领先 🏆";
-            else if (totalWinB > totalWinA) winnerText = "B 组蓝方领先 🏆";
-            else if (totalScoreA !== totalScoreB) winnerText = totalScoreA > totalScoreB ? "场次持平，A组凭借小分优势占优" : "场次持平，B组凭借小分优势占优";
-            
-            summaryBox.innerHTML = `<b>A 组红方 :</b> ${totalWinA} 胜 (${totalScoreA}分) <span style="margin:0 8px; color:rgba(255,255,255,0.3)">|</span> <b>B 组蓝方 :</b> ${totalWinB} 胜 (${totalScoreB}分)<br><div style="color:#ffcc00; font-size:0.85rem; font-weight:600; margin-top:5px;">${winnerText}</div>`;
+            if (totalWinA > totalWinB) winningGroup = "G1";
+            else if (totalWinB > totalWinA) winningGroup = "G2";
+            else if (totalScoreA !== totalScoreB) winningGroup = totalScoreA > totalScoreB ? "G1" : "G2";
+            else winningGroup = "TIE";
+
+            if (isAllFinished) {
+                // UI: FINISHED STATE (Golden Celebration)
+                summaryBox.className = "summary-total summary-finished";
+                let winText = winningGroup === "G1" ? "🏆 A 组 夺得总冠军！ 🎉" : (winningGroup === "G2" ? "🏆 B 组 夺得总冠军！ 🎉" : "🤝 双方握手言和，势均力敌！");
+                summaryBox.innerHTML = `
+                    <div style="font-size: 1.25rem; font-weight: 800; margin-bottom: 10px; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">${winText}</div>
+                    <div style="font-size: 0.95rem; font-weight: 600; opacity: 0.95;">
+                        A 组：${totalWinA} 胜 (${totalScoreA}分) &nbsp;&nbsp;|&nbsp;&nbsp; B 组：${totalWinB} 胜 (${totalScoreB}分)
+                    </div>
+                `;
+            } else {
+                // UI: ONGOING STATE
+                summaryBox.className = "summary-total summary-ongoing";
+                let leadText = "⚔️ 双方激烈抗衡中...";
+                if (winningGroup === "G1") leadText = "🔥 A 组 暂时领先";
+                else if (winningGroup === "G2") leadText = "🔥 B 组 暂时领先";
+                
+                summaryBox.innerHTML = `
+                    <div style="display: flex; justify-content: space-around; font-weight: 600; margin-bottom: 8px;">
+                        <span>A 组: <span style="color:var(--ios-primary)">${totalWinA} 胜</span> (${totalScoreA}分)</span>
+                        <span style="color: rgba(255,255,255,0.3)">|</span>
+                        <span>B 组: <span style="color:var(--ios-blue)">${totalWinB} 胜</span> (${totalScoreB}分)</span>
+                    </div>
+                    <div style="color:#ffcc00; font-size:0.85rem; font-weight:700;">${leadText} (赛程进度 ${lockedMatchCount}/${totalMatchCount})</div>
+                `;
+            }
             summaryBox.style.display = "block";
         } else {
             summaryBox.style.display = "none";
         }
+
+        // ==========================
+        // 2. Rank Tables Rendering
+        // ==========================
+        const tablesContainer = document.getElementById("dynamicRankTables");
+        tablesContainer.innerHTML = "";
 
         const sortRule = (x, y) => {
             if (y.win !== x.win) return y.win - x.win;
@@ -965,14 +999,42 @@
 
         for (let g = 1; g <= numGroups; g++) {
             let subList = Object.values(stats).filter(p => p.group === `G${g}`).sort(sortRule);
-            let tbody = document.getElementById(`rankBody_G${g}`); if(!tbody) continue;
             
-            let html = "";
+            let groupStateClass = "";
+            let groupTitlePrefix = numGroups === 1 ? "" : (g === 1 ? "A" : "B");
+            let groupTitleText = numGroups === 1 ? `👑 全员个人战绩榜` : `📊 ${groupTitlePrefix} 组战绩排名`;
+            let titleStyle = `font-weight: 700; color: var(--ios-subtext); margin-top:16px; margin-bottom: 6px; font-size:0.9rem; padding-left:4px;`;
+
+            // UI: Table visual contrasts based on Winning State
+            if (numGroups === 2 && isAllFinished) {
+                if (`G${g}` === winningGroup) {
+                    groupStateClass = "table-winner";
+                    groupTitleText = `🏆 ${groupTitlePrefix} 组 (冠军组) 荣耀榜`;
+                    titleStyle = `font-weight: 800; color: #ff9500; margin-top:20px; margin-bottom: 8px; font-size:1.05rem; padding-left:4px;`;
+                } else if (winningGroup !== "TIE") {
+                    groupStateClass = "table-loser";
+                    groupTitleText = `⚪ ${groupTitlePrefix} 组 (惜败) 战绩排名`;
+                    titleStyle = `font-weight: 600; color: #8e8e93; margin-top:16px; margin-bottom: 6px; font-size:0.85rem; padding-left:4px;`;
+                }
+            } else if (numGroups === 2 && !isAllFinished) {
+                 if (`G${g}` === winningGroup) {
+                     groupTitleText = `🔥 ${groupTitlePrefix} 组战绩排名 (领先)`;
+                 }
+            }
+
+            let html = `
+                <div style="${titleStyle}">${groupTitleText}</div>
+                <table class="rank-table ${groupStateClass}">
+                    <thead><tr><th style="width: 15%;">排名</th><th style="width: 32%;">队员</th><th style="width: 21%;">胜 - 负</th><th style="width: 17%;">净胜</th><th style="width: 15%;">得分</th></tr></thead>
+                    <tbody>
+            `;
+            
             subList.forEach((p, idx) => {
                 let medal = idx === 0 ? "🥇" : (idx === 1 ? "🥈" : (idx === 2 ? "🥉" : `<span style="color:var(--ios-subtext); font-weight:500;">${idx + 1}</span>`));
                 html += `<tr><td style="font-weight:700;">${medal}</td><td style="font-weight:700; color:var(--ios-text);">${p.name}</td><td style="color:var(--ios-primary-dark); font-weight:600;">${p.win} - ${p.lose}</td><td style="font-weight:600; color:${p.diffScore >= 0 ? 'var(--ios-red)' : 'var(--ios-text)'}">${p.diffScore > 0 ? '+' + p.diffScore : p.diffScore}</td><td style="color:var(--ios-subtext); font-weight:500;">${p.totalScore}</td></tr>`;
             });
-            tbody.innerHTML = html;
+            html += `</tbody></table>`;
+            tablesContainer.innerHTML += html;
         }
     }
 
@@ -1003,7 +1065,6 @@
         
         renderTimelineMatrix(); 
         renderMobileCards(); 
-        renderRankTablesFramework();
 
         const savedScores = JSON.parse(localStorage.getItem("yuyiqifei_scores") || "{}");
         for (let id in savedScores) {
@@ -1018,7 +1079,6 @@
         liveCalculate(false);
     }
 
-    // Cloud push stream without packing URL payload
     async function pushStateToCloud(scoresMap = null) {
         if (!currentRoomId || isViewerMode) return;
         const targetScores = scoresMap || JSON.parse(localStorage.getItem("yuyiqifei_scores") || "{}");
@@ -1061,7 +1121,6 @@
                         
                         renderTimelineMatrix();
                         renderMobileCards();
-                        renderRankTablesFramework();
 
                         if (decodedPayload.scores) {
                             for (let id in decodedPayload.scores) {
@@ -1079,12 +1138,11 @@
 
     function generateShareLink() {
         liveCalculate(true);
-        // Copy the ultra-short clean URL immediately
         const shareUrl = window.location.href.split('#')[0] + "#room=" + currentRoomId;
         
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(shareUrl).then(() => {
-                alert("📋 赛事专属极简观战链接已复制！\n\n💡 提示：系统已开启云端实时同步。后续录入比分后，观战端会自动刷新，整场比赛仅需发一次。");
+                alert("📋 赛事专属观战链接已复制！\n\n💡 提示：系统已开启云端实时同步。后续录入比分后，观战端会自动刷新，整场比赛仅需分享一次。");
             }).catch(() => {
                 fallbackCopyAction(shareUrl);
             });
@@ -1138,9 +1196,7 @@
                         
                         renderTimelineMatrix();
                         renderMobileCards();
-                        renderRankTablesFramework();
 
-                        // Reveal step 3 UI after successful load
                         document.getElementById("step1").style.display = "none";
                         document.getElementById("step2").style.display = "none";
                         document.getElementById("step3").style.display = "block";
@@ -1168,7 +1224,6 @@
         const hash = window.location.hash;
 
         if (hash.startsWith("#room=")) {
-            // Strip clean the hash to grab only the pure room identifier token
             const roomIdFromUrl = hash.replace("#room=", "").split('&')[0];
             const isLocalAdminTokenPresent = roomIdFromUrl && (localStorage.getItem("admin_room_" + roomIdFromUrl) === "true");
             
@@ -1187,15 +1242,10 @@
                 
                 currentRoomId = roomIdFromUrl;
 
-                // Fire up loading UI blocker while retrieving pure cloud stream records
                 document.getElementById("loadingOverlay").style.display = "flex";
-
                 await fetchStateFromCloud();
-                
-                // Tear down loader after hydration completes naturally
                 document.getElementById("loadingOverlay").style.display = "none";
                 
-                // Lock onto future pipeline
                 setupLiveSyncStream();
                 setInterval(pollUrlHashChanges, 5000); 
             } else {
