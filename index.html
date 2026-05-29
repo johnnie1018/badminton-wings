@@ -33,6 +33,7 @@
         .container {
             max-width: 520px;
             margin: 0 auto;
+            position: relative;
         }
 
         h1 {
@@ -51,6 +52,27 @@
             margin-bottom: 24px;
             font-weight: 500;
         }
+
+        /* iOS Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--ios-bg);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .spinner {
+            width: 36px; height: 36px;
+            border: 4px solid #e5e5ea;
+            border-top-color: var(--ios-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
 
         /* iOS Toast Badge */
         .viewer-badge {
@@ -401,6 +423,11 @@
 </head>
 <body>
 
+<div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="spinner"></div>
+    <div style="color:var(--ios-subtext); font-weight:600; font-size:0.9rem;">正在拉取云端实时赛况...</div>
+</div>
+
 <div class="container">
     <h1>羽翼齐飞</h1>
     <div class="subtitle">🏸 智能赛事编排与动态计分系统 🏸</div>
@@ -485,6 +512,7 @@
 </div>
 
 <script>
+    // Global Constants and State Variables
     const SYNC_BUS_URL = "https://ntfy.sh/yyqf_global_hub_"; 
 
     let isDouble = true;
@@ -635,9 +663,10 @@
         }
 
         currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-3);
-        window.location.hash = `#room=${currentRoomId}`;
+        
+        // Push pure short URL immediately without data payload 
+        window.history.replaceState(null, null, window.location.href.split('#')[0] + "#room=" + currentRoomId);
 
-        // Set default lock state on initialization
         generatedMatches.forEach(m => { m.isLocked = false; m.scoreA = ""; m.scoreB = ""; });
 
         renderTimelineMatrix();
@@ -831,7 +860,6 @@
         }
     }
 
-    // Cache user temporary inputs in local arrays without triggering updates
     function cacheInputValuesOnly(idx) {
         let valA = document.getElementById(`sA_${idx}`) ? document.getElementById(`sA_${idx}`).value : "";
         let valB = document.getElementById(`sB_${idx}`) ? document.getElementById(`sB_${idx}`).value : "";
@@ -839,7 +867,6 @@
         generatedMatches[idx].scoreB = valB;
     }
 
-    // Confirmation state machine: lock/unlock gate
     function toggleMatchLockGate(idx) {
         if(isViewerMode) return;
         
@@ -892,7 +919,6 @@
                 if (isWinA) totalWinA++; else totalWinB++;
             }
 
-            // Standings strictly process matches that have been officially locked/confirmed
             if(generatedMatches[i].isLocked) {
                 generatedMatches[i].a.forEach(k => {
                     let p = nameMap[k];
@@ -914,7 +940,6 @@
         if (!isViewerMode) {
             localStorage.setItem("yuyiqifei_scores", JSON.stringify(currentScoresCache));
             if (shouldPushToCloud) {
-                updateUrlHashWithScores(currentScoresCache);
                 pushStateToCloud(currentScoresCache);
             }
         }
@@ -993,14 +1018,7 @@
         liveCalculate(false);
     }
 
-    function updateUrlHashWithScores(scoresMap) {
-        const snapshotPayload = { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: scoresMap };
-        const urlSafeJsonString = encodeURIComponent(JSON.stringify(snapshotPayload));
-        const compressedDataStream = encodeURIComponent(btoa(unescape(urlSafeJsonString)));
-        
-        window.history.replaceState(null, null, window.location.href.split('#')[0] + "#room=" + currentRoomId + "&data=" + compressedDataStream);
-    }
-
+    // Cloud push stream without packing URL payload
     async function pushStateToCloud(scoresMap = null) {
         if (!currentRoomId || isViewerMode) return;
         const targetScores = scoresMap || JSON.parse(localStorage.getItem("yuyiqifei_scores") || "{}");
@@ -1061,18 +1079,18 @@
 
     function generateShareLink() {
         liveCalculate(true);
-        setTimeout(() => {
-            const shareUrl = window.location.href;
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(shareUrl).then(() => {
-                    alert("📋 赛事专属观战链接已复制！\n\n💡 提示：系统已开启云端实时同步。后续录入比分后，观战端会自动刷新，整场比赛仅需分享一次。");
-                }).catch(() => {
-                    fallbackCopyAction(shareUrl);
-                });
-            } else {
+        // Copy the ultra-short clean URL immediately
+        const shareUrl = window.location.href.split('#')[0] + "#room=" + currentRoomId;
+        
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                alert("📋 赛事专属极简观战链接已复制！\n\n💡 提示：系统已开启云端实时同步。后续录入比分后，观战端会自动刷新，整场比赛仅需发一次。");
+            }).catch(() => {
                 fallbackCopyAction(shareUrl);
-            }
-        }, 150);
+            });
+        } else {
+            fallbackCopyAction(shareUrl);
+        }
     }
 
     function fallbackCopyAction(text) {
@@ -1121,6 +1139,11 @@
                         renderTimelineMatrix();
                         renderMobileCards();
                         renderRankTablesFramework();
+
+                        // Reveal step 3 UI after successful load
+                        document.getElementById("step1").style.display = "none";
+                        document.getElementById("step2").style.display = "none";
+                        document.getElementById("step3").style.display = "block";
                     }
 
                     for (let id in decodedPayload.scores) {
@@ -1144,20 +1167,9 @@
     async function checkAndRestoreHistory() {
         const hash = window.location.hash;
 
-        if (hash.startsWith("#room=") || hash.includes("&data=") || hash.startsWith("#data=")) {
-            let roomIdFromUrl = "";
-            let backupDataStream = "";
-
-            if (hash.startsWith("#data=")) {
-                backupDataStream = hash.replace("#data=", "");
-            } else {
-                const urlParams = hash.replace("#", "").split("&");
-                urlParams.forEach(param => {
-                    if (param.startsWith("room=")) roomIdFromUrl = param.replace("room=", "");
-                    if (param.startsWith("data=")) backupDataStream = param.replace("data=", "");
-                });
-            }
-
+        if (hash.startsWith("#room=")) {
+            // Strip clean the hash to grab only the pure room identifier token
+            const roomIdFromUrl = hash.replace("#room=", "").split('&')[0];
             const isLocalAdminTokenPresent = roomIdFromUrl && (localStorage.getItem("admin_room_" + roomIdFromUrl) === "true");
             
             if (!isLocalAdminTokenPresent) {
@@ -1165,6 +1177,7 @@
                 document.body.classList.add("viewer-mode-active"); 
                 document.getElementById("viewerModeBadge").style.display = "block";
                 document.getElementById("btnWipeSystem").style.display = "none";
+                document.getElementById("step1").style.display = "none"; 
                 
                 const shareCard = document.getElementById("sharingCardContainer");
                 shareCard.innerHTML = `
@@ -1174,43 +1187,17 @@
                 
                 currentRoomId = roomIdFromUrl;
 
-                if (backupDataStream) {
-                    try {
-                        const b64Decoded = decodeURIComponent(backupDataStream);
-                        const payloadString = decodeURIComponent(escape(atob(b64Decoded)));
-                        const payload = JSON.parse(payloadString);
-                        
-                        isDouble = payload.isDouble; numGroups = payload.numGroups; numCourts = payload.numCourts;
-                        numRounds = payload.numRounds; playersPerGroup = payload.playersPerGroup;
-                        nameMap = payload.nameMap; generatedMatches = payload.generatedMatches;
+                // Fire up loading UI blocker while retrieving pure cloud stream records
+                document.getElementById("loadingOverlay").style.display = "flex";
 
-                        renderTimelineMatrix(); 
-                        renderMobileCards(); 
-                        renderRankTablesFramework();
-
-                        if (payload.scores) {
-                            for (let id in payload.scores) {
-                                let inputNode = document.getElementById(id); 
-                                if (inputNode) inputNode.value = payload.scores[id];
-                            }
-                        }
-
-                        document.getElementById("step1").style.display = "none";
-                        document.getElementById("step2").style.display = "none";
-                        document.getElementById("step3").style.display = "block";
-                        
-                        liveCalculate(false);
-                    } catch(err) { console.error("URL stream payload corrupted."); }
-                }
-
-                // Forcefully fetch the absolute latest state from the cloud immediately upon entry, 
-                // overwriting the potentially stale URL snapshot BEFORE starting the future listener.
-                fetchStateFromCloud().then(() => {
-                    setupLiveSyncStream();
-                });
+                await fetchStateFromCloud();
                 
+                // Tear down loader after hydration completes naturally
+                document.getElementById("loadingOverlay").style.display = "none";
+                
+                // Lock onto future pipeline
+                setupLiveSyncStream();
                 setInterval(pollUrlHashChanges, 5000); 
-
             } else {
                 isViewerMode = false;
                 currentRoomId = roomIdFromUrl;
