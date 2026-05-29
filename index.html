@@ -350,18 +350,18 @@
             cursor: default !important;
         }
         body.viewer-mode-active .score-area {
-            background-color: #e5e5ea !important; /* Visual forced gray scale background badge */
+            background-color: #e5e5ea !important; 
             border: 1px solid rgba(0, 0, 0, 0.02) !important;
-            pointer-events: none !important;      /* Block all physical tap gestures */
+            pointer-events: none !important;      
         }
         body.viewer-mode-active .score-num {
-            color: #72727a !important;            /* Dim out the text score visibility */
+            color: #72727a !important;            
             background-color: transparent !important;
             pointer-events: none !important;
             user-select: none !important;
         }
         body.viewer-mode-active .action-lock-btn {
-            display: none !important;             /* Hide gate controls entirely from viewer nodes */
+            display: none !important;             
         }
     </style>
 </head>
@@ -440,7 +440,7 @@
 </div>
 
 <script>
-    // [Comments preserved in English per directives parameters ledger]
+    // [Comments preserved in English per conversation directive parameters ledger]
     const SYNC_BUS_URL = "https://ntfy.sh/yyqf_global_hub_"; 
 
     let isDouble = true;
@@ -738,14 +738,12 @@
                 let namesA = match.a.map(k => nameMap[k]).join("<br>");
                 let namesB = match.b.map(k => nameMap[k]).join("<br>");
                 
-                // Formulate mutual exclusion read-only checks matching gates
                 let isLocallyLocked = match.isLocked || isViewerMode;
                 let roAttr = isLocallyLocked ? "readonly" : "";
                 
                 let viewerInputStyle = isLocallyLocked ? "style='color:#8e8e93; background-color:transparent; font-weight:700; pointer-events:none;'" : "";
                 let viewerCardStyle = isLocallyLocked ? "style='background-color:#e5e5ea; border:1px solid rgba(0,0,0,0.05);'" : "";
 
-                // Button state machine toggle label mapping
                 let btnLabel = match.isLocked ? "🔒 修改比分" : "🔵 确认录入";
                 let btnClass = match.isLocked ? "btn-state-locked" : "btn-state-unlocked";
 
@@ -786,7 +784,6 @@
         }
     }
 
-    // NEW: Core local caching to record score inputs into memory matrix instantly
     function cacheInputValuesOnly(idx) {
         let valA = document.getElementById(`sA_${idx}`) ? document.getElementById(`sA_${idx}`).value : "";
         let valB = document.getElementById(`sB_${idx}`) ? document.getElementById(`sB_${idx}`).value : "";
@@ -794,7 +791,6 @@
         generatedMatches[idx].scoreB = valB;
     }
 
-    // NEW: Action state confirmation locker state toggle mapping
     function toggleMatchLockGate(idx) {
         if(isViewerMode) return;
         
@@ -821,8 +817,7 @@
         
         saveGameFrameworkToStorage();
         renderMobileCards();
-        // TRIGGER: Calculate ranks and formally inject ALL updated array bounds into the full URL sync packet
-        liveCalculate(true); 
+        liveCalculate(true); // Sync to url & broadcast cloud stream simultaneously on lock switch trigger
     }
 
     function liveCalculate(shouldPushToCloud = true) {
@@ -833,7 +828,6 @@
         let currentScoresCache = {}; 
 
         for (let i = 0; i < generatedMatches.length; i++) {
-            // Read from array memory values directly to avoid DOM mismatch errors
             let valA = generatedMatches[i].scoreA || "";
             let valB = generatedMatches[i].scoreB || "";
 
@@ -849,7 +843,6 @@
                 if (isWinA) totalWinA++; else totalWinB++;
             }
 
-            // ONLY accumulate ranks if the score has been locked/confirmed
             if(generatedMatches[i].isLocked) {
                 generatedMatches[i].a.forEach(k => {
                     let p = nameMap[k];
@@ -870,8 +863,8 @@
 
         if (!isViewerMode) {
             localStorage.setItem("yuyiqifei_scores", JSON.stringify(currentScoresCache));
+            updateUrlHashWithScores(currentScoresCache);
             if (shouldPushToCloud) {
-                updateUrlHashWithScores(currentScoresCache);
                 pushStateToCloud(currentScoresCache);
             }
         }
@@ -950,13 +943,10 @@
         liveCalculate(false);
     }
 
-    // CRITICAL FIX: This function MUST securely attach both room ID and encoded payload to URL immediately
     function updateUrlHashWithScores(scoresMap) {
         const snapshotPayload = { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: scoresMap };
         const urlSafeJsonString = encodeURIComponent(JSON.stringify(snapshotPayload));
         const compressedDataStream = btoa(unescape(urlSafeJsonString));
-        
-        // Push full state to URL history unconditionally
         window.history.replaceState(null, null, window.location.href.split('#')[0] + "#room=" + currentRoomId + "&data=" + compressedDataStream);
     }
 
@@ -969,78 +959,79 @@
             const safeDataStream = encodeURIComponent(JSON.stringify(snapshotPayload));
             const base64Packet = btoa(unescape(safeDataStream));
             
+            // Clean HTTP POST without any non-standard custom headers to guarantee 100% CORS safety in WeChat and iOS Safari
             await fetch(SYNC_BUS_URL + currentRoomId, {
                 method: 'POST',
-                headers: { 'X-Cache': 'yes' }, 
                 body: base64Packet
             });
-        } catch(e) { console.warn("Cloud push frame latency."); }
+        } catch(e) { console.warn("Cloud stream sync upstream latency detected."); }
     }
 
-    async function fetchStateFromCloud() {
-        if (!currentRoomId) return;
+    // NEW: Robust Server-Sent Events (SSE) stream connector for 100% instant, zero-latency real-time synchronization
+    function setupLiveSyncStream() {
+        if (!currentRoomId || !isViewerMode) return;
+        
         try {
-            const res = await fetch(`${SYNC_BUS_URL}${currentRoomId}/json?poll=1`);
-            if (res.status === 200) {
-                const text = await res.text();
-                if(!text.trim()) return;
-                
-                const lines = text.trim().split("\n");
-                let latestPayloadString = "";
-                
-                for (let i = lines.length - 1; i >= 0; i--) {
-                    if (!lines[i]) continue;
-                    const logObj = JSON.parse(lines[i]);
+            if (window.liveSyncSource) {
+                window.liveSyncSource.close();
+            }
+            
+            // Establish native HTML5 EventSource streaming directly connected to the public edge hub
+            window.liveSyncSource = new EventSource(`${SYNC_BUS_URL}${currentRoomId}/sse`);
+            
+            window.liveSyncSource.onmessage = (event) => {
+                try {
+                    const logObj = JSON.parse(event.data);
                     if (logObj.event === 'message' && logObj.message) {
-                        latestPayloadString = logObj.message;
-                        break;
-                    }
-                }
-
-                if (latestPayloadString) {
-                    const decodedPayload = JSON.parse(decodeURIComponent(escape(atob(latestPayloadString))));
-                    
-                    if (isViewerMode) {
-                        isDouble = decodedPayload.isDouble; numGroups = decodedPayload.numGroups; numCourts = decodedPayload.numCourts;
-                        numRounds = decodedPayload.numRounds; playersPerGroup = decodedPayload.playersPerGroup;
-                        nameMap = decodedPayload.nameMap; generatedMatches = decodedPayload.generatedMatches;
+                        const decodedPayload = JSON.parse(decodeURIComponent(escape(atob(logObj.message))));
                         
-                        // Re-trigger rendering dynamically on viewer node when upstream data mutation reports
+                        // Synchronize deep data array states
+                        isDouble = decodedPayload.isDouble; 
+                        numGroups = decodedPayload.numGroups; 
+                        numCourts = decodedPayload.numCourts;
+                        numRounds = decodedPayload.numRounds; 
+                        playersPerGroup = decodedPayload.playersPerGroup;
+                        nameMap = decodedPayload.nameMap; 
+                        generatedMatches = decodedPayload.generatedMatches;
+                        
+                        // Force real-time UI component repainting instantly
                         renderTimelineMatrix();
                         renderMobileCards();
                         renderRankTablesFramework();
-                    }
 
-                    for (let id in decodedPayload.scores) {
-                        let inputNode = document.getElementById(id);
-                        if (inputNode && inputNode.value !== decodedPayload.scores[id]) {
-                            inputNode.value = decodedPayload.scores[id];
+                        if (decodedPayload.scores) {
+                            for (let id in decodedPayload.scores) {
+                                let inputNode = document.getElementById(id);
+                                if (inputNode) inputNode.value = decodedPayload.scores[id];
+                            }
                         }
+                        liveCalculate(false); // Recalculate ranks silently without loop-backs
                     }
-                    liveCalculate(false);
-                }
-            }
-        } catch(e) { console.warn("Cloud stream connection skip."); }
+                } catch(ex) { console.warn("Live stream packet decoding skipped:", ex); }
+            };
+            
+            window.liveSyncSource.onerror = (err) => {
+                console.warn("Live sync connection break. SSE engine executing self-healing auto-reconnect...");
+            };
+            
+        } catch(e) { console.error("SSE stream boot failure:", e); }
     }
 
     function generateShareLink() {
-        // Enforce synchronization before pulling URL
         liveCalculate(true);
-        
-        // Wait briefly for replaceState to finish processing the DOM values into the URL stream
+        // Delay slightly to allow replaceState pipeline to populate the URL stream completely
         setTimeout(() => {
-            const shareUrl = window.location.href; // Grabs the newly injected full URL
-            
+            const shareUrl = window.location.href;
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(shareUrl).then(() => {
-                    alert("📋 包含【最新锁定状态】的专属观战链接已复制到剪贴板！\n\n发送至群聊后，群友点开绝对能看到完整赛况！后期只需点确认录入，群友屏幕即可实时同步跳变！");
+                    alert("📋 包含完美初始对阵与当前比分的【专属永久观战网址】已复制到剪贴板！\n\n发到微信群后，群友点开绝对能看到完整时刻表（绝不白屏）。后续你在场边每录完一场点击【确认录入】，群友那边屏幕会自动毫秒级跳变更新，无须你重复发送！");
                 }).catch(() => {
                     fallbackCopyAction(shareUrl);
                 });
             } else {
                 fallbackCopyAction(shareUrl);
             }
-        }, 150);
+        }, 100);
     }
 
     function fallbackCopyAction(text) {
@@ -1051,15 +1042,11 @@
         textArea.focus(); textArea.select();
         try {
             document.execCommand('copy');
-            alert("📋 专属观战链接已成功复制！可以直接发送给群友观战。");
+            alert("📋 永久专属观战链接已成功复制！可以直接分享到微信群。");
         } catch (err) {
             alert("自动复制失败，请手动复制地址栏的长网址发送给群友！");
         }
         document.body.removeChild(textArea);
-    }
-
-    function pollUrlHashChanges() {
-        fetchStateFromCloud();
     }
 
     async function checkAndRestoreHistory() {
@@ -1079,11 +1066,11 @@
                 });
             }
 
-            // CRITICAL FIX: Strict Admin isolation. Only the creator of THIS specific room ID retains admin rights.
+            // CRITICAL FIX: Explicit isolated check. Only trust the unique admin token of THIS specific room ID to prevent global active cache corruption!
             const isLocalAdminTokenPresent = roomIdFromUrl && (localStorage.getItem("admin_room_" + roomIdFromUrl) === "true");
             
             if (!isLocalAdminTokenPresent) {
-                // Viewer Mode Activation
+                // Verified Viewer Node - Force Pure read-only status and grey styles
                 isViewerMode = true;
                 document.body.classList.add("viewer-mode-active"); 
                 document.getElementById("viewerModeBadge").style.display = "block";
@@ -1094,7 +1081,7 @@
                 
                 currentRoomId = roomIdFromUrl;
 
-                // Priority Fallback: Use the URL data stream directly to render everything accurately
+                // Priority Hydration Layer: Instant opening hydration directly out of URL shadow stream to bypass network lag blockages
                 if (backupDataStream) {
                     try {
                         const decodedDataStream = decodeURIComponent(escape(atob(backupDataStream)));
@@ -1114,23 +1101,15 @@
                                 if (inputNode) inputNode.value = payload.scores[id];
                             }
                         }
-
-                        document.getElementById("step1").style.display = "none";
-                        document.getElementById("step2").style.display = "none";
-                        document.getElementById("step3").style.display = "block";
-                        
                         liveCalculate(false);
-                    } catch(err) { console.error("Data packet corrupted:", err); }
-                } else {
-                    // Secondary backup lookup from cloud channels directly
-                    await fetchStateFromCloud();
+                    } catch(err) { console.error("URL stream payload corrupted:", err); }
                 }
-
-                // Spin up polling as backup
-                setInterval(pollUrlHashChanges, 4000); 
+                
+                // Mount the real-time continuous SSE streaming sync adapter
+                setupLiveSyncStream();
 
             } else {
-                // Admin Mode Activation Fallback
+                // Verified Scorer Admin Node - Restore editing rights smoothly
                 isViewerMode = false;
                 currentRoomId = roomIdFromUrl;
                 document.body.classList.remove("viewer-mode-active");
@@ -1141,7 +1120,7 @@
             return;
         }
 
-        // Fallback for root domain visits
+        // Only auto restore via global slots if explicitly visiting a clean root URL domain
         if (localStorage.getItem("yuyiqifei_active") === "true") {
             isViewerMode = false;
             document.body.classList.remove("viewer-mode-active");
