@@ -216,12 +216,17 @@
             padding: 14px 16px;
             margin-bottom: 8px;
             display: flex;
-            align-items: center;
-            justify-content: space-between;
+            flex-direction: column; /* Allow action button nesting vertically */
+            gap: 10px;
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.015);
             border: 1px solid rgba(0,0,0,0.005);
         }
-        .match-card:last-child { margin-bottom: 0; }
+        .match-core-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+        }
         
         .court-label {
             font-size: 0.75rem;
@@ -273,6 +278,21 @@
         }
         .colon { font-weight: 700; color: #aeaeb2; margin: 0 2px; font-size: 1.1rem; }
 
+        /* iOS Capsule Action Lock Switch Button Style */
+        .action-lock-btn {
+            width: 100%;
+            padding: 8px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+        .btn-state-unlocked { background-color: rgba(0, 122, 255, 0.1); color: var(--ios-blue); }
+        .btn-state-locked { background-color: rgba(142, 142, 147, 0.1); color: #48484a; }
+
         /* iOS Total Indicator Summary Component View Layout */
         .summary-total {
             background: #1c1c1e;
@@ -283,7 +303,7 @@
             font-size: 1rem;
             margin-bottom: 20px;
             line-height: 1.4;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.088);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
         }
         
         /* Cupertino Style Rank Tables View Component Handler Mapping */
@@ -340,9 +360,8 @@
             pointer-events: none !important;
             user-select: none !important;
         }
-        body.viewer-mode-active .score-num:focus {
-            outline: none !important;
-            box-shadow: none !important;
+        body.viewer-mode-active .action-lock-btn {
+            display: none !important;             /* Hide gate controls entirely from viewer nodes */
         }
     </style>
 </head>
@@ -354,7 +373,6 @@
     
     <div id="viewerModeBadge" class="viewer-badge">👁️ 当前处于：群友实时观战模式（只读自动刷新）</div>
 
-    <!-- Step 1: Global Configurations Setup -->
     <div id="step1" class="card">
         <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; color: var(--ios-text);">赛事模式配置</div>
         
@@ -390,8 +408,7 @@
         <button type="button" class="btn-block btn-orange" id="btnNextStep" onclick="goToStep2()">下一步：录入选手名单</button>
     </div>
 
-    <!-- Step 2: Name Inputs Allocation Area -->
-    <div id="step2" class="card">
+    <div id="step2" class="card" style="display: none;">
         <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; color: var(--ios-text);">选手名单管理</div>
         <div id="dynamicNameSections"></div>
         
@@ -401,11 +418,9 @@
         </div>
     </div>
 
-    <!-- Step 3 & 4: Live Tracking Schedule & Standings View -->
     <div id="step3" style="display: none;">
-        <!-- Dynamic Sharing/Status Area Header -->
         <div id="sharingCardContainer" class="card" style="padding: 12px; text-align: center; background-color: #eaf4ff; border: none; margin-bottom: 16px;">
-            <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()" style="margin-bottom:0;">🔗 复制最新实时赛况链接分享至群聊</button>
+            <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()">🔗 复制专属【永久观战链接】发送至群聊</button>
         </div>
 
         <div class="section-title">✨ 赛程时间轴 (横向滑动查看各轮次)</div>
@@ -425,7 +440,9 @@
 </div>
 
 <script>
-    // [Comments preserved in English per directive]
+    // [Comments preserved in English per directives parameters ledger]
+    const SYNC_BUS_URL = "https://ntfy.sh/yyqf_global_hub_"; 
+
     let isDouble = true;
     let numGroups = 2;
     let numCourts = 2;
@@ -574,8 +591,11 @@
             return;
         }
 
-        currentRoomId = "session_" + Math.random().toString(36).substr(2, 9);
+        currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-3);
         window.location.hash = `#room=${currentRoomId}`;
+
+        // Initialize custom lock flags directly onto matchups array bounds
+        generatedMatches.forEach(m => { m.isLocked = false; m.scoreA = ""; m.scoreB = ""; });
 
         renderTimelineMatrix();
         renderMobileCards();
@@ -585,7 +605,7 @@
         document.getElementById("step3").style.display = "block";
         
         saveGameFrameworkToStorage();
-        liveCalculate();
+        liveCalculate(false); // Init without push forces
     }
 
     function autoScheduleEngine() {
@@ -717,21 +737,31 @@
                 const globalIdx = generatedMatches.indexOf(match);
                 let namesA = match.a.map(k => nameMap[k]).join("<br>");
                 let namesB = match.b.map(k => nameMap[k]).join("<br>");
-                let roAttr = isViewerMode ? "readonly" : "";
                 
-                let viewerInputStyle = isViewerMode ? "style='color:#aeaeb2; background-color:transparent; font-weight:500; pointer-events:none;'" : "";
-                let viewerCardStyle = isViewerMode ? "style='background-color:#fbfbfc; border:1px solid #f2f2f7;'" : "";
+                // Readonly execution conditions check
+                let isLocallyLocked = match.isLocked || isViewerMode;
+                let roAttr = isLocallyLocked ? "readonly" : "";
+                
+                let viewerInputStyle = isLocallyLocked ? "style='color:#8e8e93; background-color:transparent; font-weight:700;'" : "";
+                let viewerCardStyle = isLocallyLocked ? "style='background-color:#e5e5ea; border:1px solid rgba(0,0,0,0.05);'" : "";
+
+                // Button State Engine mapping parameters placement
+                let btnLabel = match.isLocked ? "🔒 修改比分" : "🔵 确认录入";
+                let btnClass = match.isLocked ? "btn-state-locked" : "btn-state-unlocked";
 
                 html += `
                     <div class="match-card">
-                        <span class="court-label">${match.court}</span>
-                        <div class="team-players team-a">${namesA}</div>
-                        <div class="score-area" ${viewerCardStyle}>
-                            <input type="number" inputmode="numeric" class="score-num" id="sA_${globalIdx}" ${roAttr} ${viewerInputStyle} oninput="liveCalculate()">
-                            <span class="colon">:</span>
-                            <input type="number" inputmode="numeric" class="score-num" id="sB_${globalIdx}" ${roAttr} ${viewerInputStyle} oninput="liveCalculate()">
+                        <div class="match-core-row">
+                            <span class="court-label">${match.court}</span>
+                            <div class="team-players team-a">${namesA}</div>
+                            <div class="score-area" ${viewerCardStyle}>
+                                <input type="number" inputmode="numeric" class="score-num" id="sA_${globalIdx}" ${roAttr} ${viewerInputStyle} value="${match.scoreA||''}" oninput="cacheInputValuesOnly(${globalIdx})">
+                                <span class="colon">:</span>
+                                <input type="number" inputmode="numeric" class="score-num" id="sB_${globalIdx}" ${roAttr} ${viewerInputStyle} value="${match.scoreB||''}" oninput="cacheInputValuesOnly(${globalIdx})">
+                            </div>
+                            <div class="team-players team-b">${namesB}</div>
                         </div>
-                        <div class="team-players team-b">${namesB}</div>
+                        <button type="button" class="action-lock-btn ${btnClass}" id="lockBtn_${globalIdx}" onclick="toggleMatchLockGate(${globalIdx})">${btnLabel}</button>
                     </div>`;
             });
             html += `</div>`;
@@ -756,7 +786,48 @@
         }
     }
 
-    function liveCalculate() {
+    // NEW: Minimalist internal change mapping to update array bounds without pushing cloud sync frames
+    function cacheInputValuesOnly(idx) {
+        let valA = document.getElementById(`sA_${idx}`) ? document.getElementById(`sA_${idx}`).value : "";
+        let valB = document.getElementById(`sB_${idx}`) ? document.getElementById(`sB_${idx}`).value : "";
+        generatedMatches[idx].scoreA = valA;
+        generatedMatches[idx].scoreB = valB;
+    }
+
+    // NEW: Action state locking state machine gatekeeper mapping updates downstream upstream
+    function toggleMatchLockGate(idx) {
+        if(isViewerMode) return;
+        
+        let match = generatedMatches[idx];
+        if (!match.isLocked) {
+            let valA = document.getElementById(`sA_${idx}`) ? document.getElementById(`sA_${idx}`).value : "";
+            let valB = document.getElementById(`sB_${idx}`) ? document.getElementById(`sB_${idx}`).value : "";
+            
+            if(valA === "" || valB === "") {
+                alert("请输入完整的比分后再进行确认录入！");
+                return;
+            }
+            if(parseInt(valA) === parseInt(valB)) {
+                alert("羽毛球比赛暂不支持平局分，请录入有效胜负小分！");
+                return;
+            }
+            
+            // Lock target bounds and update memory arrays instantly
+            match.isLocked = true;
+            match.scoreA = valA;
+            match.scoreB = valB;
+        } else {
+            // Unlock and return editing rights to the master scorer
+            match.isLocked = false;
+        }
+        
+        // Save current structures, refresh local templates and push snapshot payloads upstream
+        saveGameFrameworkToStorage();
+        renderMobileCards();
+        liveCalculate(true); // Fire cloud push frames explicitly on verification toggles
+    }
+
+    function liveCalculate(shouldPushToCloud = true) {
         let stats = {};
         for (let k in nameMap) stats[nameMap[k]] = { name: nameMap[k], win: 0, lose: 0, diffScore: 0, totalScore: 0, group: k.split('_')[0] };
 
@@ -764,14 +835,11 @@
         let currentScoresCache = {}; 
 
         for (let i = 0; i < generatedMatches.length; i++) {
-            const valA = document.getElementById(`sA_${i}`) ? document.getElementById(`sA_${i}`).value : "";
-            const valB = document.getElementById(`sB_${i}`) ? document.getElementById(`sB_${i}`).value : "";
+            // Read from array memory values directly to avoid DOM mismatch errors
+            let valA = generatedMatches[i].scoreA || "";
+            let valB = generatedMatches[i].scoreB || "";
 
             currentScoresCache[`sA_${i}`] = valA; currentScoresCache[`sB_${i}`] = valB;
-            
-            generatedMatches[i].scoreA = valA;
-            generatedMatches[i].scoreB = valB;
-
             if (valA === "" || valB === "") continue;
 
             const scoreA = parseInt(valA), scoreB = parseInt(valB);
@@ -794,7 +862,6 @@
                 let p = nameMap[k];
                 if (stats[p]) {
                     if (!isWinA) stats[p].win++; else stats[p].lose++;
-                    // FIXED: Extracted the rogue syntax parameter error variable 'x' that triggered runtime exceptions completely
                     stats[p].totalScore += scoreB; stats[p].diffScore += (scoreB - scoreA);
                 }
             });
@@ -802,7 +869,9 @@
 
         if (!isViewerMode) {
             localStorage.setItem("yuyiqifei_scores", JSON.stringify(currentScoresCache));
-            updateUrlHashWithScores(currentScoresCache);
+            if (shouldPushToCloud) {
+                pushStateToCloud(currentScoresCache);
+            }
         }
 
         const summaryBox = document.getElementById("groupSummary");
@@ -876,27 +945,80 @@
         document.getElementById("step2").style.display = "none";
         document.getElementById("step3").style.display = "block";
 
-        liveCalculate();
+        liveCalculate(false);
     }
 
-    function updateUrlHashWithScores(scoresMap) {
-        for (let i = 0; i < generatedMatches.length; i++) {
-            generatedMatches[i].scoreA = document.getElementById(`sA_${i}`) ? document.getElementById(`sA_${i}`).value : "";
-            generatedMatches[i].scoreB = document.getElementById(`sB_${i}`) ? document.getElementById(`sB_${i}`).value : "";
-        }
+    async function pushStateToCloud(scoresMap = null) {
+        if (!currentRoomId || isViewerMode) return;
+        const targetScores = scoresMap || JSON.parse(localStorage.getItem("yuyiqifei_scores") || "{}");
+        const snapshotPayload = { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: targetScores };
         
-        const snapshotPayload = { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: scoresMap };
-        const urlSafeJsonString = encodeURIComponent(JSON.stringify(snapshotPayload));
-        const compressedDataStream = btoa(unescape(urlSafeJsonString));
-        window.history.replaceState(null, null, window.location.href.split('#')[0] + "#data=" + compressedDataStream);
+        try {
+            const safeDataStream = encodeURIComponent(JSON.stringify(snapshotPayload));
+            const base64Packet = btoa(unescape(safeDataStream));
+            
+            await fetch(SYNC_BUS_URL + currentRoomId, {
+                method: 'POST',
+                headers: { 'X-Cache': 'yes' }, 
+                body: base64Packet
+            });
+        } catch(e) { console.warn("Cloud stream sync upstream latency detected."); }
+    }
+
+    async function fetchStateFromCloud() {
+        if (!currentRoomId) return;
+        try {
+            const res = await fetch(`${SYNC_BUS_URL}${currentRoomId}/json?poll=1`);
+            if (res.status === 200) {
+                const text = await res.text();
+                if(!text.trim()) return;
+                
+                const lines = text.trim().split("\n");
+                let latestPayloadString = "";
+                
+                for (let i = lines.length - 1; i >= 0; i--) {
+                    if (!lines[i]) continue;
+                    const logObj = JSON.parse(lines[i]);
+                    if (logObj.event === 'message' && logObj.message) {
+                        latestPayloadString = logObj.message;
+                        break;
+                    }
+                }
+
+                if (latestPayloadString) {
+                    const decodedPayload = JSON.parse(decodeURIComponent(escape(atob(latestPayloadString))));
+                    
+                    if (isViewerMode) {
+                        isDouble = decodedPayload.isDouble; numGroups = decodedPayload.numGroups; numCourts = decodedPayload.numCourts;
+                        numRounds = decodedPayload.numRounds; playersPerGroup = decodedPayload.playersPerGroup;
+                        nameMap = decodedPayload.nameMap; generatedMatches = decodedPayload.generatedMatches;
+                        
+                        // Re-trigger visual cards loops for viewers on cloud mutations frames
+                        renderTimelineMatrix();
+                        renderMobileCards();
+                        renderRankTablesFramework();
+                    }
+
+                    for (let id in decodedPayload.scores) {
+                        let inputNode = document.getElementById(id);
+                        if (inputNode && inputNode.value !== decodedPayload.scores[id]) {
+                            inputNode.value = decodedPayload.scores[id];
+                        }
+                    }
+                    liveCalculate(false);
+                }
+            }
+        } catch(e) { console.warn("Cloud parsing pipeline skip."); }
     }
 
     function generateShareLink() {
-        liveCalculate();
-        const shareUrl = window.location.href;
+        liveCalculate(false);
+        let baseUrl = window.location.href.split('#')[0];
+        const shareUrl = baseUrl + "#room=" + currentRoomId;
+        
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(shareUrl).then(() => {
-                alert("📋 包含【最新比分】的观战链接已复制到剪贴板！\n\n发送至群聊后，群友点开即可直接看到目前的实时比分和大榜！后期你更新了比分，只需要再次点这个蓝色按钮复制新链接即可！");
+                alert("📋 永久专属观战链接已成功复制到剪贴板！\n\n发送至群聊后，群友点击进入即可【保持常开状态】。记分员此后改动并确认比分，群友手机将全自动、不需要你重复发链接！");
             }).catch(() => {
                 fallbackCopyAction(shareUrl);
             });
@@ -913,7 +1035,7 @@
         textArea.focus(); textArea.select();
         try {
             document.execCommand('copy');
-            alert("📋 包含【最新比分】的观战链接已成功复制！可以直接发送给群友观战。");
+            alert("📋 永久专属观战链接已成功复制！可以直接发送给群友观战。");
         } catch (err) {
             alert("自动复制失败，请手动复制地址栏的长网址发送给群友！");
         }
@@ -921,46 +1043,24 @@
     }
 
     function pollUrlHashChanges() {
-        const hash = window.location.hash;
-        if (hash.startsWith("#data=")) {
-            try {
-                const base64 = hash.replace("#data=", "");
-                const unescapedPayload = decodeURIComponent(escape(atob(base64)));
-                const payload = JSON.parse(unescapedPayload);
-                if (!isViewerMode) return; 
-                
-                for (let id in payload.scores) {
-                    let inputNode = document.getElementById(id);
-                    if (inputNode && inputNode.value !== payload.scores[id]) {
-                        inputNode.value = payload.scores[id];
-                    }
-                }
-                liveCalculate();
-            } catch(e) { console.warn("Polling parsing skipped:", e); }
-        }
+        // [Viewer state continuous fallback tracker engine mapping]
+        fetchStateFromCloud();
     }
 
     async function checkAndRestoreHistory() {
         const hash = window.location.hash;
 
-        if (hash.startsWith("#room=") || hash.includes("&data=") || hash.startsWith("#data=")) {
-            let roomIdFromUrl = "";
-            let backupDataStream = "";
-
-            if (hash.startsWith("#data=")) {
-                backupDataStream = hash.replace("#data=", "");
-            } else {
-                const urlParams = hash.replace("#", "").split("&");
-                urlParams.forEach(param => {
-                    if (param.startsWith("room=")) roomIdFromUrl = param.replace("room=", "");
-                    if (param.startsWith("data=")) backupDataStream = param.replace("data=", "");
-                });
-            }
-
-            const storedMatchId = localStorage.getItem("yuyiqifei_matchId");
-            const isLocalAdminTokenPresent = roomIdFromUrl && (localStorage.getItem("admin_room_" + roomIdFromUrl) === "true");
+        if (hash.startsWith("#room=")) {
+            const roomIdFromUrl = hash.replace("#room=", "");
             
-            if (backupDataStream && !isLocalAdminTokenPresent) {
+            if (localStorage.getItem("admin_room_" + roomIdFromUrl) === "true" || localStorage.getItem("yuyiqifei_active") === "true") {
+                isViewerMode = false;
+                document.body.classList.remove("viewer-mode-active");
+                document.getElementById("viewerModeBadge").style.display = "none";
+                document.getElementById("sharingCardContainer").style.display = "block";
+                loadDataFromLocalStorage();
+                return;
+            } else {
                 isViewerMode = true;
                 document.body.classList.add("viewer-mode-active"); 
                 document.getElementById("viewerModeBadge").style.display = "block";
@@ -968,56 +1068,13 @@
                 
                 const shareCard = document.getElementById("sharingCardContainer");
                 shareCard.innerHTML = `<button type="button" class="btn-block" id="btnShareMatch">👁️ 当前处于：群友实时观战模式</button>`;
-            } else if (isLocalAdminTokenPresent || localStorage.getItem("yuyiqifei_active") === "true") {
-                isViewerMode = false;
-                document.body.classList.remove("viewer-mode-active");
-                document.getElementById("viewerModeBadge").style.display = "none";
-                document.getElementById("sharingCardContainer").style.display = "block";
-                loadDataFromLocalStorage();
-                return;
             }
 
             currentRoomId = roomIdFromUrl;
 
-            if (backupDataStream) {
-                try {
-                    const decodedDataStream = decodeURIComponent(escape(atob(backupDataStream)));
-                    const payload = JSON.parse(decodedDataStream);
-                    
-                    isDouble = payload.isDouble; numGroups = payload.numGroups; numCourts = payload.numCourts;
-                    numRounds = payload.numRounds; playersPerGroup = payload.playersPerGroup;
-                    nameMap = payload.nameMap; generatedMatches = payload.generatedMatches;
-
-                    renderTimelineMatrix(); 
-                    renderMobileCards(); 
-                    renderRankTablesFramework();
-
-                    if (payload.scores) {
-                        for (let id in payload.scores) {
-                            let inputNode = document.getElementById(id); 
-                            if (inputNode) inputNode.value = payload.scores[id];
-                        }
-                    } else if (generatedMatches && generatedMatches.length > 0) {
-                        generatedMatches.forEach((m, idx) => {
-                            let nodeA = document.getElementById(`sA_${idx}`);
-                            let nodeB = document.getElementById(`sB_${idx}`);
-                            if(nodeA && m.scoreA !== undefined) nodeA.value = m.scoreA;
-                            if(nodeB && m.scoreB !== undefined) nodeB.value = m.scoreB;
-                        });
-                    }
-
-                    document.getElementById("step1").style.display = "none";
-                    document.getElementById("step2").style.display = "none";
-                    document.getElementById("step3").style.display = "block";
-                    
-                    liveCalculate();
-                } catch(err) {
-                    console.error("Hybrid packet parsing error:", err);
-                }
-            }
-
             if (isViewerMode) {
-                setInterval(pollUrlHashChanges, 2000);
+                await fetchStateFromCloud();
+                setInterval(pollUrlHashChanges, 4000); // Poll cloud registry state snapshots bounds securely
             }
             return;
         }
