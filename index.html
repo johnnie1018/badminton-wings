@@ -350,18 +350,18 @@
             cursor: default !important;
         }
         body.viewer-mode-active .score-area {
-            background-color: #e5e5ea !important; 
+            background-color: #e5e5ea !important; /* Visual forced gray scale background badge */
             border: 1px solid rgba(0, 0, 0, 0.02) !important;
-            pointer-events: none !important;      
+            pointer-events: none !important;      /* Block all physical tap gestures */
         }
         body.viewer-mode-active .score-num {
-            color: #72727a !important;            
+            color: #72727a !important;            /* Dim out the text score visibility */
             background-color: transparent !important;
             pointer-events: none !important;
             user-select: none !important;
         }
         body.viewer-mode-active .action-lock-btn {
-            display: none !important;             
+            display: none !important;             /* Hide gate controls entirely from viewer nodes */
         }
     </style>
 </head>
@@ -440,7 +440,7 @@
 </div>
 
 <script>
-    // [Comments preserved in English per directive instructions]
+    // [Comments preserved in English per directives parameters ledger]
     const SYNC_BUS_URL = "https://ntfy.sh/yyqf_global_hub_"; 
 
     let isDouble = true;
@@ -592,7 +592,8 @@
         }
 
         currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-3);
-        
+        window.location.hash = `#room=${currentRoomId}`;
+
         // Setup default locking states fields flags parameters onto array bounds
         generatedMatches.forEach(m => { m.isLocked = false; m.scoreA = ""; m.scoreB = ""; });
 
@@ -741,7 +742,7 @@
                 let isLocallyLocked = match.isLocked || isViewerMode;
                 let roAttr = isLocallyLocked ? "readonly" : "";
                 
-                let viewerInputStyle = isLocallyLocked ? "style='color:#8e8e93; background-color:transparent; font-weight:700;'" : "";
+                let viewerInputStyle = isLocallyLocked ? "style='color:#8e8e93; background-color:transparent; font-weight:700; pointer-events:none;'" : "";
                 let viewerCardStyle = isLocallyLocked ? "style='background-color:#e5e5ea; border:1px solid rgba(0,0,0,0.05);'" : "";
 
                 // Button state machine toggle label mapping
@@ -820,7 +821,8 @@
         
         saveGameFrameworkToStorage();
         renderMobileCards();
-        liveCalculate(true); // Trigger synchronous cloud update on verification toggle
+        // TRIGGER: Calculate ranks and formally inject ALL updated array bounds into the full URL sync packet
+        liveCalculate(true); 
     }
 
     function liveCalculate(shouldPushToCloud = true) {
@@ -831,6 +833,7 @@
         let currentScoresCache = {}; 
 
         for (let i = 0; i < generatedMatches.length; i++) {
+            // Read from array memory values directly to avoid DOM mismatch errors
             let valA = generatedMatches[i].scoreA || "";
             let valB = generatedMatches[i].scoreB || "";
 
@@ -846,26 +849,29 @@
                 if (isWinA) totalWinA++; else totalWinB++;
             }
 
-            generatedMatches[i].a.forEach(k => {
-                let p = nameMap[k];
-                if (stats[p]) {
-                    if (isWinA) stats[p].win++; else stats[p].lose++;
-                    stats[p].totalScore += scoreA; stats[p].diffScore += (scoreA - scoreB);
-                }
-            });
-            generatedMatches[i].b.forEach(k => {
-                let p = nameMap[k];
-                if (stats[p]) {
-                    if (!isWinA) stats[p].win++; else stats[p].lose++;
-                    stats[p].totalScore += scoreB; stats[p].diffScore += (scoreB - scoreA);
-                }
-            });
+            // ONLY accumulate ranks if the score has been locked/confirmed
+            if(generatedMatches[i].isLocked) {
+                generatedMatches[i].a.forEach(k => {
+                    let p = nameMap[k];
+                    if (stats[p]) {
+                        if (isWinA) stats[p].win++; else stats[p].lose++;
+                        stats[p].totalScore += scoreA; stats[p].diffScore += (scoreA - scoreB);
+                    }
+                });
+                generatedMatches[i].b.forEach(k => {
+                    let p = nameMap[k];
+                    if (stats[p]) {
+                        if (!isWinA) stats[p].win++; else stats[p].lose++;
+                        stats[p].totalScore += scoreB; stats[p].diffScore += (scoreB - scoreA);
+                    }
+                });
+            }
         }
 
         if (!isViewerMode) {
             localStorage.setItem("yuyiqifei_scores", JSON.stringify(currentScoresCache));
-            updateUrlHashWithScores(currentScoresCache);
             if (shouldPushToCloud) {
+                updateUrlHashWithScores(currentScoresCache);
                 pushStateToCloud(currentScoresCache);
             }
         }
@@ -944,11 +950,13 @@
         liveCalculate(false);
     }
 
+    // CRITICAL FIX: This function MUST securely attach both room ID and encoded payload to URL immediately
     function updateUrlHashWithScores(scoresMap) {
         const snapshotPayload = { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: scoresMap };
         const urlSafeJsonString = encodeURIComponent(JSON.stringify(snapshotPayload));
         const compressedDataStream = btoa(unescape(urlSafeJsonString));
-        // FIXED: Pack roomId and data packet string together natively to cure initial open frame white screens
+        
+        // Push full state to URL history unconditionally
         window.history.replaceState(null, null, window.location.href.split('#')[0] + "#room=" + currentRoomId + "&data=" + compressedDataStream);
     }
 
@@ -1016,18 +1024,23 @@
     }
 
     function generateShareLink() {
-        liveCalculate(false);
-        const shareUrl = window.location.href;
+        // Enforce synchronization before pulling URL
+        liveCalculate(true);
         
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(shareUrl).then(() => {
-                alert("📋 含有初始完整配置及当前比分的专属链接已复制到剪贴板！\n\n发送至群聊后，群友点开将拥有离线自愈功能（绝不白屏空表格）。后期你在场边每打完一场点击【确认录入】，群友那边屏幕会自动实时跳变比分，无须你重复发送！");
-            }).catch(() => {
+        // Wait briefly for replaceState to finish processing the DOM values into the URL stream
+        setTimeout(() => {
+            const shareUrl = window.location.href; // Grabs the newly injected full URL
+            
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    alert("📋 包含【最新锁定状态】的专属观战链接已复制到剪贴板！\n\n发送至群聊后，群友点开绝对能看到完整赛况！后期只需点确认录入，群友屏幕即可实时同步跳变！");
+                }).catch(() => {
+                    fallbackCopyAction(shareUrl);
+                });
+            } else {
                 fallbackCopyAction(shareUrl);
-            });
-        } else {
-            fallbackCopyAction(shareUrl);
-        }
+            }
+        }, 150);
     }
 
     function fallbackCopyAction(text) {
@@ -1038,9 +1051,9 @@
         textArea.focus(); textArea.select();
         try {
             document.execCommand('copy');
-            alert("📋 含有初始完整配置的专属链接已复制！直接分享到微信群即可。");
+            alert("📋 专属观战链接已成功复制！可以直接发送给群友观战。");
         } catch (err) {
-            alert("自动复制失败，请手动复制浏览器顶部地址栏的长网址发送给群友！");
+            alert("自动复制失败，请手动复制地址栏的长网址发送给群友！");
         }
         document.body.removeChild(textArea);
     }
@@ -1052,7 +1065,6 @@
     async function checkAndRestoreHistory() {
         const hash = window.location.hash;
 
-        // FIXED: Integrated hybrid decoder. Parse both roomId and data stream packets simultaneously
         if (hash.startsWith("#room=") || hash.includes("&data=") || hash.startsWith("#data=")) {
             let roomIdFromUrl = "";
             let backupDataStream = "";
@@ -1067,9 +1079,11 @@
                 });
             }
 
+            // CRITICAL FIX: Strict Admin isolation. Only the creator of THIS specific room ID retains admin rights.
             const isLocalAdminTokenPresent = roomIdFromUrl && (localStorage.getItem("admin_room_" + roomIdFromUrl) === "true");
             
-            if (backupDataStream && !isLocalAdminTokenPresent) {
+            if (!isLocalAdminTokenPresent) {
+                // Viewer Mode Activation
                 isViewerMode = true;
                 document.body.classList.add("viewer-mode-active"); 
                 document.getElementById("viewerModeBadge").style.display = "block";
@@ -1077,55 +1091,57 @@
                 
                 const shareCard = document.getElementById("sharingCardContainer");
                 shareCard.innerHTML = `<button type="button" class="btn-block" id="btnShareMatch">👁️ 当前处于：群友实时观战模式</button>`;
-            } else if (isLocalAdminTokenPresent || localStorage.getItem("yuyiqifei_active") === "true") {
+                
+                currentRoomId = roomIdFromUrl;
+
+                // Priority Fallback: Use the URL data stream directly to render everything accurately
+                if (backupDataStream) {
+                    try {
+                        const decodedDataStream = decodeURIComponent(escape(atob(backupDataStream)));
+                        const payload = JSON.parse(decodedDataStream);
+                        
+                        isDouble = payload.isDouble; numGroups = payload.numGroups; numCourts = payload.numCourts;
+                        numRounds = payload.numRounds; playersPerGroup = payload.playersPerGroup;
+                        nameMap = payload.nameMap; generatedMatches = payload.generatedMatches;
+
+                        renderTimelineMatrix(); 
+                        renderMobileCards(); 
+                        renderRankTablesFramework();
+
+                        if (payload.scores) {
+                            for (let id in payload.scores) {
+                                let inputNode = document.getElementById(id); 
+                                if (inputNode) inputNode.value = payload.scores[id];
+                            }
+                        }
+
+                        document.getElementById("step1").style.display = "none";
+                        document.getElementById("step2").style.display = "none";
+                        document.getElementById("step3").style.display = "block";
+                        
+                        liveCalculate(false);
+                    } catch(err) { console.error("Data packet corrupted:", err); }
+                } else {
+                    // Secondary backup lookup from cloud channels directly
+                    await fetchStateFromCloud();
+                }
+
+                // Spin up polling as backup
+                setInterval(pollUrlHashChanges, 4000); 
+
+            } else {
+                // Admin Mode Activation Fallback
                 isViewerMode = false;
+                currentRoomId = roomIdFromUrl;
                 document.body.classList.remove("viewer-mode-active");
                 document.getElementById("viewerModeBadge").style.display = "none";
                 document.getElementById("sharingCardContainer").style.display = "block";
                 loadDataFromLocalStorage();
-                return;
-            }
-
-            currentRoomId = roomIdFromUrl;
-
-            // FIXED: If URL packs backup data frames, hydrate the local client directly to cure the empty screen bug
-            if (backupDataStream) {
-                try {
-                    const decodedDataStream = decodeURIComponent(escape(atob(backupDataStream)));
-                    const payload = JSON.parse(decodedDataStream);
-                    
-                    isDouble = payload.isDouble; numGroups = payload.numGroups; numCourts = payload.numCourts;
-                    numRounds = payload.numRounds; playersPerGroup = payload.playersPerGroup;
-                    nameMap = payload.nameMap; generatedMatches = payload.generatedMatches;
-
-                    renderTimelineMatrix(); 
-                    renderMobileCards(); 
-                    renderRankTablesFramework();
-
-                    if (payload.scores) {
-                        for (let id in payload.scores) {
-                            let inputNode = document.getElementById(id); 
-                            if (inputNode) inputNode.value = payload.scores[id];
-                        }
-                    }
-
-                    document.getElementById("step1").style.display = "none";
-                    document.getElementById("step2").style.display = "none";
-                    document.getElementById("step3").style.display = "block";
-                    
-                    liveCalculate(false);
-                } catch(err) { console.error("Initial block decoding exception:", err); }
-            } else {
-                // Secondary backup lookup from cloud channels directly
-                await fetchStateFromCloud();
-            }
-
-            if (isViewerMode) {
-                setInterval(pollUrlHashChanges, 4000); 
             }
             return;
         }
 
+        // Fallback for root domain visits
         if (localStorage.getItem("yuyiqifei_active") === "true") {
             isViewerMode = false;
             document.body.classList.remove("viewer-mode-active");
