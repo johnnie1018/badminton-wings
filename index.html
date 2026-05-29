@@ -232,7 +232,7 @@
             overflow: hidden;
         }
         
-        /* 活跃态 */
+        /* Active State */
         .match-card-unlocked {
             background-color: #ffffff;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
@@ -243,7 +243,7 @@
         .match-card-unlocked .score-num { color: var(--ios-text); }
         .match-card-unlocked .team-players { color: #2c3e50; }
         
-        /* 完赛态 */
+        /* Locked State */
         .match-card-locked {
             background-color: #e2e8f0; 
             box-shadow: none;
@@ -262,7 +262,7 @@
             gap: 6px; 
         }
         
-        /* 悬浮角标 */
+        /* Absolute positioned badge */
         .court-label {
             position: absolute;
             top: 0;
@@ -276,7 +276,7 @@
             z-index: 1;
         }
         
-        /* 姓名水平排布 */
+        /* Horizontal player names layout */
         .team-players {
             flex: 1;
             font-weight: 700;
@@ -637,7 +637,7 @@
         currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-3);
         window.location.hash = `#room=${currentRoomId}`;
 
-        // Initialize custom lock flags directly onto matchups array bounds
+        // Set default lock state on initialization
         generatedMatches.forEach(m => { m.isLocked = false; m.scoreA = ""; m.scoreB = ""; });
 
         renderTimelineMatrix();
@@ -648,7 +648,7 @@
         document.getElementById("step3").style.display = "block";
         
         saveGameFrameworkToStorage();
-        liveCalculate(false); // Init local layouts frames without pushing cloud updates
+        liveCalculate(false); 
     }
 
     function autoScheduleEngine() {
@@ -831,6 +831,7 @@
         }
     }
 
+    // Cache user temporary inputs in local arrays without triggering updates
     function cacheInputValuesOnly(idx) {
         let valA = document.getElementById(`sA_${idx}`) ? document.getElementById(`sA_${idx}`).value : "";
         let valB = document.getElementById(`sB_${idx}`) ? document.getElementById(`sB_${idx}`).value : "";
@@ -838,6 +839,7 @@
         generatedMatches[idx].scoreB = valB;
     }
 
+    // Confirmation state machine: lock/unlock gate
     function toggleMatchLockGate(idx) {
         if(isViewerMode) return;
         
@@ -890,6 +892,7 @@
                 if (isWinA) totalWinA++; else totalWinB++;
             }
 
+            // Standings strictly process matches that have been officially locked/confirmed
             if(generatedMatches[i].isLocked) {
                 generatedMatches[i].a.forEach(k => {
                     let p = nameMap[k];
@@ -1050,7 +1053,7 @@
                         }
                         liveCalculate(false); 
                     }
-                } catch(ex) { console.warn("Live stream packet decoding skipped.", ex); }
+                } catch(ex) { console.warn("Live stream packet decoding skipped."); }
             };
             
         } catch(e) { console.error("SSE stream boot failure."); }
@@ -1062,7 +1065,7 @@
             const shareUrl = window.location.href;
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(shareUrl).then(() => {
-                    alert("📋 赛事专属观战链接已复制！\n\n💡 提示：系统已开启云端实时同步。后续录入比分后，所有观战端将自动刷新，整场比赛仅需分享一次。");
+                    alert("📋 赛事专属观战链接已复制！\n\n💡 提示：系统已开启云端实时同步。后续录入比分后，观战端会自动刷新，整场比赛仅需分享一次。");
                 }).catch(() => {
                     fallbackCopyAction(shareUrl);
                 });
@@ -1080,11 +1083,56 @@
         textArea.focus(); textArea.select();
         try {
             document.execCommand('copy');
-            alert("📋 赛事专属观战链接已复制！请直接粘贴发送至微信群。");
+            alert("📋 赛事专属观战链接已复制！请直接粘贴发送至微信群。\n\n💡 提示：系统已开启云端同步，后续录入比分会自动刷新，无需重新分享。");
         } catch (err) {
             alert("自动复制失败，请手动复制地址栏的长网址发送给群友！");
         }
         document.body.removeChild(textArea);
+    }
+
+    async function fetchStateFromCloud() {
+        if (!currentRoomId) return;
+        try {
+            const res = await fetch(`${SYNC_BUS_URL}${currentRoomId}/json?poll=1`);
+            if (res.status === 200) {
+                const text = await res.text();
+                if(!text.trim()) return;
+                
+                const lines = text.trim().split("\n");
+                let latestPayloadString = "";
+                
+                for (let i = lines.length - 1; i >= 0; i--) {
+                    if (!lines[i]) continue;
+                    const logObj = JSON.parse(lines[i]);
+                    if (logObj.event === 'message' && logObj.message) {
+                        latestPayloadString = logObj.message;
+                        break;
+                    }
+                }
+
+                if (latestPayloadString) {
+                    const decodedPayload = JSON.parse(decodeURIComponent(escape(atob(latestPayloadString))));
+                    
+                    if (isViewerMode) {
+                        isDouble = decodedPayload.isDouble; numGroups = decodedPayload.numGroups; numCourts = decodedPayload.numCourts;
+                        numRounds = decodedPayload.numRounds; playersPerGroup = decodedPayload.playersPerGroup;
+                        nameMap = decodedPayload.nameMap; generatedMatches = decodedPayload.generatedMatches;
+                        
+                        renderTimelineMatrix();
+                        renderMobileCards();
+                        renderRankTablesFramework();
+                    }
+
+                    for (let id in decodedPayload.scores) {
+                        let inputNode = document.getElementById(id);
+                        if (inputNode && inputNode.value !== decodedPayload.scores[id]) {
+                            inputNode.value = decodedPayload.scores[id];
+                        }
+                    }
+                    liveCalculate(false);
+                }
+            }
+        } catch(e) { console.warn("Cloud parsing pipeline skip."); }
     }
 
     function pollUrlHashChanges() {
@@ -1155,8 +1203,13 @@
                     } catch(err) { console.error("URL stream payload corrupted."); }
                 }
 
-                setupLiveSyncStream();
-                setInterval(pollUrlHashChanges, 5000); // Connection watchdog
+                // Forcefully fetch the absolute latest state from the cloud immediately upon entry, 
+                // overwriting the potentially stale URL snapshot BEFORE starting the future listener.
+                fetchStateFromCloud().then(() => {
+                    setupLiveSyncStream();
+                });
+                
+                setInterval(pollUrlHashChanges, 5000); 
 
             } else {
                 isViewerMode = false;
