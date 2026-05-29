@@ -440,7 +440,6 @@
 </div>
 
 <script>
-    // [Comments preserved in English per conversation directive parameters ledger]
     const SYNC_BUS_URL = "https://ntfy.sh/yyqf_global_hub_"; 
 
     let isDouble = true;
@@ -518,9 +517,8 @@
             btnNext.disabled = true;
         } else {
             let closestRoundObj = validRounds.reduce((prev, curr) => {
-                return (Math.abs(curr.round - 9) < Math.abs(prev.round - 9)) ? cubicRound(curr) : cubicRound(prev);
+                return (Math.abs(curr.round - 9) < Math.abs(prev.round - 9)) ? curr : prev;
             });
-            function cubicRound(o){return o;}
 
             let validOptionsHtml = "";
             validRounds.forEach(r => {
@@ -594,7 +592,7 @@
         currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-3);
         window.location.hash = `#room=${currentRoomId}`;
 
-        // Setup default locking states fields flags parameters onto array bounds
+        // 初始化时赋予每局锁定状态
         generatedMatches.forEach(m => { m.isLocked = false; m.scoreA = ""; m.scoreB = ""; });
 
         renderTimelineMatrix();
@@ -605,7 +603,7 @@
         document.getElementById("step3").style.display = "block";
         
         saveGameFrameworkToStorage();
-        liveCalculate(false); // Init local layouts frames without pushing cloud updates
+        liveCalculate(false); 
     }
 
     function autoScheduleEngine() {
@@ -784,6 +782,7 @@
         }
     }
 
+    // 将用户临时输入缓存在本地数组，但不触发任何战绩刷新和上传
     function cacheInputValuesOnly(idx) {
         let valA = document.getElementById(`sA_${idx}`) ? document.getElementById(`sA_${idx}`).value : "";
         let valB = document.getElementById(`sB_${idx}`) ? document.getElementById(`sB_${idx}`).value : "";
@@ -791,6 +790,7 @@
         generatedMatches[idx].scoreB = valB;
     }
 
+    // 确认状态机：上锁/解锁控制门
     function toggleMatchLockGate(idx) {
         if(isViewerMode) return;
         
@@ -817,7 +817,7 @@
         
         saveGameFrameworkToStorage();
         renderMobileCards();
-        liveCalculate(true); // Sync to url & broadcast cloud stream simultaneously on lock switch trigger
+        liveCalculate(true); 
     }
 
     function liveCalculate(shouldPushToCloud = true) {
@@ -843,6 +843,7 @@
                 if (isWinA) totalWinA++; else totalWinB++;
             }
 
+            // 战绩榜完全只针对已上锁确认的数据进行统计
             if(generatedMatches[i].isLocked) {
                 generatedMatches[i].a.forEach(k => {
                     let p = nameMap[k];
@@ -863,8 +864,8 @@
 
         if (!isViewerMode) {
             localStorage.setItem("yuyiqifei_scores", JSON.stringify(currentScoresCache));
-            updateUrlHashWithScores(currentScoresCache);
             if (shouldPushToCloud) {
+                updateUrlHashWithScores(currentScoresCache);
                 pushStateToCloud(currentScoresCache);
             }
         }
@@ -945,8 +946,10 @@
 
     function updateUrlHashWithScores(scoresMap) {
         const snapshotPayload = { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: scoresMap };
+        // CRITICAL FIX: Safe URL-Encoding structure. Ensure no trailing '=' padding triggers parsing collisions downstream
         const urlSafeJsonString = encodeURIComponent(JSON.stringify(snapshotPayload));
-        const compressedDataStream = btoa(unescape(urlSafeJsonString));
+        const compressedDataStream = encodeURIComponent(btoa(unescape(urlSafeJsonString)));
+        
         window.history.replaceState(null, null, window.location.href.split('#')[0] + "#room=" + currentRoomId + "&data=" + compressedDataStream);
     }
 
@@ -959,67 +962,65 @@
             const safeDataStream = encodeURIComponent(JSON.stringify(snapshotPayload));
             const base64Packet = btoa(unescape(safeDataStream));
             
-            // Clean HTTP POST without any non-standard custom headers to guarantee 100% CORS safety in WeChat and iOS Safari
             await fetch(SYNC_BUS_URL + currentRoomId, {
                 method: 'POST',
+                headers: { 'X-Cache': 'yes' }, 
                 body: base64Packet
             });
         } catch(e) { console.warn("Cloud stream sync upstream latency detected."); }
     }
 
-    // NEW: Robust Server-Sent Events (SSE) stream connector for 100% instant, zero-latency real-time synchronization
-    function setupLiveSyncStream() {
-        if (!currentRoomId || !isViewerMode) return;
-        
+    async function fetchStateFromCloud() {
+        if (!currentRoomId) return;
         try {
-            if (window.liveSyncSource) {
-                window.liveSyncSource.close();
-            }
-            
-            // Establish native HTML5 EventSource streaming directly connected to the public edge hub
-            window.liveSyncSource = new EventSource(`${SYNC_BUS_URL}${currentRoomId}/sse`);
-            
-            window.liveSyncSource.onmessage = (event) => {
-                try {
-                    const logObj = JSON.parse(event.data);
+            const res = await fetch(`${SYNC_BUS_URL}${currentRoomId}/json?poll=1`);
+            if (res.status === 200) {
+                const text = await res.text();
+                if(!text.trim()) return;
+                
+                const lines = text.trim().split("\n");
+                let latestPayloadString = "";
+                
+                for (let i = lines.length - 1; i >= 0; i--) {
+                    if (!lines[i]) continue;
+                    const logObj = JSON.parse(lines[i]);
                     if (logObj.event === 'message' && logObj.message) {
-                        const decodedPayload = JSON.parse(decodeURIComponent(escape(atob(logObj.message))));
+                        latestPayloadString = logObj.message;
+                        break;
+                    }
+                }
+
+                if (latestPayloadString) {
+                    const decodedPayload = JSON.parse(decodeURIComponent(escape(atob(latestPayloadString))));
+                    
+                    if (isViewerMode) {
+                        isDouble = decodedPayload.isDouble; numGroups = decodedPayload.numGroups; numCourts = decodedPayload.numCourts;
+                        numRounds = decodedPayload.numRounds; playersPerGroup = decodedPayload.playersPerGroup;
+                        nameMap = decodedPayload.nameMap; generatedMatches = decodedPayload.generatedMatches;
                         
-                        // Synchronize deep data array states
-                        isDouble = decodedPayload.isDouble; 
-                        numGroups = decodedPayload.numGroups; 
-                        numCourts = decodedPayload.numCourts;
-                        numRounds = decodedPayload.numRounds; 
-                        playersPerGroup = decodedPayload.playersPerGroup;
-                        nameMap = decodedPayload.nameMap; 
-                        generatedMatches = decodedPayload.generatedMatches;
-                        
-                        // Force real-time UI component repainting instantly
                         renderTimelineMatrix();
                         renderMobileCards();
                         renderRankTablesFramework();
-
-                        if (decodedPayload.scores) {
-                            for (let id in decodedPayload.scores) {
-                                let inputNode = document.getElementById(id);
-                                if (inputNode) inputNode.value = decodedPayload.scores[id];
-                            }
-                        }
-                        liveCalculate(false); // Recalculate ranks silently without loop-backs
+                        
+                        document.getElementById("step1").style.display = "none";
+                        document.getElementById("step2").style.display = "none";
+                        document.getElementById("step3").style.display = "block";
                     }
-                } catch(ex) { console.warn("Live stream packet decoding skipped:", ex); }
-            };
-            
-            window.liveSyncSource.onerror = (err) => {
-                console.warn("Live sync connection break. SSE engine executing self-healing auto-reconnect...");
-            };
-            
-        } catch(e) { console.error("SSE stream boot failure:", e); }
+
+                    for (let id in decodedPayload.scores) {
+                        let inputNode = document.getElementById(id);
+                        if (inputNode && inputNode.value !== decodedPayload.scores[id]) {
+                            inputNode.value = decodedPayload.scores[id];
+                        }
+                    }
+                    liveCalculate(false);
+                }
+            }
+        } catch(e) { console.warn("Cloud parsing pipeline skip."); }
     }
 
     function generateShareLink() {
         liveCalculate(true);
-        // Delay slightly to allow replaceState pipeline to populate the URL stream completely
         setTimeout(() => {
             const shareUrl = window.location.href;
             if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1031,7 +1032,7 @@
             } else {
                 fallbackCopyAction(shareUrl);
             }
-        }, 100);
+        }, 150);
     }
 
     function fallbackCopyAction(text) {
@@ -1042,11 +1043,15 @@
         textArea.focus(); textArea.select();
         try {
             document.execCommand('copy');
-            alert("📋 永久专属观战链接已成功复制！可以直接分享到微信群。");
+            alert("📋 永久专属观战链接已成功复制！可以直接发送给群友观战。");
         } catch (err) {
             alert("自动复制失败，请手动复制地址栏的长网址发送给群友！");
         }
         document.body.removeChild(textArea);
+    }
+
+    function pollUrlHashChanges() {
+        fetchStateFromCloud();
     }
 
     async function checkAndRestoreHistory() {
@@ -1066,11 +1071,20 @@
                 });
             }
 
-            // CRITICAL FIX: Explicit isolated check. Only trust the unique admin token of THIS specific room ID to prevent global active cache corruption!
+            // CRITICAL FIX: The logic must STRICTLY enforce room-specific admin validation.
             const isLocalAdminTokenPresent = roomIdFromUrl && (localStorage.getItem("admin_room_" + roomIdFromUrl) === "true");
             
-            if (!isLocalAdminTokenPresent) {
-                // Verified Viewer Node - Force Pure read-only status and grey styles
+            if (isLocalAdminTokenPresent) {
+                // Verified Scorer Admin Node for this exact room - Restore editing rights smoothly
+                isViewerMode = false;
+                currentRoomId = roomIdFromUrl;
+                document.body.classList.remove("viewer-mode-active");
+                document.getElementById("viewerModeBadge").style.display = "none";
+                document.getElementById("sharingCardContainer").style.display = "block";
+                loadDataFromLocalStorage();
+                return;
+            } else {
+                // Viewer Mode Activation - You do NOT possess the local admin key for this room instance!
                 isViewerMode = true;
                 document.body.classList.add("viewer-mode-active"); 
                 document.getElementById("viewerModeBadge").style.display = "block";
@@ -1081,11 +1095,12 @@
                 
                 currentRoomId = roomIdFromUrl;
 
-                // Priority Hydration Layer: Instant opening hydration directly out of URL shadow stream to bypass network lag blockages
+                // Priority Hydration Layer: Decode and unescape cleanly, immune to WeChat Base64 encoding corruptions
                 if (backupDataStream) {
                     try {
-                        const decodedDataStream = decodeURIComponent(escape(atob(backupDataStream)));
-                        const payload = JSON.parse(decodedDataStream);
+                        const b64Decoded = decodeURIComponent(backupDataStream);
+                        const payloadString = decodeURIComponent(escape(atob(b64Decoded)));
+                        const payload = JSON.parse(payloadString);
                         
                         isDouble = payload.isDouble; numGroups = payload.numGroups; numCourts = payload.numCourts;
                         numRounds = payload.numRounds; playersPerGroup = payload.playersPerGroup;
@@ -1101,26 +1116,27 @@
                                 if (inputNode) inputNode.value = payload.scores[id];
                             }
                         }
-                        liveCalculate(false);
-                    } catch(err) { console.error("URL stream payload corrupted:", err); }
-                }
-                
-                // Mount the real-time continuous SSE streaming sync adapter
-                setupLiveSyncStream();
 
-            } else {
-                // Verified Scorer Admin Node - Restore editing rights smoothly
-                isViewerMode = false;
-                currentRoomId = roomIdFromUrl;
-                document.body.classList.remove("viewer-mode-active");
-                document.getElementById("viewerModeBadge").style.display = "none";
-                document.getElementById("sharingCardContainer").style.display = "block";
-                loadDataFromLocalStorage();
+                        document.getElementById("step1").style.display = "none";
+                        document.getElementById("step2").style.display = "none";
+                        document.getElementById("step3").style.display = "block";
+                        
+                        liveCalculate(false);
+                    } catch(err) { console.error("URL stream payload corrupted or decoding failed:", err); }
+                }
+
+                // If URL was stripped of data by third-party browsers, load strictly via Cloud fallback
+                if(document.getElementById("step3").style.display === "none") {
+                    await fetchStateFromCloud();
+                }
+
+                // Launch permanent silent polling tracker for subsequent scorer changes
+                setInterval(pollUrlHashChanges, 4000); 
+                return;
             }
-            return;
         }
 
-        // Only auto restore via global slots if explicitly visiting a clean root URL domain
+        // Only auto restore via global slots if explicitly visiting a clean root URL domain without any room hash
         if (localStorage.getItem("yuyiqifei_active") === "true") {
             isViewerMode = false;
             document.body.classList.remove("viewer-mode-active");
