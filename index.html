@@ -26,7 +26,7 @@
             background-color: var(--ios-bg);
             color: var(--ios-text);
             margin: 0;
-            padding: calc(12px + env(safe-area-inset-top)) 14px calc(24px + env(safe-area-inset-bottom)) 14px;
+            padding: calc(12px + env(safe-area-inset-top)) 14px calc(24px + env(safe-area-bottom)) 14px;
             font-size: 14px;
             -webkit-font-smoothing: antialiased;
         }
@@ -729,6 +729,7 @@
         }
 
         currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-3);
+        // Clean hash pushing (No Payload)
         window.history.replaceState(null, null, window.location.href.split('#')[0] + "#room=" + currentRoomId);
 
         generatedMatches.forEach(m => { m.isLocked = false; m.scoreA = ""; m.scoreB = ""; });
@@ -905,9 +906,6 @@
         return false;
     }
 
-    // ==========================================
-    // NEW: Timeline Visual Encoding & Logic
-    // ==========================================
     function renderTimelineMatrix() {
         const container = document.getElementById("dynamicTimeline");
         container.innerHTML = "";
@@ -926,7 +924,6 @@
         for (let r = 1; r <= numRounds; r++) html += `<th style="border: 1px solid #e5e5ea; padding: 10px 4px; background: #f2f2f7; font-weight: 700; min-width: 38px; color:var(--ios-text);">R${r}</th>`;
         html += `</tr></thead><tbody>`;
 
-        // Apple-like Base Hues for groups
         const groupHues = { 1: 350, 2: 210, 3: 280, 4: 30, 5: 170 };
 
         allPlayerKeys.forEach((pKey, idx) => {
@@ -989,11 +986,15 @@
         let myTeam = isTeamA ? match.a : match.b;
         let oppTeam = isTeamA ? match.b : match.a;
 
-        let myNames = myTeam.map(k => nameMap[k]).join(" & ");
-        let oppNames = oppTeam.map(k => nameMap[k]).join(" & ");
+        // UI FIX: Use exact formatting and ordering from the score cards
+        let namesA = match.a.map(k => nameMap[k]).join(" / ");
+        let namesB = match.b.map(k => nameMap[k]).join(" / ");
         let courtStr = match.court === "轮转对阵" ? "轮转" : match.court;
         
-        banner.innerHTML = `👉 第 ${r} 轮 ${courtStr}<br><span style="color:#FFD60A">${myNames}</span> <span style="color:#8e8e93; font-size:0.8rem; margin:0 4px;">VS</span> <span style="color:#ff453a">${oppNames}</span><span class="close-hint">(点击此处关闭高亮)</span>`;
+        let colorA = isTeamA ? "#FFD60A" : "#ff453a";
+        let colorB = !isTeamA ? "#FFD60A" : "#ff453a";
+        
+        banner.innerHTML = `👉 第 ${r} 轮 ${courtStr}<br><span style="color:${colorA}">${namesA}</span> <span style="color:#8e8e93; font-size:0.8rem; margin:0 4px;">VS</span> <span style="color:${colorB}">${namesB}</span><span class="close-hint">(点击此处关闭高亮)</span>`;
         banner.style.display = "block";
 
         document.querySelectorAll('.timeline-cell').forEach(el => {
@@ -1259,7 +1260,7 @@
                     }
                 } else {
                     groupStateClass = "table-winner";
-                    groupTitleText = `🏆 全员个人战绩荣耀榜`;
+                    groupTitleText = `🏆 全员战绩荣耀榜`;
                     titleStyle = `font-weight: 800; color: #ff9500; margin-top:20px; margin-bottom: 8px; font-size:1.05rem; padding-left:4px;`;
                 }
             } else if (numGroups === 2 && `G${g}` === winningGroup) {
@@ -1549,7 +1550,11 @@
 
     function resetAllTournament() {
         if (confirm("确定要彻底删除当前比赛并重组新一局吗？该操作不可撤销！")) {
-            localStorage.clear(); window.location.hash = ""; location.reload();
+            localStorage.clear(); 
+            if (window.liveSyncSource) {
+                window.liveSyncSource.close(); 
+            }
+            window.location.replace(window.location.href.split('#')[0]);
         }
     }
 
