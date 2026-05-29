@@ -336,6 +336,7 @@
         .btn-state-unlocked { background-color: rgba(0, 122, 255, 0.08); color: var(--ios-blue); }
         .btn-state-locked { background-color: rgba(142, 142, 147, 0.12); color: #48484a; }
 
+        /* ======================== 史诗级庆祝面板与战绩榜 ======================== */
         .summary-total {
             border-radius: var(--radius-main);
             padding: 16px;
@@ -427,6 +428,52 @@
         body.viewer-mode-active .action-lock-btn {
             display: none !important;             
         }
+
+        /* ======================== 聚焦探照灯引擎 CSS (时间轴悬浮互动) ======================== */
+        .timeline-cell {
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            cursor: pointer;
+        }
+        .dimmed-cell {
+            opacity: 0.15 !important;
+            filter: grayscale(100%);
+        }
+        .highlight-partner {
+            /* Inset shadow allows glowing border WITHOUT shifting width/layout */
+            box-shadow: 0 0 0 3px #FFD60A inset, 0 0 14px rgba(255, 214, 10, 0.9) !important;
+            z-index: 10;
+            position: relative;
+        }
+        .highlight-opponent {
+            box-shadow: 0 0 0 3px #ff3b30 inset, 0 0 14px rgba(255, 59, 48, 0.7) !important;
+            z-index: 10;
+            position: relative;
+        }
+        .timeline-banner {
+            background-color: #1c1c1e;
+            color: white;
+            padding: 12px 14px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: none;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+            animation: slideDown 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .close-hint {
+            display: block;
+            font-size: 0.75rem;
+            color: #8e8e93;
+            margin-top: 6px;
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
@@ -502,6 +549,9 @@
         </div>
 
         <div class="section-title">✨ 赛程时间轴 (横向滑动查看各轮次)</div>
+        
+        <div id="timelineBanner" class="timeline-banner" onclick="clearTimelineHighlight()"></div>
+        
         <div class="card" id="timelineWrapper" style="padding: 10px; overflow: hidden; background: var(--ios-card);">
             <div id="dynamicTimeline"></div>
         </div>
@@ -543,6 +593,7 @@
     let currentRoomId = "master_session";
     let nameMap = {}; 
     let generatedMatches = []; 
+    let activeHighlight = null; // Spotlight Tracker
 
     function toggleCourtInput() {
         const gNum = parseInt(document.getElementById("cfgGroups").value) || 1;
@@ -696,7 +747,6 @@
         liveCalculate(false); 
     }
 
-    // Engine upgraded to maximize non-repeating partners
     function autoScheduleEngine() {
         const slotsPerMatch = isDouble ? 2 : 1;
         let attempt = 0, maxAttempts = 300; 
@@ -715,7 +765,6 @@
                 }
             }
 
-            // CORE ALGORITHM: Evaluate pair variations to ensure minimal duplicated partnerships
             function formBestPairs(players) {
                 if (!isDouble) return players.map(p => [p]);
                 if (players.length === 2) return [[players[0], players[1]]];
@@ -847,7 +896,7 @@
                 if (repeatPenalty < bestScore) {
                     bestScore = repeatPenalty;
                     bestSchedule = JSON.parse(JSON.stringify(currentMatches));
-                    if (bestScore === 0) break; // Break early on perfection
+                    if (bestScore === 0) break; 
                 }
             }
         }
@@ -862,6 +911,7 @@
     function renderTimelineMatrix() {
         const container = document.getElementById("dynamicTimeline");
         container.innerHTML = "";
+        activeHighlight = null; // Clear spotlight tracker on rebuild
         let allPlayerKeys = [];
         for (let g = 1; g <= numGroups; g++) {
             for (let i = 1; i <= playersPerGroup; i++) allPlayerKeys.push(`G${g}_${i}`);
@@ -885,15 +935,82 @@
                 let playingMatch = roundMatches.find(m => m.a.includes(pKey) || m.b.includes(pKey));
                 if (playingMatch) {
                     let textSymbol = (numGroups === 1) ? "上场" : playingMatch.court.replace("号场", "场");
-                    html += `<td style="border: 1px solid #e5e5ea; padding: 4px; background: ${uniqueColor}; color: white; font-weight: 700; font-size: 0.75rem; border-radius:4px;">${textSymbol}</td>`;
+                    // NEW: Appended ID, class, and onclick trigger for Spotlight interactions
+                    html += `<td id="cell_${r}_${pKey}" class="timeline-cell" onclick="handleTimelineClick(${r}, '${pKey}')" style="border: 1px solid #e5e5ea; padding: 4px; background: ${uniqueColor}; color: white; font-weight: 700; font-size: 0.75rem; border-radius:4px;">${textSymbol}</td>`;
                 } else {
-                    html += `<td style="border: 1px solid #e5e5ea; padding: 4px; background: #fafafc; color: #c7c7cc; font-size: 0.75rem;">休</td>`;
+                    html += `<td class="timeline-cell" id="cell_${r}_${pKey}_off" style="border: 1px solid #e5e5ea; padding: 4px; background: #fafafc; color: #c7c7cc; font-size: 0.75rem;">休</td>`;
                 }
             }
             html += `</tr>`;
         });
         html += `</tbody></table></div>`;
         container.innerHTML = html;
+    }
+
+    // ==========================================
+    // NEW: Spotlight Engine & Highlighting Logic
+    // ==========================================
+    function handleTimelineClick(r, pKey) {
+        const banner = document.getElementById("timelineBanner");
+        
+        // Toggle behavior: Dismiss if the same cell is tapped again
+        if (activeHighlight === `${r}_${pKey}`) {
+            clearTimelineHighlight();
+            return;
+        }
+        activeHighlight = `${r}_${pKey}`;
+
+        // Locate match bounds safely
+        let match = generatedMatches.find(m => m.round === r && (m.a.includes(pKey) || m.b.includes(pKey)));
+        if (!match) {
+            clearTimelineHighlight();
+            return; // Clicked on a "Rest" (休) cell
+        }
+
+        // Deconstruct participant arrays for team mapping
+        let isTeamA = match.a.includes(pKey);
+        let myTeam = isTeamA ? match.a : match.b;
+        let oppTeam = isTeamA ? match.b : match.a;
+
+        let myNames = myTeam.map(k => nameMap[k]).join(" & ");
+        let oppNames = oppTeam.map(k => nameMap[k]).join(" & ");
+        let courtStr = match.court === "轮转对阵" ? "轮转" : match.court;
+        
+        // Inject banner text with golden and red highlights
+        banner.innerHTML = `👉 第 ${r} 轮 ${courtStr}<br><span style="color:#FFD60A">${myNames}</span> <span style="color:#8e8e93; font-size:0.8rem; margin:0 4px;">VS</span> <span style="color:#ff453a">${oppNames}</span><span class="close-hint">(点击此处关闭高亮)</span>`;
+        banner.style.display = "block";
+
+        // Traverse DOM and apply CSS classes per Spotlight rule
+        document.querySelectorAll('.timeline-cell').forEach(el => {
+            el.classList.remove('highlight-partner', 'highlight-opponent', 'dimmed-cell');
+            
+            // Expected ID formats: "cell_{r}_{pKey}" or "cell_{r}_{pKey}_off"
+            let parts = el.id.split('_');
+            if(parts.length < 4) return;
+            let cellR = parseInt(parts[1]);
+            let cellPKey = parts[2] + '_' + parts[3];
+
+            if (cellR === r) {
+                if (myTeam.includes(cellPKey)) {
+                    el.classList.add('highlight-partner');
+                } else if (oppTeam.includes(cellPKey)) {
+                    el.classList.add('highlight-opponent');
+                } else {
+                    el.classList.add('dimmed-cell');
+                }
+            } else {
+                el.classList.add('dimmed-cell'); // Dim all cells in other rounds
+            }
+        });
+    }
+
+    function clearTimelineHighlight() {
+        activeHighlight = null;
+        const banner = document.getElementById("timelineBanner");
+        if (banner) banner.style.display = "none";
+        document.querySelectorAll('.timeline-cell').forEach(el => {
+            el.classList.remove('highlight-partner', 'highlight-opponent', 'dimmed-cell');
+        });
     }
 
     function renderMobileCards() {
@@ -1262,6 +1379,8 @@
                         nameMap = decodedPayload.nameMap; 
                         generatedMatches = decodedPayload.generatedMatches;
                         
+                        // We must reset highlight tracking on live stream sync to prevent orphaned states
+                        clearTimelineHighlight();
                         renderTimelineMatrix();
                         renderMobileCards();
 
