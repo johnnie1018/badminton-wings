@@ -216,7 +216,7 @@
             padding: 14px 16px;
             margin-bottom: 8px;
             display: flex;
-            flex-direction: column; /* Allow action button nesting vertically */
+            flex-direction: column; 
             gap: 10px;
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.015);
             border: 1px solid rgba(0,0,0,0.005);
@@ -281,17 +281,17 @@
         /* iOS Capsule Action Lock Switch Button Style */
         .action-lock-btn {
             width: 100%;
-            padding: 8px;
+            padding: 10px;
             border-radius: 8px;
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             font-weight: 700;
             border: none;
             cursor: pointer;
             transition: all 0.2s ease;
             text-align: center;
         }
-        .btn-state-unlocked { background-color: rgba(0, 122, 255, 0.1); color: var(--ios-blue); }
-        .btn-state-locked { background-color: rgba(142, 142, 147, 0.1); color: #48484a; }
+        .btn-state-unlocked { background-color: rgba(0, 122, 255, 0.08); color: var(--ios-blue); }
+        .btn-state-locked { background-color: rgba(52, 199, 89, 0.08); color: var(--ios-primary-dark); }
 
         /* iOS Total Indicator Summary Component View Layout */
         .summary-total {
@@ -350,18 +350,18 @@
             cursor: default !important;
         }
         body.viewer-mode-active .score-area {
-            background-color: #e5e5ea !important; /* Visual forced gray scale background badge */
+            background-color: #e5e5ea !important; 
             border: 1px solid rgba(0, 0, 0, 0.02) !important;
-            pointer-events: none !important;      /* Block all physical tap gestures */
+            pointer-events: none !important;      
         }
         body.viewer-mode-active .score-num {
-            color: #72727a !important;            /* Dim out the text score visibility */
+            color: #72727a !important;            
             background-color: transparent !important;
             pointer-events: none !important;
             user-select: none !important;
         }
         body.viewer-mode-active .action-lock-btn {
-            display: none !important;             /* Hide gate controls entirely from viewer nodes */
+            display: none !important;             
         }
     </style>
 </head>
@@ -420,7 +420,7 @@
 
     <div id="step3" style="display: none;">
         <div id="sharingCardContainer" class="card" style="padding: 12px; text-align: center; background-color: #eaf4ff; border: none; margin-bottom: 16px;">
-            <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()">🔗 复制专属【永久观战链接】发送至群聊</button>
+            <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()">🔗 复制最新比分【专属分享链接】发至群聊</button>
         </div>
 
         <div class="section-title">✨ 赛程时间轴 (横向滑动查看各轮次)</div>
@@ -440,7 +440,7 @@
 </div>
 
 <script>
-    // [Comments preserved in English per directives parameters ledger]
+    // [Comments preserved in English per directive instructions]
     const SYNC_BUS_URL = "https://ntfy.sh/yyqf_global_hub_"; 
 
     let isDouble = true;
@@ -592,9 +592,8 @@
         }
 
         currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-3);
-        window.location.hash = `#room=${currentRoomId}`;
-
-        // Initialize custom lock flags directly onto matchups array bounds
+        
+        // Setup default locking states fields flags parameters onto array bounds
         generatedMatches.forEach(m => { m.isLocked = false; m.scoreA = ""; m.scoreB = ""; });
 
         renderTimelineMatrix();
@@ -605,7 +604,7 @@
         document.getElementById("step3").style.display = "block";
         
         saveGameFrameworkToStorage();
-        liveCalculate(false); // Init without push forces
+        liveCalculate(false); // Init local layouts frames without pushing cloud updates
     }
 
     function autoScheduleEngine() {
@@ -738,14 +737,14 @@
                 let namesA = match.a.map(k => nameMap[k]).join("<br>");
                 let namesB = match.b.map(k => nameMap[k]).join("<br>");
                 
-                // Readonly execution conditions check
+                // Formulate mutual exclusion read-only checks matching gates
                 let isLocallyLocked = match.isLocked || isViewerMode;
                 let roAttr = isLocallyLocked ? "readonly" : "";
                 
                 let viewerInputStyle = isLocallyLocked ? "style='color:#8e8e93; background-color:transparent; font-weight:700;'" : "";
                 let viewerCardStyle = isLocallyLocked ? "style='background-color:#e5e5ea; border:1px solid rgba(0,0,0,0.05);'" : "";
 
-                // Button State Engine mapping parameters placement
+                // Button state machine toggle label mapping
                 let btnLabel = match.isLocked ? "🔒 修改比分" : "🔵 确认录入";
                 let btnClass = match.isLocked ? "btn-state-locked" : "btn-state-unlocked";
 
@@ -786,7 +785,7 @@
         }
     }
 
-    // NEW: Minimalist internal change mapping to update array bounds without pushing cloud sync frames
+    // NEW: Core local caching to record score inputs into memory matrix instantly
     function cacheInputValuesOnly(idx) {
         let valA = document.getElementById(`sA_${idx}`) ? document.getElementById(`sA_${idx}`).value : "";
         let valB = document.getElementById(`sB_${idx}`) ? document.getElementById(`sB_${idx}`).value : "";
@@ -794,7 +793,7 @@
         generatedMatches[idx].scoreB = valB;
     }
 
-    // NEW: Action state locking state machine gatekeeper mapping updates downstream upstream
+    // NEW: Action state confirmation locker state toggle mapping
     function toggleMatchLockGate(idx) {
         if(isViewerMode) return;
         
@@ -812,19 +811,16 @@
                 return;
             }
             
-            // Lock target bounds and update memory arrays instantly
             match.isLocked = true;
             match.scoreA = valA;
             match.scoreB = valB;
         } else {
-            // Unlock and return editing rights to the master scorer
             match.isLocked = false;
         }
         
-        // Save current structures, refresh local templates and push snapshot payloads upstream
         saveGameFrameworkToStorage();
         renderMobileCards();
-        liveCalculate(true); // Fire cloud push frames explicitly on verification toggles
+        liveCalculate(true); // Trigger synchronous cloud update on verification toggle
     }
 
     function liveCalculate(shouldPushToCloud = true) {
@@ -835,7 +831,6 @@
         let currentScoresCache = {}; 
 
         for (let i = 0; i < generatedMatches.length; i++) {
-            // Read from array memory values directly to avoid DOM mismatch errors
             let valA = generatedMatches[i].scoreA || "";
             let valB = generatedMatches[i].scoreB || "";
 
@@ -869,6 +864,7 @@
 
         if (!isViewerMode) {
             localStorage.setItem("yuyiqifei_scores", JSON.stringify(currentScoresCache));
+            updateUrlHashWithScores(currentScoresCache);
             if (shouldPushToCloud) {
                 pushStateToCloud(currentScoresCache);
             }
@@ -948,6 +944,14 @@
         liveCalculate(false);
     }
 
+    function updateUrlHashWithScores(scoresMap) {
+        const snapshotPayload = { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: scoresMap };
+        const urlSafeJsonString = encodeURIComponent(JSON.stringify(snapshotPayload));
+        const compressedDataStream = btoa(unescape(urlSafeJsonString));
+        // FIXED: Pack roomId and data packet string together natively to cure initial open frame white screens
+        window.history.replaceState(null, null, window.location.href.split('#')[0] + "#room=" + currentRoomId + "&data=" + compressedDataStream);
+    }
+
     async function pushStateToCloud(scoresMap = null) {
         if (!currentRoomId || isViewerMode) return;
         const targetScores = scoresMap || JSON.parse(localStorage.getItem("yuyiqifei_scores") || "{}");
@@ -962,7 +966,7 @@
                 headers: { 'X-Cache': 'yes' }, 
                 body: base64Packet
             });
-        } catch(e) { console.warn("Cloud stream sync upstream latency detected."); }
+        } catch(e) { console.warn("Cloud push frame latency."); }
     }
 
     async function fetchStateFromCloud() {
@@ -993,7 +997,7 @@
                         numRounds = decodedPayload.numRounds; playersPerGroup = decodedPayload.playersPerGroup;
                         nameMap = decodedPayload.nameMap; generatedMatches = decodedPayload.generatedMatches;
                         
-                        // Re-trigger visual cards loops for viewers on cloud mutations frames
+                        // Re-trigger rendering dynamically on viewer node when upstream data mutation reports
                         renderTimelineMatrix();
                         renderMobileCards();
                         renderRankTablesFramework();
@@ -1008,17 +1012,16 @@
                     liveCalculate(false);
                 }
             }
-        } catch(e) { console.warn("Cloud parsing pipeline skip."); }
+        } catch(e) { console.warn("Cloud stream connection skip."); }
     }
 
     function generateShareLink() {
         liveCalculate(false);
-        let baseUrl = window.location.href.split('#')[0];
-        const shareUrl = baseUrl + "#room=" + currentRoomId;
+        const shareUrl = window.location.href;
         
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(shareUrl).then(() => {
-                alert("📋 永久专属观战链接已成功复制到剪贴板！\n\n发送至群聊后，群友点击进入即可【保持常开状态】。记分员此后改动并确认比分，群友手机将全自动、不需要你重复发链接！");
+                alert("📋 含有初始完整配置及当前比分的专属链接已复制到剪贴板！\n\n发送至群聊后，群友点开将拥有离线自愈功能（绝不白屏空表格）。后期你在场边每打完一场点击【确认录入】，群友那边屏幕会自动实时跳变比分，无须你重复发送！");
             }).catch(() => {
                 fallbackCopyAction(shareUrl);
             });
@@ -1035,32 +1038,38 @@
         textArea.focus(); textArea.select();
         try {
             document.execCommand('copy');
-            alert("📋 永久专属观战链接已成功复制！可以直接发送给群友观战。");
+            alert("📋 含有初始完整配置的专属链接已复制！直接分享到微信群即可。");
         } catch (err) {
-            alert("自动复制失败，请手动复制地址栏的长网址发送给群友！");
+            alert("自动复制失败，请手动复制浏览器顶部地址栏的长网址发送给群友！");
         }
         document.body.removeChild(textArea);
     }
 
     function pollUrlHashChanges() {
-        // [Viewer state continuous fallback tracker engine mapping]
         fetchStateFromCloud();
     }
 
     async function checkAndRestoreHistory() {
         const hash = window.location.hash;
 
-        if (hash.startsWith("#room=")) {
-            const roomIdFromUrl = hash.replace("#room=", "");
-            
-            if (localStorage.getItem("admin_room_" + roomIdFromUrl) === "true" || localStorage.getItem("yuyiqifei_active") === "true") {
-                isViewerMode = false;
-                document.body.classList.remove("viewer-mode-active");
-                document.getElementById("viewerModeBadge").style.display = "none";
-                document.getElementById("sharingCardContainer").style.display = "block";
-                loadDataFromLocalStorage();
-                return;
+        // FIXED: Integrated hybrid decoder. Parse both roomId and data stream packets simultaneously
+        if (hash.startsWith("#room=") || hash.includes("&data=") || hash.startsWith("#data=")) {
+            let roomIdFromUrl = "";
+            let backupDataStream = "";
+
+            if (hash.startsWith("#data=")) {
+                backupDataStream = hash.replace("#data=", "");
             } else {
+                const urlParams = hash.replace("#", "").split("&");
+                urlParams.forEach(param => {
+                    if (param.startsWith("room=")) roomIdFromUrl = param.replace("room=", "");
+                    if (param.startsWith("data=")) backupDataStream = param.replace("data=", "");
+                });
+            }
+
+            const isLocalAdminTokenPresent = roomIdFromUrl && (localStorage.getItem("admin_room_" + roomIdFromUrl) === "true");
+            
+            if (backupDataStream && !isLocalAdminTokenPresent) {
                 isViewerMode = true;
                 document.body.classList.add("viewer-mode-active"); 
                 document.getElementById("viewerModeBadge").style.display = "block";
@@ -1068,13 +1077,51 @@
                 
                 const shareCard = document.getElementById("sharingCardContainer");
                 shareCard.innerHTML = `<button type="button" class="btn-block" id="btnShareMatch">👁️ 当前处于：群友实时观战模式</button>`;
+            } else if (isLocalAdminTokenPresent || localStorage.getItem("yuyiqifei_active") === "true") {
+                isViewerMode = false;
+                document.body.classList.remove("viewer-mode-active");
+                document.getElementById("viewerModeBadge").style.display = "none";
+                document.getElementById("sharingCardContainer").style.display = "block";
+                loadDataFromLocalStorage();
+                return;
             }
 
             currentRoomId = roomIdFromUrl;
 
-            if (isViewerMode) {
+            // FIXED: If URL packs backup data frames, hydrate the local client directly to cure the empty screen bug
+            if (backupDataStream) {
+                try {
+                    const decodedDataStream = decodeURIComponent(escape(atob(backupDataStream)));
+                    const payload = JSON.parse(decodedDataStream);
+                    
+                    isDouble = payload.isDouble; numGroups = payload.numGroups; numCourts = payload.numCourts;
+                    numRounds = payload.numRounds; playersPerGroup = payload.playersPerGroup;
+                    nameMap = payload.nameMap; generatedMatches = payload.generatedMatches;
+
+                    renderTimelineMatrix(); 
+                    renderMobileCards(); 
+                    renderRankTablesFramework();
+
+                    if (payload.scores) {
+                        for (let id in payload.scores) {
+                            let inputNode = document.getElementById(id); 
+                            if (inputNode) inputNode.value = payload.scores[id];
+                        }
+                    }
+
+                    document.getElementById("step1").style.display = "none";
+                    document.getElementById("step2").style.display = "none";
+                    document.getElementById("step3").style.display = "block";
+                    
+                    liveCalculate(false);
+                } catch(err) { console.error("Initial block decoding exception:", err); }
+            } else {
+                // Secondary backup lookup from cloud channels directly
                 await fetchStateFromCloud();
-                setInterval(pollUrlHashChanges, 4000); // Poll cloud registry state snapshots bounds securely
+            }
+
+            if (isViewerMode) {
+                setInterval(pollUrlHashChanges, 4000); 
             }
             return;
         }
