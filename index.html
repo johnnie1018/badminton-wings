@@ -218,11 +218,12 @@
             color: var(--ios-subtext);
             text-transform: uppercase;
         }
-
-        /* ======================== 强烈对比的卡片状态 ======================== */
+        
+        /* STATE-BASED CARD STYLES */
         .match-card {
+            position: relative;
             border-radius: var(--radius-main);
-            padding: 14px 14px;
+            padding: 12px 12px 14px 12px;
             margin-bottom: 12px;
             display: flex;
             flex-direction: column; 
@@ -231,17 +232,18 @@
             overflow: hidden;
         }
         
-        /* 活跃态（未录入）：纯白底色，左侧橙色高亮，强烈阴影 */
+        /* 活跃态 */
         .match-card-unlocked {
             background-color: #ffffff;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
             border: 1px solid #e2e8f0;
-            border-left: 5px solid var(--ios-orange);
+            border-left: 4px solid var(--ios-orange);
         }
         .match-card-unlocked .score-area { background-color: #f2f2f7; }
         .match-card-unlocked .score-num { color: var(--ios-text); }
+        .match-card-unlocked .team-players { color: #2c3e50; }
         
-        /* 完赛态（已上锁）：深冷灰底色，无阴影，透明度降低，文字变暗 */
+        /* 完赛态 */
         .match-card-locked {
             background-color: #e2e8f0; 
             box-shadow: none;
@@ -249,52 +251,48 @@
         }
         .match-card-locked .score-area { background-color: #cbd5e1; }
         .match-card-locked .score-num { color: #64748b; font-weight: 600; }
-        .match-card-locked .team-players { color: #475569; }
+        .match-card-locked .team-players { color: #64748b; }
         .match-card-locked .court-label { background-color: #cbd5e1; color: #ffffff; border: none; }
 
         .match-core-row {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: center;
             width: 100%;
-            gap: 8px; 
+            gap: 6px; 
         }
         
+        /* 悬浮角标 */
         .court-label {
-            font-size: 0.75rem;
+            position: absolute;
+            top: 0;
+            left: 0;
+            font-size: 0.7rem;
             background: #f2f2f7;
             color: #8e8e93;
-            padding: 6px 4px;
-            border-radius: 8px;
+            padding: 4px 10px;
+            border-bottom-right-radius: 10px;
             font-weight: 600;
-            width: 56px;
-            flex-shrink: 0;
-            text-align: center;
-            border: 1px solid #e5e5ea;
-            box-sizing: border-box;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            line-height: 1.2;
-            word-wrap: break-word;
-            white-space: normal;
+            z-index: 1;
         }
         
-        /* 姓名改为左右排布，深色显示 */
+        /* 姓名水平排布 */
         .team-players {
             flex: 1;
             font-weight: 700;
             font-size: 0.95rem;
-            word-break: keep-all;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .team-a { color: #2c3e50; text-align: right; padding-right: 4px; }
-        .team-b { color: #2c3e50; text-align: left; padding-left: 4px; }
+        .team-a { text-align: right; padding-right: 6px; }
+        .team-b { text-align: left; padding-left: 6px; }
         
         .score-area {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 100px;
+            width: 90px;
             flex-shrink: 0;
             border-radius: 20px;
             transition: all 0.2s ease;
@@ -385,7 +383,14 @@
             cursor: default !important;
             padding: 12px !important;
         }
+        body.viewer-mode-active .score-area {
+            background-color: #e5e5ea !important; 
+            border: 1px solid rgba(0, 0, 0, 0.02) !important;
+            pointer-events: none !important;      
+        }
         body.viewer-mode-active .score-num {
+            color: #72727a !important;            
+            background-color: transparent !important;
             pointer-events: none !important;
             user-select: none !important;
         }
@@ -632,7 +637,7 @@
         currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-3);
         window.location.hash = `#room=${currentRoomId}`;
 
-        // Setup default locking states flags
+        // Initialize custom lock flags directly onto matchups array bounds
         generatedMatches.forEach(m => { m.isLocked = false; m.scoreA = ""; m.scoreB = ""; });
 
         renderTimelineMatrix();
@@ -643,7 +648,7 @@
         document.getElementById("step3").style.display = "block";
         
         saveGameFrameworkToStorage();
-        liveCalculate(false); 
+        liveCalculate(false); // Init local layouts frames without pushing cloud updates
     }
 
     function autoScheduleEngine() {
@@ -774,29 +779,25 @@
             generatedMatches.filter(m => m.round === r).forEach((match) => {
                 const globalIdx = generatedMatches.indexOf(match);
                 
-                // UI FIX 2: Conditionally omit the useless "轮转对阵" badge to save space
                 let courtHtml = match.court === "轮转对阵" ? "" : `<span class="court-label">${match.court}</span>`;
+                let paddingTopStyle = match.court === "轮转对阵" ? "padding-top: 14px;" : "padding-top: 24px;";
                 
-                // UI FIX 1: Names are horizontally chained using " / "
                 let namesA = match.a.map(k => nameMap[k]).join(" / ");
                 let namesB = match.b.map(k => nameMap[k]).join(" / ");
                 
-                // Formulate mutual exclusion read-only checks
                 let isLocallyLocked = match.isLocked || isViewerMode;
                 let roAttr = isLocallyLocked ? "readonly" : "";
                 
-                // UI FIX 3: Drastically distinct background classing for active vs recorded matches
                 let cardStateClass = match.isLocked ? "match-card-locked" : "match-card-unlocked";
                 let viewerInputStyle = isLocallyLocked ? "style='pointer-events:none;'" : "";
 
-                // Button state machine toggle label mapping
                 let btnLabel = match.isLocked ? "🔒 修改比分" : "🔵 确认录入";
                 let btnClass = match.isLocked ? "btn-state-locked" : "btn-state-unlocked";
 
                 html += `
-                    <div class="match-card ${cardStateClass}">
+                    <div class="match-card ${cardStateClass}" style="${paddingTopStyle}">
+                        ${courtHtml}
                         <div class="match-core-row">
-                            ${courtHtml}
                             <div class="team-players team-a">${namesA}</div>
                             <div class="score-area">
                                 <input type="number" inputmode="numeric" class="score-num" id="sA_${globalIdx}" ${roAttr} ${viewerInputStyle} value="${match.scoreA||''}" oninput="cacheInputValuesOnly(${globalIdx})">
@@ -830,7 +831,6 @@
         }
     }
 
-    // Core local caching to record score inputs into memory matrix instantly without triggering cloud pings
     function cacheInputValuesOnly(idx) {
         let valA = document.getElementById(`sA_${idx}`) ? document.getElementById(`sA_${idx}`).value : "";
         let valB = document.getElementById(`sB_${idx}`) ? document.getElementById(`sB_${idx}`).value : "";
@@ -838,7 +838,6 @@
         generatedMatches[idx].scoreB = valB;
     }
 
-    // Action state confirmation locker state toggle mapping
     function toggleMatchLockGate(idx) {
         if(isViewerMode) return;
         
@@ -865,7 +864,7 @@
         
         saveGameFrameworkToStorage();
         renderMobileCards();
-        liveCalculate(true); // Trigger synchronous cloud update on verification toggle
+        liveCalculate(true); 
     }
 
     function liveCalculate(shouldPushToCloud = true) {
@@ -891,7 +890,6 @@
                 if (isWinA) totalWinA++; else totalWinB++;
             }
 
-            // Standings strictly process matches that have been officially locked/confirmed
             if(generatedMatches[i].isLocked) {
                 generatedMatches[i].a.forEach(k => {
                     let p = nameMap[k];
@@ -1016,49 +1014,46 @@
         } catch(e) { console.warn("Cloud stream sync upstream latency detected."); }
     }
 
-    async function fetchStateFromCloud() {
-        if (!currentRoomId) return;
+    function setupLiveSyncStream() {
+        if (!currentRoomId || !isViewerMode) return;
+        
         try {
-            const res = await fetch(`${SYNC_BUS_URL}${currentRoomId}/json?poll=1`);
-            if (res.status === 200) {
-                const text = await res.text();
-                if(!text.trim()) return;
-                
-                const lines = text.trim().split("\n");
-                let latestPayloadString = "";
-                
-                for (let i = lines.length - 1; i >= 0; i--) {
-                    if (!lines[i]) continue;
-                    const logObj = JSON.parse(lines[i]);
+            if (window.liveSyncSource) {
+                window.liveSyncSource.close();
+            }
+            
+            window.liveSyncSource = new EventSource(`${SYNC_BUS_URL}${currentRoomId}/sse`);
+            
+            window.liveSyncSource.onmessage = (event) => {
+                try {
+                    const logObj = JSON.parse(event.data);
                     if (logObj.event === 'message' && logObj.message) {
-                        latestPayloadString = logObj.message;
-                        break;
-                    }
-                }
-
-                if (latestPayloadString) {
-                    const decodedPayload = JSON.parse(decodeURIComponent(escape(atob(latestPayloadString))));
-                    
-                    if (isViewerMode) {
-                        isDouble = decodedPayload.isDouble; numGroups = decodedPayload.numGroups; numCourts = decodedPayload.numCourts;
-                        numRounds = decodedPayload.numRounds; playersPerGroup = decodedPayload.playersPerGroup;
-                        nameMap = decodedPayload.nameMap; generatedMatches = decodedPayload.generatedMatches;
+                        const decodedPayload = JSON.parse(decodeURIComponent(escape(atob(logObj.message))));
+                        
+                        isDouble = decodedPayload.isDouble; 
+                        numGroups = decodedPayload.numGroups; 
+                        numCourts = decodedPayload.numCourts;
+                        numRounds = decodedPayload.numRounds; 
+                        playersPerGroup = decodedPayload.playersPerGroup;
+                        nameMap = decodedPayload.nameMap; 
+                        generatedMatches = decodedPayload.generatedMatches;
                         
                         renderTimelineMatrix();
                         renderMobileCards();
                         renderRankTablesFramework();
-                    }
 
-                    for (let id in decodedPayload.scores) {
-                        let inputNode = document.getElementById(id);
-                        if (inputNode && inputNode.value !== decodedPayload.scores[id]) {
-                            inputNode.value = decodedPayload.scores[id];
+                        if (decodedPayload.scores) {
+                            for (let id in decodedPayload.scores) {
+                                let inputNode = document.getElementById(id);
+                                if (inputNode) inputNode.value = decodedPayload.scores[id];
+                            }
                         }
+                        liveCalculate(false); 
                     }
-                    liveCalculate(false);
-                }
-            }
-        } catch(e) { console.warn("Cloud stream connection skip."); }
+                } catch(ex) { console.warn("Live stream packet decoding skipped.", ex); }
+            };
+            
+        } catch(e) { console.error("SSE stream boot failure."); }
     }
 
     function generateShareLink() {
@@ -1067,7 +1062,7 @@
             const shareUrl = window.location.href;
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(shareUrl).then(() => {
-                    alert("📋 包含完美初始对阵与当前比分的【专属永久观战网址】已复制到剪贴板！\n\n发到微信群后，群友点开绝对能看到完整时刻表（绝不白屏）。后续你在场边每录完一场点击【确认录入】，群友那边屏幕会自动毫秒级跳变更新，无须你重复发送！");
+                    alert("📋 赛事专属观战链接已复制！\n\n💡 提示：系统已开启云端实时同步。后续录入比分后，所有观战端将自动刷新，整场比赛仅需分享一次。");
                 }).catch(() => {
                     fallbackCopyAction(shareUrl);
                 });
@@ -1085,7 +1080,7 @@
         textArea.focus(); textArea.select();
         try {
             document.execCommand('copy');
-            alert("📋 永久专属观战链接已成功复制！可以直接发送给群友观战。");
+            alert("📋 赛事专属观战链接已复制！请直接粘贴发送至微信群。");
         } catch (err) {
             alert("自动复制失败，请手动复制地址栏的长网址发送给群友！");
         }
@@ -1093,7 +1088,9 @@
     }
 
     function pollUrlHashChanges() {
-        fetchStateFromCloud();
+        if (!window.liveSyncSource || window.liveSyncSource.readyState === EventSource.CLOSED) {
+            setupLiveSyncStream();
+        }
     }
 
     async function checkAndRestoreHistory() {
@@ -1122,7 +1119,10 @@
                 document.getElementById("btnWipeSystem").style.display = "none";
                 
                 const shareCard = document.getElementById("sharingCardContainer");
-                shareCard.innerHTML = `<button type="button" class="btn-block" id="btnShareMatch">👁️ 当前处于：群友实时观战模式</button>`;
+                shareCard.innerHTML = `
+                    <div style="font-size: 1.05rem; font-weight: 700; color: var(--ios-subtext); margin-bottom: 2px;">👁️ 智能赛事云分发通道</div>
+                    <div style="font-size: 0.8rem; font-weight: 500; color: #aeaeb2;">您正在实时观战本场比赛，比分将自动同步刷新</div>
+                `;
                 
                 currentRoomId = roomIdFromUrl;
 
@@ -1152,15 +1152,11 @@
                         document.getElementById("step3").style.display = "block";
                         
                         liveCalculate(false);
-                    } catch(err) { console.error("URL stream payload corrupted or decoding failed:", err); }
+                    } catch(err) { console.error("URL stream payload corrupted."); }
                 }
 
-                if(document.getElementById("step3").style.display === "none") {
-                    await fetchStateFromCloud();
-                }
-
-                setInterval(pollUrlHashChanges, 4000); 
-                return;
+                setupLiveSyncStream();
+                setInterval(pollUrlHashChanges, 5000); // Connection watchdog
 
             } else {
                 isViewerMode = false;
