@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>羽翼齐飞 - 智能对抗与轮转赛事系统</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
             --ios-bg: #f2f2f7;
@@ -234,7 +235,6 @@
             text-transform: uppercase;
         }
         
-        /* STATE-BASED CARD STYLES */
         .match-card {
             position: relative;
             border-radius: var(--radius-main);
@@ -336,7 +336,6 @@
         .btn-state-unlocked { background-color: rgba(0, 122, 255, 0.08); color: var(--ios-blue); }
         .btn-state-locked { background-color: rgba(142, 142, 147, 0.12); color: #48484a; }
 
-        /* ======================== 战绩与结算面板进阶排版 ======================== */
         .summary-total {
             border-radius: var(--radius-main);
             padding: 16px;
@@ -344,13 +343,11 @@
             margin-bottom: 20px;
             transition: all 0.4s ease;
         }
-        /* 比赛进行中状态 */
         .summary-ongoing {
             background: #1c1c1e;
             color: white;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
         }
-        /* 比赛完结庆祝状态 (动画与强烈暖色) */
         .summary-finished {
             background: linear-gradient(135deg, #FF3B30, #FF9500); 
             color: #ffffff;
@@ -372,14 +369,12 @@
             margin-bottom: 20px;
             transition: all 0.3s ease;
         }
-        /* 冠军组高光 UI */
         .table-winner {
             border: 2px solid #FF9500;
             box-shadow: 0 4px 16px rgba(255, 149, 0, 0.15);
             background-color: #fffcf2; 
         }
         .table-winner th { background-color: #fffae8 !important; color: #d97706 !important; }
-        /* 惜败组置灰 UI */
         .table-loser {
             opacity: 0.65;
             filter: grayscale(0.5);
@@ -515,8 +510,18 @@
         <div id="dynamicScheduleList"></div>
 
         <div class="section-title">第四步：实时战绩展示</div>
-        <div id="groupSummary" style="display: none;"></div>
-        <div id="dynamicRankTables"></div>
+        
+        <div id="posterArea" style="padding: 10px; border-radius: 16px; background-color: var(--ios-bg); margin: -10px;">
+            <div id="posterHeader" style="display:none; text-align:center; font-weight:800; font-size:1.3rem; margin-bottom:12px; color:var(--ios-text);">🏸 羽翼齐飞 - 最终战绩 🏸</div>
+            <div class="summary-total" id="groupSummary" style="display: none;"></div>
+            <div id="dynamicRankTables"></div>
+            <div id="posterWatermark" style="display:none; text-align:center; font-size:0.75rem; color:#8e8e93; margin-top:12px; font-weight:500;">数据由「羽翼齐飞」智能赛事云管家生成</div>
+        </div>
+
+        <button type="button" class="btn-block" id="btnExportImage" style="display: none; margin-top:20px; background: linear-gradient(135deg, #34c759, #248a3d); box-shadow: 0 4px 12px rgba(52, 199, 89, 0.3); color: white;" onclick="exportRankToImage()">
+            <div class="btn-title">📸 一键生成战绩海报</div>
+            <div class="btn-subtitle">保存图片并直接分享至群聊装杯</div>
+        </button>
         
         <button type="button" class="btn-block btn-orange" id="btnWipeSystem" style="margin-top:16px; background-color: var(--ios-red); box-shadow: 0 4px 12px rgba(255, 59, 48, 0.15);" onclick="resetAllTournament()">
             <div class="btn-title">清空整个赛事</div>
@@ -525,6 +530,7 @@
 </div>
 
 <script>
+    // Global Constants and Configurations
     const SYNC_BUS_URL = "https://ntfy.sh/yyqf_global_hub_"; 
 
     let isDouble = true;
@@ -677,10 +683,12 @@
         currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-3);
         window.history.replaceState(null, null, window.location.href.split('#')[0] + "#room=" + currentRoomId);
 
+        // Pre-fill memory payload structures
         generatedMatches.forEach(m => { m.isLocked = false; m.scoreA = ""; m.scoreB = ""; });
 
         renderTimelineMatrix();
         renderMobileCards();
+        renderRankTablesFramework();
         
         document.getElementById("step2").style.display = "none";
         document.getElementById("step3").style.display = "block";
@@ -852,6 +860,23 @@
         container.innerHTML = html;
     }
 
+    function renderRankTablesFramework() {
+        const container = document.getElementById("dynamicRankTables"); container.innerHTML = "";
+        const groupColors = ["var(--ios-red)", "var(--ios-blue)", "#9b59b6", "var(--ios-orange)", "var(--ios-primary)"];
+
+        for (let g = 1; g <= numGroups; g++) {
+            const color = groupColors[(g-1) % groupColors.length];
+            const groupLetter = String.fromCharCode(64 + g);
+            const title = numGroups === 1 ? `👑 全员个人战绩榜` : `🔴 ${groupLetter} 组战绩排名`;
+            container.innerHTML += `
+                <div style="font-weight: 700; color: ${color}; margin-top:16px; margin-bottom: 6px; font-size:0.9rem; padding-left:4px;">${title}</div>
+                <table class="rank-table">
+                    <thead><tr><th style="width: 15%;">排名</th><th style="width: 32%;">队员</th><th style="width: 21%;">胜 - 负</th><th style="width: 17%;">净胜</th><th style="width: 15%;">得分</th></tr></thead>
+                    <tbody id="rankBody_G${g}"></tbody>
+                </table>`;
+        }
+    }
+
     function cacheInputValuesOnly(idx) {
         let valA = document.getElementById(`sA_${idx}`) ? document.getElementById(`sA_${idx}`).value : "";
         let valB = document.getElementById(`sB_${idx}`) ? document.getElementById(`sB_${idx}`).value : "";
@@ -888,7 +913,7 @@
         liveCalculate(true); 
     }
 
-    // Dynamic UI Engine for Ranks and Leaderboards
+    // Dynamic Engine logic incorporating new celebration elements and visual distinctions
     function liveCalculate(shouldPushToCloud = true) {
         let stats = {};
         for (let k in nameMap) stats[nameMap[k]] = { name: nameMap[k], win: 0, lose: 0, diffScore: 0, totalScore: 0, group: k.split('_')[0] };
@@ -896,7 +921,6 @@
         let totalWinA = 0, totalWinB = 0, totalScoreA = 0, totalScoreB = 0;
         let currentScoresCache = {}; 
         
-        // Progress Evaluators
         let totalMatchCount = generatedMatches.length;
         let lockedMatchCount = 0;
 
@@ -932,7 +956,7 @@
                 });
             }
         }
-        
+
         const isAllFinished = (totalMatchCount > 0 && lockedMatchCount === totalMatchCount);
 
         if (!isViewerMode) {
@@ -942,21 +966,30 @@
             }
         }
 
-        // ==========================
-        // 1. Group Summary Rendering
-        // ==========================
-        const summaryBox = document.getElementById("groupSummary");
-        let winningGroup = ""; 
+        const sortRule = (x, y) => {
+            if (y.win !== x.win) return y.win - x.win;
+            if (y.diffScore !== x.diffScore) return y.diffScore - x.diffScore;
+            return y.totalScore - x.totalScore;
+        };
 
+        // UI Core Logic Updates
+        const summaryBox = document.getElementById("groupSummary");
+        const exportBtn = document.getElementById("btnExportImage");
+
+        let winningGroup = "";
         if (numGroups === 2) {
             if (totalWinA > totalWinB) winningGroup = "G1";
             else if (totalWinB > totalWinA) winningGroup = "G2";
             else if (totalScoreA !== totalScoreB) winningGroup = totalScoreA > totalScoreB ? "G1" : "G2";
             else winningGroup = "TIE";
+        }
 
-            if (isAllFinished) {
-                // UI: FINISHED STATE (Golden Celebration)
-                summaryBox.className = "summary-total summary-finished";
+        // Apply completion state behaviors (Show Export Button & Apply Poster Visuals)
+        if (isAllFinished) {
+            exportBtn.style.display = "flex";
+            summaryBox.className = "summary-total summary-finished";
+            
+            if (numGroups === 2) {
                 let winText = winningGroup === "G1" ? "🏆 A 组 夺得总冠军！ 🎉" : (winningGroup === "G2" ? "🏆 B 组 夺得总冠军！ 🎉" : "🤝 双方握手言和，势均力敌！");
                 summaryBox.innerHTML = `
                     <div style="font-size: 1.25rem; font-weight: 800; margin-bottom: 10px; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">${winText}</div>
@@ -965,7 +998,17 @@
                     </div>
                 `;
             } else {
-                // UI: ONGOING STATE
+                let subList = Object.values(stats).filter(p => p.group === `G1`).sort(sortRule);
+                let champion = subList.length > 0 ? subList[0].name : "神秘选手";
+                summaryBox.innerHTML = `
+                    <div style="font-size: 1.25rem; font-weight: 800; margin-bottom: 10px; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">🏆 恭喜 ${champion} 荣获总冠军！ 🎉</div>
+                    <div style="font-size: 0.95rem; font-weight: 600; opacity: 0.95;">个人积分赛圆满结束，感谢所有选手的拼搏！</div>
+                `;
+            }
+            summaryBox.style.display = "block";
+        } else {
+            exportBtn.style.display = "none";
+            if (numGroups === 2) {
                 summaryBox.className = "summary-total summary-ongoing";
                 let leadText = "⚔️ 双方激烈抗衡中...";
                 if (winningGroup === "G1") leadText = "🔥 A 组 暂时领先";
@@ -979,23 +1022,14 @@
                     </div>
                     <div style="color:#ffcc00; font-size:0.85rem; font-weight:700;">${leadText} (赛程进度 ${lockedMatchCount}/${totalMatchCount})</div>
                 `;
+                summaryBox.style.display = "block";
+            } else {
+                summaryBox.style.display = "none";
             }
-            summaryBox.style.display = "block";
-        } else {
-            summaryBox.style.display = "none";
         }
 
-        // ==========================
-        // 2. Rank Tables Rendering
-        // ==========================
         const tablesContainer = document.getElementById("dynamicRankTables");
         tablesContainer.innerHTML = "";
-
-        const sortRule = (x, y) => {
-            if (y.win !== x.win) return y.win - x.win;
-            if (y.diffScore !== x.diffScore) return y.diffScore - x.diffScore;
-            return y.totalScore - x.totalScore;
-        };
 
         for (let g = 1; g <= numGroups; g++) {
             let subList = Object.values(stats).filter(p => p.group === `G${g}`).sort(sortRule);
@@ -1005,21 +1039,25 @@
             let groupTitleText = numGroups === 1 ? `👑 全员个人战绩榜` : `📊 ${groupTitlePrefix} 组战绩排名`;
             let titleStyle = `font-weight: 700; color: var(--ios-subtext); margin-top:16px; margin-bottom: 6px; font-size:0.9rem; padding-left:4px;`;
 
-            // UI: Table visual contrasts based on Winning State
-            if (numGroups === 2 && isAllFinished) {
-                if (`G${g}` === winningGroup) {
+            // Enforce visual contrast filters based on outcome states
+            if (isAllFinished) {
+                if (numGroups === 2) {
+                    if (`G${g}` === winningGroup) {
+                        groupStateClass = "table-winner";
+                        groupTitleText = `🏆 ${groupTitlePrefix} 组 (冠军组) 荣耀榜`;
+                        titleStyle = `font-weight: 800; color: #ff9500; margin-top:20px; margin-bottom: 8px; font-size:1.05rem; padding-left:4px;`;
+                    } else if (winningGroup !== "TIE") {
+                        groupStateClass = "table-loser";
+                        groupTitleText = `⚪ ${groupTitlePrefix} 组 (惜败) 战绩排名`;
+                        titleStyle = `font-weight: 600; color: #8e8e93; margin-top:16px; margin-bottom: 6px; font-size:0.85rem; padding-left:4px;`;
+                    }
+                } else {
                     groupStateClass = "table-winner";
-                    groupTitleText = `🏆 ${groupTitlePrefix} 组 (冠军组) 荣耀榜`;
+                    groupTitleText = `🏆 全员个人战绩荣耀榜`;
                     titleStyle = `font-weight: 800; color: #ff9500; margin-top:20px; margin-bottom: 8px; font-size:1.05rem; padding-left:4px;`;
-                } else if (winningGroup !== "TIE") {
-                    groupStateClass = "table-loser";
-                    groupTitleText = `⚪ ${groupTitlePrefix} 组 (惜败) 战绩排名`;
-                    titleStyle = `font-weight: 600; color: #8e8e93; margin-top:16px; margin-bottom: 6px; font-size:0.85rem; padding-left:4px;`;
                 }
-            } else if (numGroups === 2 && !isAllFinished) {
-                 if (`G${g}` === winningGroup) {
-                     groupTitleText = `🔥 ${groupTitlePrefix} 组战绩排名 (领先)`;
-                 }
+            } else if (numGroups === 2 && `G${g}` === winningGroup) {
+                 groupTitleText = `🔥 ${groupTitlePrefix} 组战绩排名 (领先)`;
             }
 
             let html = `
@@ -1036,6 +1074,39 @@
             html += `</tbody></table>`;
             tablesContainer.innerHTML += html;
         }
+    }
+
+    // Core execution pipeline to render and slice the poster image using Canvas
+    function exportRankToImage() {
+        const poster = document.getElementById("posterArea");
+        const header = document.getElementById("posterHeader");
+        const watermark = document.getElementById("posterWatermark");
+        
+        // Prepare DOM bounds for capturing
+        header.style.display = "block";
+        watermark.style.display = "block";
+
+        html2canvas(poster, { 
+            scale: 2, 
+            backgroundColor: "#f2f2f7", 
+            useCORS: true 
+        }).then(canvas => {
+            // Restore hidden DOM elements invisibly
+            header.style.display = "none";
+            watermark.style.display = "none";
+            
+            const imgData = canvas.toDataURL("image/png");
+            const link = document.createElement('a');
+            link.download = '羽翼齐飞_战绩海报.png';
+            link.href = imgData;
+            link.click();
+            
+            alert("📸 战绩海报已生成并保存！\n\n您可以前往相册或浏览器下载目录查看，直接发送到微信群与大家分享！");
+        }).catch(err => {
+            header.style.display = "none";
+            watermark.style.display = "none";
+            alert("生成海报失败，可能由于部分浏览器权限拦截，请稍后重试。");
+        });
     }
 
     function saveGameFrameworkToStorage() {
