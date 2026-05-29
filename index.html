@@ -530,9 +530,10 @@
 </div>
 
 <script>
-    // Global Constants and Configurations
+    // System Constants
     const SYNC_BUS_URL = "https://ntfy.sh/yyqf_global_hub_"; 
 
+    // System States
     let isDouble = true;
     let numGroups = 2;
     let numCourts = 2;
@@ -540,7 +541,6 @@
     let playersPerGroup = 6;
     let isViewerMode = false; 
     let currentRoomId = "master_session";
-    
     let nameMap = {}; 
     let generatedMatches = []; 
 
@@ -683,7 +683,6 @@
         currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-3);
         window.history.replaceState(null, null, window.location.href.split('#')[0] + "#room=" + currentRoomId);
 
-        // Pre-fill memory payload structures
         generatedMatches.forEach(m => { m.isLocked = false; m.scoreA = ""; m.scoreB = ""; });
 
         renderTimelineMatrix();
@@ -697,17 +696,54 @@
         liveCalculate(false); 
     }
 
+    // Engine upgraded to maximize non-repeating partners
     function autoScheduleEngine() {
         const slotsPerMatch = isDouble ? 2 : 1;
-        let attempt = 0, maxAttempts = 200; 
+        let attempt = 0, maxAttempts = 300; 
+        
+        let bestSchedule = null;
+        let bestScore = Infinity;
 
         while (attempt < maxAttempts) {
-            attempt++; generatedMatches = [];
-            let playedCount = {}, consecutive = {};  
+            attempt++; 
+            let currentMatches = [];
+            let playedCount = {}, consecutive = {}, partnerCount = {};  
+            
             for (let g = 1; g <= numGroups; g++) {
                 for (let i = 1; i <= playersPerGroup; i++) {
-                    let key = `G${g}_${i}`; playedCount[key] = 0; consecutive[key] = 0;
+                    let key = `G${g}_${i}`; playedCount[key] = 0; consecutive[key] = 0; partnerCount[key] = {};
                 }
+            }
+
+            // CORE ALGORITHM: Evaluate pair variations to ensure minimal duplicated partnerships
+            function formBestPairs(players) {
+                if (!isDouble) return players.map(p => [p]);
+                if (players.length === 2) return [[players[0], players[1]]];
+                if (players.length === 4) {
+                    let p1 = players[0], p2 = players[1], p3 = players[2], p4 = players[3];
+                    let c1 = (partnerCount[p1][p2] || 0) + (partnerCount[p3][p4] || 0);
+                    let c2 = (partnerCount[p1][p3] || 0) + (partnerCount[p2][p4] || 0);
+                    let c3 = (partnerCount[p1][p4] || 0) + (partnerCount[p2][p3] || 0);
+                    
+                    if (c1 <= c2 && c1 <= c3) return [[p1, p2], [p3, p4]];
+                    if (c2 <= c1 && c2 <= c3) return [[p1, p3], [p2, p4]];
+                    return [[p1, p4], [p2, p3]];
+                }
+                
+                let remaining = [...players];
+                let pairs = [];
+                while(remaining.length > 0) {
+                    let pA = remaining.shift();
+                    let bestPBIdx = 0;
+                    let minCount = Infinity;
+                    for(let i=0; i<remaining.length; i++) {
+                        let count = partnerCount[pA][remaining[i]] || 0;
+                        if(count < minCount) { minCount = count; bestPBIdx = i; }
+                    }
+                    let pB = remaining.splice(bestPBIdx, 1)[0];
+                    pairs.push([pA, pB]);
+                }
+                return pairs;
             }
 
             let failed = false;
@@ -731,7 +767,7 @@
                         for (let i = 1; i <= playersPerGroup; i++) {
                             let k = `G${g}_${i}`; if (playedCount[k] < targetPlays) pList.push(k);
                         }
-                        if(attempt > 1) pList.sort(() => Math.random() - 0.5);
+                        pList.sort(() => Math.random() - 0.5); 
                         pList.sort((x, y) => {
                             let cx = consecutive[x], cy = consecutive[y];
                             if (cx >= 2 && cy < 2) return 1; if (cy >= 2 && cx < 2) return -1;
@@ -742,14 +778,26 @@
                     }
                     if (failed) break;
 
+                    let groupPairs = {};
+                    for (let g = 1; g <= numGroups; g++) {
+                        if (poolSelections[g]) groupPairs[g] = formBestPairs(poolSelections[g]);
+                    }
+
                     let roundUsedKeys = new Set();
                     for (let c = 0; c < numCourts; c++) {
-                        let { gA, gB } = courtMatchups[c], matchA = [], matchB = [];
-                        for (let s = 0; s < slotsPerMatch; s++) {
-                            let pA = poolSelections[gA].shift(), pB = poolSelections[gB].shift();
-                            matchA.push(pA); matchB.push(pB); roundUsedKeys.add(pA); roundUsedKeys.add(pB);
+                        let { gA, gB } = courtMatchups[c];
+                        let matchA = groupPairs[gA].shift();
+                        let matchB = groupPairs[gB].shift();
+                        
+                        if (isDouble) {
+                            partnerCount[matchA[0]][matchA[1]] = (partnerCount[matchA[0]][matchA[1]] || 0) + 1;
+                            partnerCount[matchA[1]][matchA[0]] = (partnerCount[matchA[1]][matchA[0]] || 0) + 1;
+                            partnerCount[matchB[0]][matchB[1]] = (partnerCount[matchB[0]][matchB[1]] || 0) + 1;
+                            partnerCount[matchB[1]][matchB[0]] = (partnerCount[matchB[1]][matchB[0]] || 0) + 1;
                         }
-                        generatedMatches.push({ round: r, court: `${c + 1}号场`, a: matchA, b: matchB });
+
+                        matchA.forEach(p => roundUsedKeys.add(p)); matchB.forEach(p => roundUsedKeys.add(p));
+                        currentMatches.push({ round: r, court: `${c + 1}号场`, a: matchA, b: matchB });
                     }
                     for (let k in consecutive) {
                         if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } else { consecutive[k] = 0; }
@@ -759,23 +807,54 @@
                     for (let i = 1; i <= playersPerGroup; i++) {
                         let k = `G1_${i}`; if (playedCount[k] < targetPlays) pList.push(k);
                     }
-                    if(attempt > 1) pList.sort(() => Math.random() - 0.5);
+                    pList.sort(() => Math.random() - 0.5);
                     pList.sort((x, y) => {
                         let cx = consecutive[x], cy = consecutive[y];
                         if (cx >= 2 && cy < 2) return 1; if (cy >= 2 && cx < 2) return -1;
                         return playedCount[x] - playedCount[y];
                     });
                     const totalNeeded = slotsPerMatch * 2; if (pList.length < totalNeeded) { failed = true; break; }
-                    let roundPicked = pList.slice(0, totalNeeded), matchA = [], matchB = [];
-                    for (let s = 0; s < slotsPerMatch; s++) { matchA.push(roundPicked.shift()); matchB.push(roundPicked.shift()); }
-                    generatedMatches.push({ round: r, court: `轮转对阵`, a: matchA, b: matchB });
+                    let roundPicked = pList.slice(0, totalNeeded);
+                    
+                    let pairs = formBestPairs(roundPicked);
+                    let matchA = pairs[0], matchB = pairs[1];
+                    
+                    if (isDouble) {
+                        partnerCount[matchA[0]][matchA[1]] = (partnerCount[matchA[0]][matchA[1]] || 0) + 1;
+                        partnerCount[matchA[1]][matchA[0]] = (partnerCount[matchA[1]][matchA[0]] || 0) + 1;
+                        partnerCount[matchB[0]][matchB[1]] = (partnerCount[matchB[0]][matchB[1]] || 0) + 1;
+                        partnerCount[matchB[1]][matchB[0]] = (partnerCount[matchB[1]][matchB[0]] || 0) + 1;
+                    }
+
+                    currentMatches.push({ round: r, court: `轮转对阵`, a: matchA, b: matchB });
                     let roundUsedKeys = new Set([...matchA, ...matchB]);
                     for (let k in consecutive) {
                         if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } else { consecutive[k] = 0; }
                     }
                 }
             }
-            if (!failed) return true; 
+            
+            if (!failed) {
+                let repeatPenalty = 0;
+                for (let p1 in partnerCount) {
+                    for (let p2 in partnerCount[p1]) {
+                        if (partnerCount[p1][p2] > 1) {
+                            repeatPenalty += Math.pow(partnerCount[p1][p2], 2);
+                        }
+                    }
+                }
+                
+                if (repeatPenalty < bestScore) {
+                    bestScore = repeatPenalty;
+                    bestSchedule = JSON.parse(JSON.stringify(currentMatches));
+                    if (bestScore === 0) break; // Break early on perfection
+                }
+            }
+        }
+        
+        if (bestSchedule) {
+            generatedMatches = bestSchedule;
+            return true;
         }
         return false;
     }
@@ -913,7 +992,6 @@
         liveCalculate(true); 
     }
 
-    // Dynamic Engine logic incorporating new celebration elements and visual distinctions
     function liveCalculate(shouldPushToCloud = true) {
         let stats = {};
         for (let k in nameMap) stats[nameMap[k]] = { name: nameMap[k], win: 0, lose: 0, diffScore: 0, totalScore: 0, group: k.split('_')[0] };
@@ -972,7 +1050,6 @@
             return y.totalScore - x.totalScore;
         };
 
-        // UI Core Logic Updates
         const summaryBox = document.getElementById("groupSummary");
         const exportBtn = document.getElementById("btnExportImage");
 
@@ -984,7 +1061,6 @@
             else winningGroup = "TIE";
         }
 
-        // Apply completion state behaviors (Show Export Button & Apply Poster Visuals)
         if (isAllFinished) {
             exportBtn.style.display = "flex";
             summaryBox.className = "summary-total summary-finished";
@@ -1039,7 +1115,6 @@
             let groupTitleText = numGroups === 1 ? `👑 全员个人战绩榜` : `📊 ${groupTitlePrefix} 组战绩排名`;
             let titleStyle = `font-weight: 700; color: var(--ios-subtext); margin-top:16px; margin-bottom: 6px; font-size:0.9rem; padding-left:4px;`;
 
-            // Enforce visual contrast filters based on outcome states
             if (isAllFinished) {
                 if (numGroups === 2) {
                     if (`G${g}` === winningGroup) {
@@ -1076,13 +1151,11 @@
         }
     }
 
-    // Core execution pipeline to render and slice the poster image using Canvas
     function exportRankToImage() {
         const poster = document.getElementById("posterArea");
         const header = document.getElementById("posterHeader");
         const watermark = document.getElementById("posterWatermark");
         
-        // Prepare DOM bounds for capturing
         header.style.display = "block";
         watermark.style.display = "block";
 
@@ -1091,7 +1164,6 @@
             backgroundColor: "#f2f2f7", 
             useCORS: true 
         }).then(canvas => {
-            // Restore hidden DOM elements invisibly
             header.style.display = "none";
             watermark.style.display = "none";
             
@@ -1101,7 +1173,7 @@
             link.href = imgData;
             link.click();
             
-            alert("📸 战绩海报已生成并保存！\n\n您可以前往相册或浏览器下载目录查看，直接发送到微信群与大家分享！");
+            alert("📸 战绩海报已生成并触发下载！\n\n您可以前往相册或浏览器下载目录查看，直接发送到微信群与大家分享！");
         }).catch(err => {
             header.style.display = "none";
             watermark.style.display = "none";
@@ -1213,7 +1285,7 @@
         
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(shareUrl).then(() => {
-                alert("📋 赛事专属观战链接已复制！\n\n💡 提示：系统已开启云端实时同步。后续录入比分后，观战端会自动刷新，整场比赛仅需分享一次。");
+                alert("📋 赛事专属极简观战链接已复制！\n\n💡 提示：系统已开启云端实时同步。后续录入比分后，观战端会自动刷新，整场比赛仅需发一次。");
             }).catch(() => {
                 fallbackCopyAction(shareUrl);
             });
