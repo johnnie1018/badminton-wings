@@ -218,20 +218,33 @@
             color: var(--ios-subtext);
             text-transform: uppercase;
         }
+        
+        /* STATE-BASED CARD STYLES */
         .match-card {
-            background: var(--ios-card);
             border-radius: var(--radius-main);
             padding: 14px 14px;
             margin-bottom: 10px;
             display: flex;
             flex-direction: column; 
             gap: 12px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.015);
-            border: 1px solid rgba(0,0,0,0.005);
+            transition: all 0.3s ease;
         }
+        .card-unlocked {
+            background-color: #ffffff;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(0,0,0,0.03);
+        }
+        .card-locked {
+            background-color: #f7f7f9;
+            box-shadow: none;
+            border: 1px solid #e5e5ea;
+            opacity: 0.95;
+        }
+        
         .match-core-row {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             width: 100%;
             gap: 8px; /* Tightly controlled gaps for precise visual rhythm */
         }
@@ -314,7 +327,7 @@
             text-align: center;
         }
         .btn-state-unlocked { background-color: rgba(0, 122, 255, 0.08); color: var(--ios-blue); }
-        .btn-state-locked { background-color: rgba(52, 199, 89, 0.08); color: var(--ios-primary-dark); }
+        .btn-state-locked { background-color: rgba(142, 142, 147, 0.12); color: #48484a; }
 
         /* iOS Total Indicator Summary Component View Layout */
         .summary-total {
@@ -451,7 +464,7 @@
     <div id="step3" style="display: none;">
         <div id="sharingCardContainer" class="card" style="padding: 12px; text-align: center; background-color: #eaf4ff; border: none; margin-bottom: 16px;">
             <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()">
-                <div class="btn-title">🔗 复制最新比分专属链接</div>
+                <div class="btn-title">🔗 分享最新比分</div>
                 <div class="btn-subtitle">一键发至群聊，群友即可实时观战</div>
             </button>
         </div>
@@ -769,25 +782,28 @@
             generatedMatches.filter(m => m.round === r).forEach((match) => {
                 const globalIdx = generatedMatches.indexOf(match);
                 
-                // UI FIX 3: Replaced <br> with deeply styled individual flex nodes to create perfect vertical alignment
+                // UI FIX: Remove the text "轮转对阵" conditionally
+                let courtHtml = match.court === "轮转对阵" ? "" : `<span class="court-label">${match.court}</span>`;
+                
+                // UI FIX: Deeply styled individual flex nodes to create perfect vertical alignment
                 let namesA = match.a.map(k => `<div>${nameMap[k]}</div>`).join("");
                 let namesB = match.b.map(k => `<div>${nameMap[k]}</div>`).join("");
                 
                 let isLocallyLocked = match.isLocked || isViewerMode;
                 let roAttr = isLocallyLocked ? "readonly" : "";
                 
+                let cardStateClass = match.isLocked ? "card-locked" : "card-unlocked";
                 let viewerInputStyle = isLocallyLocked ? "style='color:#8e8e93; background-color:transparent; font-weight:700; pointer-events:none;'" : "";
-                let viewerCardStyle = isLocallyLocked ? "style='background-color:#e5e5ea; border:1px solid rgba(0,0,0,0.05);'" : "";
 
                 let btnLabel = match.isLocked ? "🔒 修改比分" : "🔵 确认录入";
                 let btnClass = match.isLocked ? "btn-state-locked" : "btn-state-unlocked";
 
                 html += `
-                    <div class="match-card">
+                    <div class="match-card ${cardStateClass}">
                         <div class="match-core-row">
-                            <span class="court-label">${match.court}</span>
+                            ${courtHtml}
                             <div class="team-players team-a">${namesA}</div>
-                            <div class="score-area" ${viewerCardStyle}>
+                            <div class="score-area">
                                 <input type="number" inputmode="numeric" class="score-num" id="sA_${globalIdx}" ${roAttr} ${viewerInputStyle} value="${match.scoreA||''}" oninput="cacheInputValuesOnly(${globalIdx})">
                                 <span class="colon">:</span>
                                 <input type="number" inputmode="numeric" class="score-num" id="sB_${globalIdx}" ${roAttr} ${viewerInputStyle} value="${match.scoreB||''}" oninput="cacheInputValuesOnly(${globalIdx})">
@@ -997,13 +1013,11 @@
             
             await fetch(SYNC_BUS_URL + currentRoomId, {
                 method: 'POST',
-                headers: { 'X-Cache': 'yes' }, 
                 body: base64Packet
             });
         } catch(e) { console.warn("Cloud stream sync upstream latency detected."); }
     }
 
-    // SSE engine setup with native continuous tracking streams bounds
     function setupLiveSyncStream() {
         if (!currentRoomId || !isViewerMode) return;
         
@@ -1038,12 +1052,16 @@
                                 if (inputNode) inputNode.value = decodedPayload.scores[id];
                             }
                         }
-                        liveCalculate(false);
+                        liveCalculate(false); 
                     }
-                } catch(ex) { console.warn("Live stream packet decoding skipped."); }
+                } catch(ex) { console.warn("Live stream packet decoding skipped:", ex); }
             };
             
-        } catch(e) { console.error("SSE stream boot failure.", e); }
+            window.liveSyncSource.onerror = (err) => {
+                console.warn("Live sync connection break. SSE engine executing self-healing auto-reconnect...");
+            };
+            
+        } catch(e) { console.error("SSE stream boot failure:", e); }
     }
 
     function generateShareLink() {
@@ -1103,11 +1121,7 @@
                 document.getElementById("btnWipeSystem").style.display = "none";
                 
                 const shareCard = document.getElementById("sharingCardContainer");
-                // UI FIX: Render the sharing block header beautifully for viewer mode
-                shareCard.innerHTML = `
-                    <div style="font-size: 1.05rem; font-weight: 700; color: var(--ios-subtext); margin-bottom: 2px;">👁️ 智能赛事云分发通道</div>
-                    <div style="font-size: 0.8rem; font-weight: 500; color: #aeaeb2;">您正在实时观战本场比赛，比分将自动跳变刷新</div>
-                `;
+                shareCard.innerHTML = `<button type="button" class="btn-block" id="btnShareMatch">👁️ 当前处于：群友实时观战模式</button>`;
                 
                 currentRoomId = roomIdFromUrl;
 
@@ -1137,7 +1151,7 @@
                         document.getElementById("step3").style.display = "block";
                         
                         liveCalculate(false);
-                    } catch(err) { console.error("URL stream payload corrupted or decoding failed:", err); }
+                    } catch(err) { console.error("URL stream payload corrupted:", err); }
                 }
 
                 setupLiveSyncStream();
