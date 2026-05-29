@@ -189,6 +189,11 @@
             cursor: pointer;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            line-height: 1.3;
         }
         .btn-block:active {
             transform: scale(0.98);
@@ -197,6 +202,9 @@
         .btn-orange { background-color: var(--ios-orange); box-shadow: 0 4px 12px rgba(255, 149, 0, 0.15); color: white; }
         .btn-teal { background-color: var(--ios-primary); box-shadow: 0 4px 12px rgba(52, 199, 121, 0.15); color: white; }
         .btn-blue { background-color: var(--ios-blue); box-shadow: 0 4px 12px rgba(0, 122, 255, 0.15); color: white; }
+        
+        .btn-title { font-size: 1.05rem; }
+        .btn-subtitle { font-size: 0.75rem; opacity: 0.85; margin-top: 4px; font-weight: 500; }
         
         /* App Style Match Rows Card Box Layout Mapping */
         .round-container {
@@ -213,48 +221,63 @@
         .match-card {
             background: var(--ios-card);
             border-radius: var(--radius-main);
-            padding: 14px 16px;
-            margin-bottom: 8px;
+            padding: 14px 14px;
+            margin-bottom: 10px;
             display: flex;
             flex-direction: column; 
-            gap: 10px;
+            gap: 12px;
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.015);
             border: 1px solid rgba(0,0,0,0.005);
         }
         .match-core-row {
             display: flex;
             align-items: center;
-            justify-content: space-between;
             width: 100%;
+            gap: 8px; /* Tightly controlled gaps for precise visual rhythm */
         }
         
+        /* UI FIX 2: Fixed-width beautifully centered badge for match courts */
         .court-label {
             font-size: 0.75rem;
-            background: #e5e5ea;
-            color: #555559;
-            padding: 3px 6px;
-            border-radius: 6px;
+            background: #f2f2f7;
+            color: #8e8e93;
+            padding: 6px 4px;
+            border-radius: 8px;
             font-weight: 600;
-            min-width: 42px;
+            width: 56px;
+            flex-shrink: 0;
             text-align: center;
+            border: 1px solid #e5e5ea;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1.2;
+            word-wrap: break-word;
+            white-space: normal;
         }
+        
+        /* UI FIX 3: Flex-column layout for player names with breathing room */
         .team-players {
-            width: 32%;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
             font-weight: 600;
             font-size: 0.95rem;
-            word-break: break-all;
-            line-height: 1.3;
+            word-break: keep-all;
+            gap: 4px;
         }
-        .team-a { color: var(--ios-red); text-align: right; }
-        .team-b { color: var(--ios-blue); text-align: left; }
+        .team-a { color: var(--ios-red); text-align: right; padding-right: 2px; }
+        .team-b { color: var(--ios-blue); text-align: left; padding-left: 2px; }
         
         .score-area {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 28%;
+            width: 100px;
+            flex-shrink: 0;
             background: #f2f2f7;
-            padding: 3px 6px;
+            padding: 4px 6px;
             border-radius: 20px;
             transition: all 0.2s ease;
         }
@@ -348,6 +371,7 @@
             box-shadow: none !important;
             pointer-events: none !important;
             cursor: default !important;
+            padding: 12px !important;
         }
         body.viewer-mode-active .score-area {
             background-color: #e5e5ea !important; 
@@ -405,7 +429,9 @@
             <select id="cfgRoundsSelect" class="form-control" style="border: 1px solid rgba(52, 199, 89, 0.3); font-weight: 600; color: var(--ios-primary-dark); background-color: #f4fbf6;"></select>
         </div>
 
-        <button type="button" class="btn-block btn-orange" id="btnNextStep" onclick="goToStep2()">下一步：录入选手名单</button>
+        <button type="button" class="btn-block btn-orange" id="btnNextStep" onclick="goToStep2()">
+            <div class="btn-title">下一步</div>
+        </button>
     </div>
 
     <div id="step2" class="card" style="display: none;">
@@ -413,14 +439,21 @@
         <div id="dynamicNameSections"></div>
         
         <div style="display: flex; gap: 12px; margin-top: 20px;">
-            <button type="button" class="btn-block btn-orange" style="width: 35%; background-color: #8e8e93; box-shadow: none;" onclick="backToStep1()">返回修改</button>
-            <button type="button" class="btn-block btn-teal" style="width: 65%;" onclick="lockNamesAndBuildAll()">锁定名单并生成赛程</button>
+            <button type="button" class="btn-block btn-orange" style="width: 35%; background-color: #8e8e93; box-shadow: none;" onclick="backToStep1()">
+                <div class="btn-title">返回</div>
+            </button>
+            <button type="button" class="btn-block btn-teal" style="width: 65%;" onclick="lockNamesAndBuildAll()">
+                <div class="btn-title">锁定名单并生成</div>
+            </button>
         </div>
     </div>
 
     <div id="step3" style="display: none;">
         <div id="sharingCardContainer" class="card" style="padding: 12px; text-align: center; background-color: #eaf4ff; border: none; margin-bottom: 16px;">
-            <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()">🔗 复制最新比分【专属分享链接】发至群聊</button>
+            <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()">
+                <div class="btn-title">🔗 复制最新比分专属链接</div>
+                <div class="btn-subtitle">一键发至群聊，群友即可实时观战</div>
+            </button>
         </div>
 
         <div class="section-title">✨ 赛程时间轴 (横向滑动查看各轮次)</div>
@@ -435,7 +468,9 @@
         <div class="summary-total" id="groupSummary" style="display: none;"></div>
         <div id="dynamicRankTables"></div>
         
-        <button type="button" class="btn-block btn-orange" id="btnWipeSystem" style="margin-top:16px; background-color: var(--ios-red); box-shadow: 0 4px 12px rgba(255, 59, 48, 0.15);" onclick="resetAllTournament()">清空整个赛事重新配置</button>
+        <button type="button" class="btn-block btn-orange" id="btnWipeSystem" style="margin-top:16px; background-color: var(--ios-red); box-shadow: 0 4px 12px rgba(255, 59, 48, 0.15);" onclick="resetAllTournament()">
+            <div class="btn-title">清空整个赛事</div>
+        </button>
     </div>
 </div>
 
@@ -592,7 +627,7 @@
         currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-3);
         window.location.hash = `#room=${currentRoomId}`;
 
-        // 初始化时赋予每局锁定状态
+        // Initialize custom lock flags directly onto matchups array bounds
         generatedMatches.forEach(m => { m.isLocked = false; m.scoreA = ""; m.scoreB = ""; });
 
         renderTimelineMatrix();
@@ -733,8 +768,10 @@
             html += `<div class="round-container"><div class="round-title">第 ${r} 轮</div>`;
             generatedMatches.filter(m => m.round === r).forEach((match) => {
                 const globalIdx = generatedMatches.indexOf(match);
-                let namesA = match.a.map(k => nameMap[k]).join("<br>");
-                let namesB = match.b.map(k => nameMap[k]).join("<br>");
+                
+                // UI FIX 3: Replaced <br> with deeply styled individual flex nodes to create perfect vertical alignment
+                let namesA = match.a.map(k => `<div>${nameMap[k]}</div>`).join("");
+                let namesB = match.b.map(k => `<div>${nameMap[k]}</div>`).join("");
                 
                 let isLocallyLocked = match.isLocked || isViewerMode;
                 let roAttr = isLocallyLocked ? "readonly" : "";
@@ -782,7 +819,6 @@
         }
     }
 
-    // 将用户临时输入缓存在本地数组，但不触发任何战绩刷新和上传
     function cacheInputValuesOnly(idx) {
         let valA = document.getElementById(`sA_${idx}`) ? document.getElementById(`sA_${idx}`).value : "";
         let valB = document.getElementById(`sB_${idx}`) ? document.getElementById(`sB_${idx}`).value : "";
@@ -790,7 +826,6 @@
         generatedMatches[idx].scoreB = valB;
     }
 
-    // 确认状态机：上锁/解锁控制门
     function toggleMatchLockGate(idx) {
         if(isViewerMode) return;
         
@@ -843,7 +878,6 @@
                 if (isWinA) totalWinA++; else totalWinB++;
             }
 
-            // 战绩榜完全只针对已上锁确认的数据进行统计
             if(generatedMatches[i].isLocked) {
                 generatedMatches[i].a.forEach(k => {
                     let p = nameMap[k];
@@ -946,7 +980,6 @@
 
     function updateUrlHashWithScores(scoresMap) {
         const snapshotPayload = { isDouble, numGroups, numCourts, numRounds, playersPerGroup, nameMap, generatedMatches, scores: scoresMap };
-        // CRITICAL FIX: Safe URL-Encoding structure. Ensure no trailing '=' padding triggers parsing collisions downstream
         const urlSafeJsonString = encodeURIComponent(JSON.stringify(snapshotPayload));
         const compressedDataStream = encodeURIComponent(btoa(unescape(urlSafeJsonString)));
         
@@ -970,53 +1003,47 @@
         } catch(e) { console.warn("Cloud stream sync upstream latency detected."); }
     }
 
-    async function fetchStateFromCloud() {
-        if (!currentRoomId) return;
+    // SSE engine setup with native continuous tracking streams bounds
+    function setupLiveSyncStream() {
+        if (!currentRoomId || !isViewerMode) return;
+        
         try {
-            const res = await fetch(`${SYNC_BUS_URL}${currentRoomId}/json?poll=1`);
-            if (res.status === 200) {
-                const text = await res.text();
-                if(!text.trim()) return;
-                
-                const lines = text.trim().split("\n");
-                let latestPayloadString = "";
-                
-                for (let i = lines.length - 1; i >= 0; i--) {
-                    if (!lines[i]) continue;
-                    const logObj = JSON.parse(lines[i]);
+            if (window.liveSyncSource) {
+                window.liveSyncSource.close();
+            }
+            
+            window.liveSyncSource = new EventSource(`${SYNC_BUS_URL}${currentRoomId}/sse`);
+            
+            window.liveSyncSource.onmessage = (event) => {
+                try {
+                    const logObj = JSON.parse(event.data);
                     if (logObj.event === 'message' && logObj.message) {
-                        latestPayloadString = logObj.message;
-                        break;
-                    }
-                }
-
-                if (latestPayloadString) {
-                    const decodedPayload = JSON.parse(decodeURIComponent(escape(atob(latestPayloadString))));
-                    
-                    if (isViewerMode) {
-                        isDouble = decodedPayload.isDouble; numGroups = decodedPayload.numGroups; numCourts = decodedPayload.numCourts;
-                        numRounds = decodedPayload.numRounds; playersPerGroup = decodedPayload.playersPerGroup;
-                        nameMap = decodedPayload.nameMap; generatedMatches = decodedPayload.generatedMatches;
+                        const decodedPayload = JSON.parse(decodeURIComponent(escape(atob(logObj.message))));
+                        
+                        isDouble = decodedPayload.isDouble; 
+                        numGroups = decodedPayload.numGroups; 
+                        numCourts = decodedPayload.numCourts;
+                        numRounds = decodedPayload.numRounds; 
+                        playersPerGroup = decodedPayload.playersPerGroup;
+                        nameMap = decodedPayload.nameMap; 
+                        generatedMatches = decodedPayload.generatedMatches;
                         
                         renderTimelineMatrix();
                         renderMobileCards();
                         renderRankTablesFramework();
-                        
-                        document.getElementById("step1").style.display = "none";
-                        document.getElementById("step2").style.display = "none";
-                        document.getElementById("step3").style.display = "block";
-                    }
 
-                    for (let id in decodedPayload.scores) {
-                        let inputNode = document.getElementById(id);
-                        if (inputNode && inputNode.value !== decodedPayload.scores[id]) {
-                            inputNode.value = decodedPayload.scores[id];
+                        if (decodedPayload.scores) {
+                            for (let id in decodedPayload.scores) {
+                                let inputNode = document.getElementById(id);
+                                if (inputNode) inputNode.value = decodedPayload.scores[id];
+                            }
                         }
+                        liveCalculate(false);
                     }
-                    liveCalculate(false);
-                }
-            }
-        } catch(e) { console.warn("Cloud parsing pipeline skip."); }
+                } catch(ex) { console.warn("Live stream packet decoding skipped."); }
+            };
+            
+        } catch(e) { console.error("SSE stream boot failure.", e); }
     }
 
     function generateShareLink() {
@@ -1050,10 +1077,6 @@
         document.body.removeChild(textArea);
     }
 
-    function pollUrlHashChanges() {
-        fetchStateFromCloud();
-    }
-
     async function checkAndRestoreHistory() {
         const hash = window.location.hash;
 
@@ -1071,31 +1094,23 @@
                 });
             }
 
-            // CRITICAL FIX: The logic must STRICTLY enforce room-specific admin validation.
             const isLocalAdminTokenPresent = roomIdFromUrl && (localStorage.getItem("admin_room_" + roomIdFromUrl) === "true");
             
-            if (isLocalAdminTokenPresent) {
-                // Verified Scorer Admin Node for this exact room - Restore editing rights smoothly
-                isViewerMode = false;
-                currentRoomId = roomIdFromUrl;
-                document.body.classList.remove("viewer-mode-active");
-                document.getElementById("viewerModeBadge").style.display = "none";
-                document.getElementById("sharingCardContainer").style.display = "block";
-                loadDataFromLocalStorage();
-                return;
-            } else {
-                // Viewer Mode Activation - You do NOT possess the local admin key for this room instance!
+            if (!isLocalAdminTokenPresent) {
                 isViewerMode = true;
                 document.body.classList.add("viewer-mode-active"); 
                 document.getElementById("viewerModeBadge").style.display = "block";
                 document.getElementById("btnWipeSystem").style.display = "none";
                 
                 const shareCard = document.getElementById("sharingCardContainer");
-                shareCard.innerHTML = `<button type="button" class="btn-block" id="btnShareMatch">👁️ 当前处于：群友实时观战模式</button>`;
+                // UI FIX: Render the sharing block header beautifully for viewer mode
+                shareCard.innerHTML = `
+                    <div style="font-size: 1.05rem; font-weight: 700; color: var(--ios-subtext); margin-bottom: 2px;">👁️ 智能赛事云分发通道</div>
+                    <div style="font-size: 0.8rem; font-weight: 500; color: #aeaeb2;">您正在实时观战本场比赛，比分将自动跳变刷新</div>
+                `;
                 
                 currentRoomId = roomIdFromUrl;
 
-                // Priority Hydration Layer: Decode and unescape cleanly, immune to WeChat Base64 encoding corruptions
                 if (backupDataStream) {
                     try {
                         const b64Decoded = decodeURIComponent(backupDataStream);
@@ -1125,18 +1140,19 @@
                     } catch(err) { console.error("URL stream payload corrupted or decoding failed:", err); }
                 }
 
-                // If URL was stripped of data by third-party browsers, load strictly via Cloud fallback
-                if(document.getElementById("step3").style.display === "none") {
-                    await fetchStateFromCloud();
-                }
+                setupLiveSyncStream();
 
-                // Launch permanent silent polling tracker for subsequent scorer changes
-                setInterval(pollUrlHashChanges, 4000); 
-                return;
+            } else {
+                isViewerMode = false;
+                currentRoomId = roomIdFromUrl;
+                document.body.classList.remove("viewer-mode-active");
+                document.getElementById("viewerModeBadge").style.display = "none";
+                document.getElementById("sharingCardContainer").style.display = "block";
+                loadDataFromLocalStorage();
             }
+            return;
         }
 
-        // Only auto restore via global slots if explicitly visiting a clean root URL domain without any room hash
         if (localStorage.getItem("yuyiqifei_active") === "true") {
             isViewerMode = false;
             document.body.classList.remove("viewer-mode-active");
