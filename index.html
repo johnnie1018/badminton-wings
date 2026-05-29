@@ -218,38 +218,48 @@
             color: var(--ios-subtext);
             text-transform: uppercase;
         }
-        
-        /* STATE-BASED CARD STYLES */
+
+        /* ======================== 强烈对比的卡片状态 ======================== */
         .match-card {
             border-radius: var(--radius-main);
             padding: 14px 14px;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
             display: flex;
             flex-direction: column; 
             gap: 12px;
             transition: all 0.3s ease;
-        }
-        .card-unlocked {
-            background-color: #ffffff;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-            border: 1px solid rgba(0,0,0,0.03);
-        }
-        .card-locked {
-            background-color: #f7f7f9;
-            box-shadow: none;
-            border: 1px solid #e5e5ea;
-            opacity: 0.95;
+            overflow: hidden;
         }
         
+        /* 活跃态（未录入）：纯白底色，左侧橙色高亮，强烈阴影 */
+        .match-card-unlocked {
+            background-color: #ffffff;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+            border: 1px solid #e2e8f0;
+            border-left: 5px solid var(--ios-orange);
+        }
+        .match-card-unlocked .score-area { background-color: #f2f2f7; }
+        .match-card-unlocked .score-num { color: var(--ios-text); }
+        
+        /* 完赛态（已上锁）：深冷灰底色，无阴影，透明度降低，文字变暗 */
+        .match-card-locked {
+            background-color: #e2e8f0; 
+            box-shadow: none;
+            border: 1px solid #cbd5e1;
+        }
+        .match-card-locked .score-area { background-color: #cbd5e1; }
+        .match-card-locked .score-num { color: #64748b; font-weight: 600; }
+        .match-card-locked .team-players { color: #475569; }
+        .match-card-locked .court-label { background-color: #cbd5e1; color: #ffffff; border: none; }
+
         .match-core-row {
             display: flex;
             align-items: center;
             justify-content: space-between;
             width: 100%;
-            gap: 8px; /* Tightly controlled gaps for precise visual rhythm */
+            gap: 8px; 
         }
         
-        /* UI FIX 2: Fixed-width beautifully centered badge for match courts */
         .court-label {
             font-size: 0.75rem;
             background: #f2f2f7;
@@ -270,18 +280,15 @@
             white-space: normal;
         }
         
-        /* UI FIX 3: Flex-column layout for player names with breathing room */
+        /* 姓名改为左右排布，深色显示 */
         .team-players {
             flex: 1;
-            display: flex;
-            flex-direction: column;
-            font-weight: 600;
+            font-weight: 700;
             font-size: 0.95rem;
             word-break: keep-all;
-            gap: 4px;
         }
-        .team-a { color: var(--ios-red); text-align: right; padding-right: 2px; }
-        .team-b { color: var(--ios-blue); text-align: left; padding-left: 2px; }
+        .team-a { color: #2c3e50; text-align: right; padding-right: 4px; }
+        .team-b { color: #2c3e50; text-align: left; padding-left: 4px; }
         
         .score-area {
             display: flex;
@@ -289,8 +296,6 @@
             justify-content: center;
             width: 100px;
             flex-shrink: 0;
-            background: #f2f2f7;
-            padding: 4px 6px;
             border-radius: 20px;
             transition: all 0.2s ease;
         }
@@ -301,16 +306,10 @@
             text-align: center;
             border: none;
             background: transparent;
-            font-weight: 700;
-            color: var(--ios-text);
         }
         .score-num:focus {
             outline: none;
             color: var(--ios-primary-dark);
-        }
-        .score-num[readonly] {
-            color: #8e8e93;
-            cursor: default;
         }
         .colon { font-weight: 700; color: #aeaeb2; margin: 0 2px; font-size: 1.1rem; }
 
@@ -371,7 +370,7 @@
         }
         .winner-tag { color: var(--ios-primary); font-weight: bold; }
 
-        /* ======================== 🛡️ CRITICAL VIEWER MODE LOCKS (CSS FORCE OVERRIDE) ======================== */
+        /* ======================== 🛡️ CRITICAL VIEWER MODE LOCKS ======================== */
         body.viewer-mode-active #sharingCardContainer {
             background-color: transparent !important;
             padding: 0 !important;
@@ -386,14 +385,7 @@
             cursor: default !important;
             padding: 12px !important;
         }
-        body.viewer-mode-active .score-area {
-            background-color: #e5e5ea !important; 
-            border: 1px solid rgba(0, 0, 0, 0.02) !important;
-            pointer-events: none !important;      
-        }
         body.viewer-mode-active .score-num {
-            color: #72727a !important;            
-            background-color: transparent !important;
             pointer-events: none !important;
             user-select: none !important;
         }
@@ -640,7 +632,7 @@
         currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-3);
         window.location.hash = `#room=${currentRoomId}`;
 
-        // Initialize custom lock flags directly onto matchups array bounds
+        // Setup default locking states flags
         generatedMatches.forEach(m => { m.isLocked = false; m.scoreA = ""; m.scoreB = ""; });
 
         renderTimelineMatrix();
@@ -782,19 +774,22 @@
             generatedMatches.filter(m => m.round === r).forEach((match) => {
                 const globalIdx = generatedMatches.indexOf(match);
                 
-                // UI FIX: Remove the text "轮转对阵" conditionally
+                // UI FIX 2: Conditionally omit the useless "轮转对阵" badge to save space
                 let courtHtml = match.court === "轮转对阵" ? "" : `<span class="court-label">${match.court}</span>`;
                 
-                // UI FIX: Deeply styled individual flex nodes to create perfect vertical alignment
-                let namesA = match.a.map(k => `<div>${nameMap[k]}</div>`).join("");
-                let namesB = match.b.map(k => `<div>${nameMap[k]}</div>`).join("");
+                // UI FIX 1: Names are horizontally chained using " / "
+                let namesA = match.a.map(k => nameMap[k]).join(" / ");
+                let namesB = match.b.map(k => nameMap[k]).join(" / ");
                 
+                // Formulate mutual exclusion read-only checks
                 let isLocallyLocked = match.isLocked || isViewerMode;
                 let roAttr = isLocallyLocked ? "readonly" : "";
                 
-                let cardStateClass = match.isLocked ? "card-locked" : "card-unlocked";
-                let viewerInputStyle = isLocallyLocked ? "style='color:#8e8e93; background-color:transparent; font-weight:700; pointer-events:none;'" : "";
+                // UI FIX 3: Drastically distinct background classing for active vs recorded matches
+                let cardStateClass = match.isLocked ? "match-card-locked" : "match-card-unlocked";
+                let viewerInputStyle = isLocallyLocked ? "style='pointer-events:none;'" : "";
 
+                // Button state machine toggle label mapping
                 let btnLabel = match.isLocked ? "🔒 修改比分" : "🔵 确认录入";
                 let btnClass = match.isLocked ? "btn-state-locked" : "btn-state-unlocked";
 
@@ -835,6 +830,7 @@
         }
     }
 
+    // Core local caching to record score inputs into memory matrix instantly without triggering cloud pings
     function cacheInputValuesOnly(idx) {
         let valA = document.getElementById(`sA_${idx}`) ? document.getElementById(`sA_${idx}`).value : "";
         let valB = document.getElementById(`sB_${idx}`) ? document.getElementById(`sB_${idx}`).value : "";
@@ -842,6 +838,7 @@
         generatedMatches[idx].scoreB = valB;
     }
 
+    // Action state confirmation locker state toggle mapping
     function toggleMatchLockGate(idx) {
         if(isViewerMode) return;
         
@@ -868,7 +865,7 @@
         
         saveGameFrameworkToStorage();
         renderMobileCards();
-        liveCalculate(true); 
+        liveCalculate(true); // Trigger synchronous cloud update on verification toggle
     }
 
     function liveCalculate(shouldPushToCloud = true) {
@@ -894,6 +891,7 @@
                 if (isWinA) totalWinA++; else totalWinB++;
             }
 
+            // Standings strictly process matches that have been officially locked/confirmed
             if(generatedMatches[i].isLocked) {
                 generatedMatches[i].a.forEach(k => {
                     let p = nameMap[k];
@@ -1018,50 +1016,49 @@
         } catch(e) { console.warn("Cloud stream sync upstream latency detected."); }
     }
 
-    function setupLiveSyncStream() {
-        if (!currentRoomId || !isViewerMode) return;
-        
+    async function fetchStateFromCloud() {
+        if (!currentRoomId) return;
         try {
-            if (window.liveSyncSource) {
-                window.liveSyncSource.close();
-            }
-            
-            window.liveSyncSource = new EventSource(`${SYNC_BUS_URL}${currentRoomId}/sse`);
-            
-            window.liveSyncSource.onmessage = (event) => {
-                try {
-                    const logObj = JSON.parse(event.data);
+            const res = await fetch(`${SYNC_BUS_URL}${currentRoomId}/json?poll=1`);
+            if (res.status === 200) {
+                const text = await res.text();
+                if(!text.trim()) return;
+                
+                const lines = text.trim().split("\n");
+                let latestPayloadString = "";
+                
+                for (let i = lines.length - 1; i >= 0; i--) {
+                    if (!lines[i]) continue;
+                    const logObj = JSON.parse(lines[i]);
                     if (logObj.event === 'message' && logObj.message) {
-                        const decodedPayload = JSON.parse(decodeURIComponent(escape(atob(logObj.message))));
-                        
-                        isDouble = decodedPayload.isDouble; 
-                        numGroups = decodedPayload.numGroups; 
-                        numCourts = decodedPayload.numCourts;
-                        numRounds = decodedPayload.numRounds; 
-                        playersPerGroup = decodedPayload.playersPerGroup;
-                        nameMap = decodedPayload.nameMap; 
-                        generatedMatches = decodedPayload.generatedMatches;
+                        latestPayloadString = logObj.message;
+                        break;
+                    }
+                }
+
+                if (latestPayloadString) {
+                    const decodedPayload = JSON.parse(decodeURIComponent(escape(atob(latestPayloadString))));
+                    
+                    if (isViewerMode) {
+                        isDouble = decodedPayload.isDouble; numGroups = decodedPayload.numGroups; numCourts = decodedPayload.numCourts;
+                        numRounds = decodedPayload.numRounds; playersPerGroup = decodedPayload.playersPerGroup;
+                        nameMap = decodedPayload.nameMap; generatedMatches = decodedPayload.generatedMatches;
                         
                         renderTimelineMatrix();
                         renderMobileCards();
                         renderRankTablesFramework();
-
-                        if (decodedPayload.scores) {
-                            for (let id in decodedPayload.scores) {
-                                let inputNode = document.getElementById(id);
-                                if (inputNode) inputNode.value = decodedPayload.scores[id];
-                            }
-                        }
-                        liveCalculate(false); 
                     }
-                } catch(ex) { console.warn("Live stream packet decoding skipped:", ex); }
-            };
-            
-            window.liveSyncSource.onerror = (err) => {
-                console.warn("Live sync connection break. SSE engine executing self-healing auto-reconnect...");
-            };
-            
-        } catch(e) { console.error("SSE stream boot failure:", e); }
+
+                    for (let id in decodedPayload.scores) {
+                        let inputNode = document.getElementById(id);
+                        if (inputNode && inputNode.value !== decodedPayload.scores[id]) {
+                            inputNode.value = decodedPayload.scores[id];
+                        }
+                    }
+                    liveCalculate(false);
+                }
+            }
+        } catch(e) { console.warn("Cloud stream connection skip."); }
     }
 
     function generateShareLink() {
@@ -1093,6 +1090,10 @@
             alert("自动复制失败，请手动复制地址栏的长网址发送给群友！");
         }
         document.body.removeChild(textArea);
+    }
+
+    function pollUrlHashChanges() {
+        fetchStateFromCloud();
     }
 
     async function checkAndRestoreHistory() {
@@ -1151,10 +1152,15 @@
                         document.getElementById("step3").style.display = "block";
                         
                         liveCalculate(false);
-                    } catch(err) { console.error("URL stream payload corrupted:", err); }
+                    } catch(err) { console.error("URL stream payload corrupted or decoding failed:", err); }
                 }
 
-                setupLiveSyncStream();
+                if(document.getElementById("step3").style.display === "none") {
+                    await fetchStateFromCloud();
+                }
+
+                setInterval(pollUrlHashChanges, 4000); 
+                return;
 
             } else {
                 isViewerMode = false;
