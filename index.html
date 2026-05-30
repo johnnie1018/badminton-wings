@@ -42,7 +42,6 @@
             }
             .match-card-unlocked { background-color: #1c1c1e !important; border-color: #3a3a3c !important; }
             .match-card-unlocked .score-area { background-color: #2c2c2e !important; }
-            /* 修复暗黑模式下名字看不清的问题，强制赋白 */
             .match-card-unlocked .team-players { color: #ffffff !important; }
             .match-card-unlocked .score-num { color: #ffffff !important; }
             
@@ -97,7 +96,6 @@
             font-weight: 500;
         }
 
-        /* Smooth App-like Transitions */
         .fade-in-up {
             animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
@@ -387,7 +385,6 @@
             transition: all 0.2s ease;
         }
         
-        /* Dynamic Pop Animation for incoming live scores */
         @keyframes popScore {
             0% { transform: scale(1); }
             50% { transform: scale(1.4); color: var(--ios-orange); }
@@ -488,9 +485,6 @@
         body.viewer-mode-active .score-num { pointer-events: none !important; user-select: none !important; }
         body.viewer-mode-active .action-lock-btn { display: none !important; }
 
-        /* ============================================================ */
-        /* Timeline Rendering Classes (Refactored for Dark Mode safety) */
-        /* ============================================================ */
         .timeline-th-corner {
             border: 1px solid var(--border-light); 
             padding: 10px 8px; 
@@ -541,25 +535,11 @@
             color: var(--ios-subtext); 
             font-size: 0.75rem;
         }
-        /* Hover & Spotlight logic */
-        .timeline-cell {
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            cursor: pointer;
-        }
-        .dimmed-cell {
-            opacity: 0.15 !important;
-            filter: grayscale(100%);
-        }
-        .highlight-partner {
-            box-shadow: 0 0 0 3px #FFD60A inset, 0 0 14px rgba(255, 214, 10, 0.9) !important;
-            z-index: 10;
-            position: relative;
-        }
-        .highlight-opponent {
-            box-shadow: 0 0 0 3px #ff3b30 inset, 0 0 14px rgba(255, 59, 48, 0.7) !important;
-            z-index: 10;
-            position: relative;
-        }
+
+        .timeline-cell { transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); cursor: pointer; }
+        .dimmed-cell { opacity: 0.15 !important; filter: grayscale(100%); }
+        .highlight-partner { box-shadow: 0 0 0 3px #FFD60A inset, 0 0 14px rgba(255, 214, 10, 0.9) !important; z-index: 10; position: relative; }
+        .highlight-opponent { box-shadow: 0 0 0 3px #ff3b30 inset, 0 0 14px rgba(255, 59, 48, 0.7) !important; z-index: 10; position: relative; }
         .timeline-banner {
             background-color: #1c1c1e;
             color: white;
@@ -575,29 +555,13 @@
             cursor: pointer;
         }
         
-        /* Match Status Tags for Viewer Emotion */
-        .status-tag {
-            font-size: 0.7rem;
-            padding: 2px 6px;
-            border-radius: 6px;
-            margin-left: 6px;
-            vertical-align: middle;
-        }
+        .status-tag { font-size: 0.7rem; padding: 2px 6px; border-radius: 6px; margin-left: 6px; vertical-align: middle; }
         .status-crush { background-color: #ff3b30; color: white; }
         .status-tight { background-color: #ff9500; color: white; }
         .status-normal { background-color: #34c759; color: white; }
 
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .close-hint {
-            display: block;
-            font-size: 0.75rem;
-            color: #8e8e93;
-            margin-top: 6px;
-            font-weight: 500;
-        }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .close-hint { display: block; font-size: 0.75rem; color: #8e8e93; margin-top: 6px; font-weight: 500; }
     </style>
 </head>
 <body>
@@ -1152,6 +1116,7 @@
         let namesB = match.b.map(k => nameMap[k]).join(" / ");
         let courtStr = match.court === "轮转对阵" ? "轮转" : match.court;
         
+        // Exact formatting matching the cards
         let colorA = isTeamA ? "#FFD60A" : "#ff453a";
         let colorB = !isTeamA ? "#FFD60A" : "#ff453a";
         
@@ -1259,14 +1224,11 @@
             let valA = document.getElementById(`sA_${idx}`) ? document.getElementById(`sA_${idx}`).value : "";
             let valB = document.getElementById(`sB_${idx}`) ? document.getElementById(`sB_${idx}`).value : "";
             
-            // SMART ERROR HANDLING: Gentle UI shake instead of aggressive alerts
             if(valA === "" || valB === "" || parseInt(valA) === parseInt(valB)) {
                 let cardEl = document.getElementById(`matchCard_${idx}`);
                 cardEl.classList.remove('shake-error');
-                void cardEl.offsetWidth; // Trigger DOM reflow
+                void cardEl.offsetWidth; 
                 cardEl.classList.add('shake-error');
-                
-                // Haptic feedback for error if supported
                 if(navigator.vibrate) navigator.vibrate([30, 50, 30]);
                 return;
             }
@@ -1274,7 +1236,6 @@
             match.isLocked = true;
             match.scoreA = valA;
             match.scoreB = valB;
-            // Success Haptic Feedback
             if(navigator.vibrate) navigator.vibrate(50);
         } else {
             match.isLocked = false;
@@ -1560,14 +1521,12 @@
                         renderTimelineMatrix();
                         renderMobileCards();
 
-                        // Viewer Mode Immersion: Score Pop Animation
                         if (decodedPayload.scores) {
                             for (let id in decodedPayload.scores) {
                                 let inputNode = document.getElementById(id);
                                 if (inputNode && inputNode.value !== decodedPayload.scores[id]) {
                                     inputNode.value = decodedPayload.scores[id];
                                     
-                                    // Trigger CSS Reflow for Animation replay
                                     inputNode.classList.remove('score-anim-pop');
                                     void inputNode.offsetWidth;
                                     inputNode.classList.add('score-anim-pop');
@@ -1712,7 +1671,6 @@
             document.getElementById("viewerModeBadge").style.display = "none";
             document.getElementById("sharingCardContainer").style.display = "block";
             loadDataFromLocalStorage();
-            // Muted alert, UI is elegant enough
             return;
         }
         onParamChange();
@@ -1720,7 +1678,11 @@
 
     function resetAllTournament() {
         if (confirm("确定要彻底删除当前比赛并重组新一局吗？该操作不可撤销！")) {
+            let savedHistory = localStorage.getItem('yuyiqifei_history_names');
             localStorage.clear(); 
+            if (savedHistory) {
+                localStorage.setItem('yuyiqifei_history_names', savedHistory);
+            }
             if (window.liveSyncSource) {
                 window.liveSyncSource.close(); 
             }
