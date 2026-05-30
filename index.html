@@ -18,6 +18,7 @@
             --ios-blue: #007aff;        
             --ios-red: #ff3b30;         
             --ios-gray: #e5e5ea;
+            --border-light: #e5e5ea;
             --ios-glass: rgba(242, 242, 247, 0.85);
             --radius-main: 14px;
             --radius-sub: 10px;
@@ -36,13 +37,19 @@
                 --ios-blue: #0a84ff;
                 --ios-red: #ff453a;
                 --ios-gray: #2c2c2e;
+                --border-light: #3a3a3c;
                 --ios-glass: rgba(0, 0, 0, 0.85);
             }
-            .match-card-unlocked { background-color: #1c1c1e !important; border-color: #2c2c2e !important; }
+            .match-card-unlocked { background-color: #1c1c1e !important; border-color: #3a3a3c !important; }
             .match-card-unlocked .score-area { background-color: #2c2c2e !important; }
+            /* 修复暗黑模式下名字看不清的问题，强制赋白 */
+            .match-card-unlocked .team-players { color: #ffffff !important; }
+            .match-card-unlocked .score-num { color: #ffffff !important; }
+            
             .match-card-locked { background-color: #2c2c2e !important; border-color: #3a3a3c !important; }
             .match-card-locked .score-area { background-color: #3a3a3c !important; }
             .match-card-locked .team-players, .match-card-locked .score-num { color: #8e8e93 !important; }
+            
             .court-label { background: #2c2c2e !important; border-color: #3a3a3c !important; color: #98989d !important; }
             .form-control, .name-input, .score-area { background-color: #2c2c2e !important; color: #fff !important; }
             .radio-group { background: #2c2c2e !important; }
@@ -481,19 +488,60 @@
         body.viewer-mode-active .score-num { pointer-events: none !important; user-select: none !important; }
         body.viewer-mode-active .action-lock-btn { display: none !important; }
 
-        /* Sticky Blur Header for Timeline */
-        .sticky-glass-header {
-            position: sticky;
-            top: 0;
-            z-index: 50;
-            background: var(--ios-glass);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            padding: 12px 0;
-            margin: -10px -14px 16px -14px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+        /* ============================================================ */
+        /* Timeline Rendering Classes (Refactored for Dark Mode safety) */
+        /* ============================================================ */
+        .timeline-th-corner {
+            border: 1px solid var(--border-light); 
+            padding: 10px 8px; 
+            background: var(--ios-bg); 
+            position: sticky; 
+            left: 0; 
+            z-index: 3; 
+            min-width: 65px; 
+            font-weight:700; 
+            color:var(--ios-text);
         }
-
+        .timeline-th-round {
+            border: 1px solid var(--border-light); 
+            padding: 10px 4px; 
+            background: var(--ios-bg); 
+            font-weight: 700; 
+            min-width: 38px; 
+            color:var(--ios-text);
+        }
+        .timeline-name-cell {
+            border: 1px solid var(--border-light); 
+            padding: 10px 6px; 
+            font-weight: 700; 
+            background: var(--ios-card); 
+            position: sticky; 
+            left: 0; 
+            z-index: 2; 
+            box-shadow: 2px 0 4px rgba(0,0,0,0.02); 
+            text-align: left; 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            max-width: 75px; 
+            color:var(--ios-text);
+        }
+        .timeline-cell-active {
+            border: 1px solid var(--border-light); 
+            padding: 4px; 
+            color: white; 
+            font-weight: 700; 
+            font-size: 0.75rem; 
+            border-radius:4px;
+        }
+        .timeline-cell-off {
+            border: 1px solid var(--border-light); 
+            padding: 4px; 
+            background: var(--ios-bg); 
+            color: var(--ios-subtext); 
+            font-size: 0.75rem;
+        }
+        /* Hover & Spotlight logic */
         .timeline-cell {
             transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
             cursor: pointer;
@@ -631,14 +679,10 @@
             </button>
         </div>
 
-        <div class="sticky-glass-header">
-            <div class="container" style="padding: 0 14px;">
-                <div class="section-title" style="margin-top:0;">✨ 赛程时间轴 (横向滑动查看各轮次)</div>
-                <div id="timelineBanner" class="timeline-banner" onclick="clearTimelineHighlight()"></div>
-                <div class="card" id="timelineWrapper" style="padding: 10px; overflow: hidden; background: var(--ios-card); margin-bottom: 0;">
-                    <div id="dynamicTimeline"></div>
-                </div>
-            </div>
+        <div class="section-title">✨ 赛程时间轴 (横向滑动查看各轮次)</div>
+        <div id="timelineBanner" class="timeline-banner" onclick="clearTimelineHighlight()"></div>
+        <div class="card" id="timelineWrapper" style="padding: 10px; overflow: hidden; background: var(--ios-card);">
+            <div id="dynamicTimeline"></div>
         </div>
 
         <div class="section-title">第三步：比分录入表单</div>
@@ -760,7 +804,6 @@
         document.getElementById("step1").style.display = "block";
     }
 
-    // Load History Memory Chips into DOM
     function loadHistoryChips() {
         let hist = JSON.parse(localStorage.getItem('yuyiqifei_history_names') || '[]');
         if (hist.length > 0) {
@@ -775,7 +818,6 @@
         for (let i = 0; i < inputs.length; i++) {
             if (!inputs[i].value) { 
                 inputs[i].value = name; 
-                // Quick haptic feedback if supported
                 if(navigator.vibrate) navigator.vibrate(20);
                 break; 
             }
@@ -799,7 +841,6 @@
             let html = `<span class="group-name-title" style="color:${color}; font-weight:700; margin-top:10px; font-size:0.95rem;">● ${numGroups === 1 ? '选手名单管理' : groupLetter + ' 组选手名单'}</span>`;
             html += `<div class="name-grid">`;
             for (let i = 1; i <= playersPerGroup; i++) {
-                // Remove default autofill to encourage using the History Memory Chips
                 html += `<div class="name-item"><input type="text" id="inputName_G${g}_${i}" class="name-input" placeholder="选手姓名 ${i}"></div>`;
             }
             html += `</div>`;
@@ -831,7 +872,7 @@
                 let val = document.getElementById(`inputName_G${g}_${i}`).value.trim();
                 let finalName = val || (numGroups === 1 ? `选手-${i}` : `${groupLetter}组-${i}`);
                 groupNames.push(finalName);
-                if (val) collectedNames.push(val); // Save valid input to memory
+                if (val) collectedNames.push(val); 
             }
             shuffle(groupNames);
             for (let i = 1; i <= playersPerGroup; i++) {
@@ -839,10 +880,9 @@
             }
         }
 
-        // Save unique names to History Pool
         if(collectedNames.length > 0) {
             let oldHist = JSON.parse(localStorage.getItem('yuyiqifei_history_names') || '[]');
-            let uniqueHist = Array.from(new Set([...collectedNames, ...oldHist])).slice(0, 30); // Keep max 30
+            let uniqueHist = Array.from(new Set([...collectedNames, ...oldHist])).slice(0, 30);
             localStorage.setItem('yuyiqifei_history_names', JSON.stringify(uniqueHist));
         }
 
@@ -1042,15 +1082,15 @@
                         <table style="width: 100%; border-collapse: collapse; min-width: 460px; font-size: 0.8rem; text-align: center;">
                             <thead>
                                 <tr>
-                                    <th style="border: 1px solid #e5e5ea; padding: 10px 8px; background: #f2f2f7; position: sticky; left: 0; z-index: 3; min-width: 65px; font-weight:700; color:var(--ios-text); box-shadow: 1px 0 0 #e5e5ea;">队员</th>`;
-        for (let r = 1; r <= numRounds; r++) html += `<th style="border: 1px solid #e5e5ea; padding: 10px 4px; background: #f2f2f7; font-weight: 700; min-width: 38px; color:var(--ios-text);">R${r}</th>`;
+                                    <th class="timeline-th-corner">队员</th>`;
+        for (let r = 1; r <= numRounds; r++) html += `<th class="timeline-th-round">R${r}</th>`;
         html += `</tr></thead><tbody>`;
 
         const groupHues = { 1: 350, 2: 210, 3: 280, 4: 30, 5: 170 };
 
         allPlayerKeys.forEach((pKey, idx) => {
             const pName = nameMap[pKey];
-            html += `<tr><td style="border: 1px solid #e5e5ea; padding: 10px 6px; font-weight: 700; background: #ffffff; position: sticky; left: 0; z-index: 2; box-shadow: 2px 0 4px rgba(0,0,0,0.02); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 75px; color:var(--ios-text);">${pName}</td>`;
+            html += `<tr><td class="timeline-name-cell">${pName}</td>`;
             
             for (let r = 1; r <= numRounds; r++) {
                 let roundMatches = generatedMatches.filter(m => m.round === r);
@@ -1078,9 +1118,9 @@
                         bgColor = `hsl(${baseHue}, ${saturation}%, ${lightness}%)`;
                     }
 
-                    html += `<td id="cell_${r}_${pKey}" class="timeline-cell" onclick="handleTimelineClick(${r}, '${pKey}')" style="border: 1px solid #e5e5ea; padding: 4px; background: ${bgColor}; color: white; font-weight: 700; font-size: 0.75rem; border-radius:4px;">${textSymbol}</td>`;
+                    html += `<td id="cell_${r}_${pKey}" class="timeline-cell timeline-cell-active" onclick="handleTimelineClick(${r}, '${pKey}')" style="background: ${bgColor};">${textSymbol}</td>`;
                 } else {
-                    html += `<td class="timeline-cell" id="cell_${r}_${pKey}_off" style="border: 1px solid #e5e5ea; padding: 4px; background: #fafafc; color: #c7c7cc; font-size: 0.75rem;">休</td>`;
+                    html += `<td class="timeline-cell timeline-cell-off" id="cell_${r}_${pKey}_off">休</td>`;
                 }
             }
             html += `</tr>`;
@@ -1115,7 +1155,6 @@
         let colorA = isTeamA ? "#FFD60A" : "#ff453a";
         let colorB = !isTeamA ? "#FFD60A" : "#ff453a";
         
-        // Smart Viewer Status Tag Generation
         let statusTag = "";
         if (match.isLocked) {
             let sA = parseInt(match.scoreA);
