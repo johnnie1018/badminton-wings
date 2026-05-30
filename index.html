@@ -6,6 +6,7 @@
     <title>羽翼齐飞 - 智能对抗与轮转赛事系统</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
+        /* CSS Variables - Default Light Mode */
         :root {
             --ios-bg: #f2f2f7;
             --ios-card: #ffffff;
@@ -23,6 +24,7 @@
             --radius-sub: 10px;
         }
 
+        /* Auto-adaptive Dark Mode */
         @media (prefers-color-scheme: dark) {
             :root {
                 --ios-bg: #000000;
@@ -560,9 +562,7 @@
         @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         .close-hint { display: block; font-size: 0.75rem; color: #8e8e93; margin-top: 6px; font-weight: 500; }
 
-        /* ========================================================= */
-        /* NEW: Universal Image Modal Styles (Fixes Mobile Download) */
-        /* ========================================================= */
+        /* Universal Image Modal Styles */
         .img-preview-modal {
             display: none; 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -573,7 +573,6 @@
         .img-preview-modal img {
             max-width: 100%; max-height: 70vh; border-radius: 12px; 
             box-shadow: 0 4px 30px rgba(0,0,0,0.6); margin-bottom: 24px;
-            /* Smooth pop in */
             animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         .img-modal-tip {
@@ -716,7 +715,7 @@
     let nameMap = {}; 
     let generatedMatches = []; 
     let activeHighlight = null; 
-    let globalGeneratedImageBlob = null; // To hold image for native share
+    let globalGeneratedImageBlob = null; 
 
     function toggleCourtInput() {
         const gNum = parseInt(document.getElementById("cfgGroups").value) || 1;
@@ -1197,6 +1196,66 @@
         });
     }
 
+    // ============================================================
+    // NEW: Smart Score Auto-Jump & Auto-Fill Core Logic
+    // ============================================================
+    function smartScoreInput(idx, side) {
+        if(isViewerMode) return;
+        
+        let myInput = document.getElementById(`s${side}_${idx}`);
+        let otherSide = side === 'A' ? 'B' : 'A';
+        let otherInput = document.getElementById(`s${otherSide}_${idx}`);
+        
+        let val = myInput.value;
+        
+        // 核心规则 1：输入两位数触发逻辑
+        if (val.length >= 2) {
+            let num = parseInt(val);
+            if (num < 20) {
+                // 如果分数 < 20，必定是负方，对方直接自动填满 21 分
+                if (!otherInput.value) {
+                    otherInput.value = 21;
+                    triggerPopAnim(otherInput);
+                }
+                myInput.blur(); // 完成当前对局输入，收起键盘
+            } else {
+                // 如果分数 >= 20 (比如 21, 22)，胜方已确认，跳转到另一边填负方分数
+                if (!otherInput.value) {
+                    otherInput.focus();
+                } else {
+                    myInput.blur();
+                }
+            }
+        }
+        cacheInputValuesOnly(idx);
+    }
+
+    function smartScoreBlur(idx, side) {
+        if(isViewerMode) return;
+        
+        let myInput = document.getElementById(`s${side}_${idx}`);
+        let otherSide = side === 'A' ? 'B' : 'A';
+        let otherInput = document.getElementById(`s${otherSide}_${idx}`);
+        
+        let val = myInput.value;
+        if (val !== "") {
+            let num = parseInt(val);
+            // 核心规则 2：如果是 1 位数（比如 9），只要焦点离开，立刻帮对方补齐 21
+            if (num < 20 && !otherInput.value) {
+                otherInput.value = 21;
+                triggerPopAnim(otherInput);
+                cacheInputValuesOnly(idx);
+            }
+        }
+    }
+
+    function triggerPopAnim(element) {
+        element.classList.remove('score-anim-pop');
+        void element.offsetWidth; // Force Reflow
+        element.classList.add('score-anim-pop');
+    }
+    // ============================================================
+
     function renderMobileCards() {
         const container = document.getElementById("dynamicScheduleList");
         let html = "";
@@ -1220,15 +1279,16 @@
                 let btnLabel = match.isLocked ? "🔒 修改比分" : "🔵 确认录入";
                 let btnClass = match.isLocked ? "btn-state-locked" : "btn-state-unlocked";
 
+                // Injected the smartScoreInput and smartScoreBlur events
                 html += `
                     <div class="match-card ${cardStateClass}" id="matchCard_${globalIdx}" style="${paddingTopStyle}">
                         ${courtHtml}
                         <div class="match-core-row">
                             <div class="team-players team-a">${namesA}</div>
                             <div class="score-area">
-                                <input type="number" inputmode="numeric" class="score-num" id="sA_${globalIdx}" ${roAttr} ${viewerInputStyle} value="${match.scoreA||''}" oninput="cacheInputValuesOnly(${globalIdx})">
+                                <input type="number" inputmode="numeric" class="score-num" id="sA_${globalIdx}" ${roAttr} ${viewerInputStyle} value="${match.scoreA||''}" oninput="smartScoreInput(${globalIdx}, 'A')" onblur="smartScoreBlur(${globalIdx}, 'A')">
                                 <span class="colon">:</span>
-                                <input type="number" inputmode="numeric" class="score-num" id="sB_${globalIdx}" ${roAttr} ${viewerInputStyle} value="${match.scoreB||''}" oninput="cacheInputValuesOnly(${globalIdx})">
+                                <input type="number" inputmode="numeric" class="score-num" id="sB_${globalIdx}" ${roAttr} ${viewerInputStyle} value="${match.scoreB||''}" oninput="smartScoreInput(${globalIdx}, 'B')" onblur="smartScoreBlur(${globalIdx}, 'B')">
                             </div>
                             <div class="team-players team-b">${namesB}</div>
                         </div>
@@ -1252,6 +1312,7 @@
         
         let match = generatedMatches[idx];
         if (!match.isLocked) {
+            // Check DOM directly in case blur hasn't fired
             let valA = document.getElementById(`sA_${idx}`) ? document.getElementById(`sA_${idx}`).value : "";
             let valB = document.getElementById(`sB_${idx}`) ? document.getElementById(`sB_${idx}`).value : "";
             
@@ -1436,9 +1497,6 @@
         }
     }
 
-    // ============================================================
-    // NEW: Foolproof Export Logic for Mobile Browsers (WeChat/Safari)
-    // ============================================================
     function exportRankToImage() {
         const poster = document.getElementById("posterArea");
         const header = document.getElementById("posterHeader");
@@ -1458,7 +1516,6 @@
             const imgData = canvas.toDataURL("image/png");
             globalGeneratedImageBlob = dataURItoBlob(imgData);
             
-            // Show custom overlay for user to Long-Press or trigger native share
             let modal = document.getElementById('imagePreviewModal');
             document.getElementById('previewImageSrc').src = imgData;
             
@@ -1475,7 +1532,6 @@
         });
     }
 
-    // Helper to convert base64 to file blob for Native Sharing
     function dataURItoBlob(dataURI) {
         var byteString = atob(dataURI.split(',')[1]);
         var mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
@@ -1500,7 +1556,6 @@
             console.warn("Share API restricted or cancelled.", err);
         }
     }
-    // ============================================================
 
     function saveGameFrameworkToStorage() {
         localStorage.setItem("yuyiqifei_active", "true");
@@ -1744,7 +1799,6 @@
 
     function resetAllTournament() {
         if (confirm("确定要彻底删除当前比赛并重组新一局吗？该操作不可撤销！")) {
-            // FIX: Ensure History Chips are preserved across wipes!
             let savedHistory = localStorage.getItem('yuyiqifei_history_names');
             localStorage.clear(); 
             if (savedHistory) {
