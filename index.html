@@ -706,7 +706,7 @@
         } else {
             const requiredTotal = isDouble ? 4 : 2;
             if (playersPerGroup < requiredTotal) {
-                errorTips.innerText = `❌ 人数不足！内部轮转赛至少需要 ${requiredTotal} 人。`;
+                errorTips.innerText = `❌ 人数不足！内部轮转赛进行${isDouble?'双':'单'}打至少需要 ${requiredTotal} 人。`;
                 errorTips.style.display = "block";
                 selectEl.innerHTML = "<option value=''>请修正人数...</option>";
                 btnNext.disabled = true;
@@ -858,7 +858,6 @@
 
         renderTimelineMatrix();
         renderMobileCards();
-        renderRankTablesFramework();
         
         document.getElementById("step2").style.display = "none";
         document.getElementById("step3").style.display = "block";
