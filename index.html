@@ -665,15 +665,15 @@
     </div>
 
     <div id="step2_5" class="card" style="display: none;">
-        <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; color: var(--ios-text);">👀 赛程预览与确认</div>
-        <div style="font-size: 0.8rem; color: var(--ios-subtext); margin-bottom: 12px;">系统已开启【同批人员绝对防重组合】算法保护，保证每场对阵组合唯一。</div>
+        <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; color: var(--ios-text);">👀 赛程防重校验预览</div>
+        <div style="font-size: 0.8rem; color: var(--ios-subtext); margin-bottom: 12px;">系统已开启【同组全员绝对防重保护】。🎨 <span style="color:var(--ios-orange);font-weight:bold;">同色块代表同队搭档</span>，您可通过颜色分布直观检查对阵。</div>
         
-        <div id="previewScheduleList" style="max-height: 350px; overflow-y: auto; margin-bottom: 16px; background: var(--ios-bg); padding: 10px; border-radius: var(--radius-sub); border: 1px solid var(--border-light);">
+        <div id="previewScheduleList" style="margin-bottom: 16px; background: var(--ios-bg); border-radius: var(--radius-sub); border: 1px solid var(--border-light); overflow: hidden;">
             </div>
 
         <div style="display: flex; gap: 12px;">
             <button type="button" class="btn-block btn-orange" style="width: 40%; background-color: var(--ios-orange); box-shadow: none;" onclick="reschedulePreview()">
-                <div class="btn-title">🔄 重新排版</div>
+                <div class="btn-title">🔄 换一套</div>
             </button>
             <button type="button" class="btn-block btn-teal" style="width: 60%;" onclick="confirmAndStartMatch()">
                 <div class="btn-title">✅ 确认并开赛</div>
@@ -875,7 +875,6 @@
         document.getElementById("step2").classList.add("fade-in-up");
     }
 
-    // NEW: Step 2 -> Step 2.5
     function lockNamesAndPreview() {
         nameMap = {};
         let collectedNames = [];
@@ -913,53 +912,86 @@
             return;
         }
 
-        renderPreviewList();
+        renderPreviewTimeline();
         
         document.getElementById("step2").style.display = "none";
         document.getElementById("step2_5").style.display = "block";
         document.getElementById("step2_5").classList.add("fade-in-up");
     }
 
-    // NEW: Render the Preview List
-    function renderPreviewList() {
-        let container = document.getElementById("previewScheduleList");
-        let html = "";
-        let roundMatches = {};
-        generatedMatches.forEach(m => {
-            if(!roundMatches[m.round]) roundMatches[m.round] = [];
-            roundMatches[m.round].push(m);
-        });
-        
-        for(let r = 1; r <= numRounds; r++) {
-            if(!roundMatches[r]) continue;
-            html += `<div style="font-weight:700; margin: 12px 0 6px 0; color:var(--ios-primary-dark);">第 ${r} 轮</div>`;
-            roundMatches[r].forEach(m => {
-                let nA = m.a.map(k => nameMap[k]).join(" / ");
-                let nB = m.b.map(k => nameMap[k]).join(" / ");
-                let court = m.court === "轮转对阵" ? "" : `<span style="color:var(--ios-orange); margin-right:4px;">[${m.court}]</span>`;
-                html += `<div style="background:var(--ios-card); padding:10px; border-radius:8px; margin-bottom:6px; font-size:0.9rem; display:flex; justify-content:space-between; align-items:center; border: 1px solid var(--border-light);">
-                    <span style="color:var(--ios-text); font-weight:600; flex:1; text-align:right;">${nA}</span>
-                    <span style="color:var(--ios-subtext); font-size:0.75rem; margin:0 8px;">VS</span>
-                    <span style="color:var(--ios-text); font-weight:600; flex:1; text-align:left;">${nB}</span>
-                    <div style="font-size:0.75rem; position:absolute; margin-top:-28px; margin-left:-4px;">${court}</div>
-                </div>`;
-            });
+    // Graphical Timeline Preview Function
+    function renderPreviewTimeline() {
+        const container = document.getElementById("previewScheduleList");
+        container.innerHTML = "";
+
+        let allPlayerKeys = [];
+        for (let g = 1; g <= numGroups; g++) {
+            for (let i = 1; i <= playersPerGroup; i++) allPlayerKeys.push(`G${g}_${i}`);
         }
+
+        let html = `<div style="overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius:10px;">
+                        <table style="width: 100%; border-collapse: collapse; min-width: 460px; font-size: 0.8rem; text-align: center;">
+                            <thead>
+                                <tr>
+                                    <th class="timeline-th-corner">队员</th>`;
+        for (let r = 1; r <= numRounds; r++) html += `<th class="timeline-th-round">R${r}</th>`;
+        html += `</tr></thead><tbody>`;
+
+        const groupHues = { 1: 350, 2: 210, 3: 280, 4: 30, 5: 170 };
+
+        allPlayerKeys.forEach((pKey) => {
+            const pName = nameMap[pKey];
+            html += `<tr><td class="timeline-name-cell">${pName}</td>`;
+            
+            for (let r = 1; r <= numRounds; r++) {
+                let roundMatches = generatedMatches.filter(m => m.round === r);
+                let playingMatch = roundMatches.find(m => m.a.includes(pKey) || m.b.includes(pKey));
+                
+                if (playingMatch) {
+                    let textSymbol = "";
+                    let bgColor = "";
+                    
+                    if (numGroups === 1) {
+                        textSymbol = "&nbsp;&nbsp;"; 
+                        let isTeamA = playingMatch.a.includes(pKey);
+                        bgColor = isTeamA ? `hsl(350, 80%, 55%)` : `hsl(210, 80%, 55%)`;
+                    } else {
+                        textSymbol = playingMatch.court.replace("号场", "场");
+                        let courtNumMatch = playingMatch.court.match(/\d+/);
+                        let courtIdx = courtNumMatch ? parseInt(courtNumMatch[0]) : 1;
+                        
+                        let pGroup = parseInt(pKey.split('_')[0].substring(1));
+                        let baseHue = groupHues[pGroup] || (pGroup * 50 % 360);
+                        
+                        let lightness = courtIdx % 2 === 1 ? 55 : 40;
+                        let saturation = courtIdx % 2 === 1 ? 80 : 60;
+                        
+                        bgColor = `hsl(${baseHue}, ${saturation}%, ${lightness}%)`;
+                    }
+
+                    // Static presentation for preview, no onClick event.
+                    html += `<td style="border: 1px solid var(--border-light); padding: 4px; color: white; font-weight: 700; font-size: 0.75rem; background: ${bgColor};">${textSymbol}</td>`;
+                } else {
+                    html += `<td class="timeline-cell-off">休</td>`;
+                }
+            }
+            html += `</tr>`;
+        });
+        html += `</tbody></table></div>`;
         container.innerHTML = html;
         container.scrollTop = 0;
     }
 
-    // NEW: Reschedule action from Step 2.5
     function reschedulePreview() {
         if(!autoScheduleEngine()) {
             alert("重新排表失败！由于轮次和人数限制，当前组合已是极限，无法再找到不重复的全新组合。");
             return;
         }
-        renderPreviewList();
+        renderPreviewTimeline();
         if(navigator.vibrate) navigator.vibrate(20);
     }
 
-    // NEW: Proceed from Step 2.5 to Step 3
+    // FIX: Safely stripped out ghost UI framework calls
     function confirmAndStartMatch() {
         currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-3);
         window.history.replaceState(null, null, window.location.href.split('#')[0] + "#room=" + currentRoomId);
@@ -968,7 +1000,6 @@
 
         renderTimelineMatrix();
         renderMobileCards();
-        renderRankTablesFramework(); // FIX: Explicitly call static render here
         
         document.getElementById("step2_5").style.display = "none";
         document.getElementById("step3").style.display = "block";
@@ -978,7 +1009,6 @@
         liveCalculate(false); 
     }
 
-    // UPDATED: Strict No-Exact-Match-Repeat Algorithm
     function autoScheduleEngine() {
         const slotsPerMatch = isDouble ? 2 : 1;
         let attempt = 0, maxAttempts = 300; 
@@ -997,7 +1027,6 @@
                 }
             }
 
-            // CRITICAL ADDITION: Global Tracker for exact 4-player (or 2-player) combinations
             let usedMatchSignatures = new Set();
 
             function formBestPairs(players) {
@@ -1073,11 +1102,10 @@
                         let matchA = groupPairs[gA].shift();
                         let matchB = groupPairs[gB].shift();
                         
-                        // CRITICAL: Prevent Exact Match Repeat
                         let signature = [...matchA, ...matchB].sort().join('_');
                         if (usedMatchSignatures.has(signature)) {
                             failed = true;
-                            break; // Break the court loop
+                            break; 
                         }
                         usedMatchSignatures.add(signature);
 
@@ -1091,7 +1119,7 @@
                         matchA.forEach(p => roundUsedKeys.add(p)); matchB.forEach(p => roundUsedKeys.add(p));
                         currentMatches.push({ round: r, court: `${c + 1}号场`, a: matchA, b: matchB });
                     }
-                    if (failed) break; // Break the round loop
+                    if (failed) break; 
 
                     for (let k in consecutive) {
                         if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } else { consecutive[k] = 0; }
@@ -1113,7 +1141,6 @@
                     let pairs = formBestPairs(roundPicked);
                     let matchA = pairs[0], matchB = pairs[1];
                     
-                    // CRITICAL: Prevent Exact Match Repeat
                     let signature = [...matchA, ...matchB].sort().join('_');
                     if (usedMatchSignatures.has(signature)) {
                         failed = true;
@@ -1667,12 +1694,10 @@
         generatedMatches = JSON.parse(localStorage.getItem("yuyiqifei_generatedMatches"));
         currentRoomId = localStorage.getItem("yuyiqifei_roomId") || "";
         
-        // Ensure preview elements are bypassed when loading from memory
         document.getElementById("step2_5").style.display = "none";
         
         renderTimelineMatrix(); 
         renderMobileCards(); 
-        renderRankTablesFramework();
 
         const savedScores = JSON.parse(localStorage.getItem("yuyiqifei_scores") || "{}");
         for (let id in savedScores) {
@@ -1730,7 +1755,6 @@
                         clearTimelineHighlight();
                         renderTimelineMatrix();
                         renderMobileCards();
-                        renderRankTablesFramework();
 
                         if (decodedPayload.scores) {
                             for (let id in decodedPayload.scores) {
@@ -1812,7 +1836,6 @@
                         
                         renderTimelineMatrix();
                         renderMobileCards();
-                        renderRankTablesFramework();
 
                         document.getElementById("step1").style.display = "none";
                         document.getElementById("step2").style.display = "none";
