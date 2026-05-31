@@ -538,7 +538,7 @@
         .timeline-cell { transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); cursor: pointer; }
         .dimmed-cell { opacity: 0.15 !important; filter: grayscale(100%); }
         .highlight-partner { box-shadow: 0 0 0 3px #FFD60A inset, 0 0 14px rgba(255, 214, 10, 0.9) !important; z-index: 10; position: relative; }
-        .highlight-opponent { box-shadow: 0 0 0 3px #007aff inset, 0 0 14px rgba(0, 122, 255, 0.6) !important; z-index: 10; position: relative; }
+        .highlight-opponent { box-shadow: 0 0 0 3px #ff3b30 inset, 0 0 14px rgba(255, 59, 48, 0.7) !important; z-index: 10; position: relative; }
         .timeline-banner {
             background-color: #1c1c1e;
             color: white;
@@ -722,211 +722,6 @@
         document.getElementById("courtInputRow").style.display = (gNum === 1) ? "none" : "block";
     }
 
-    // --- Variance Minimization Implementation Inside autoScheduleEngine ---
-    function autoScheduleEngine() {
-        const slotsPerMatch = isDouble ? 2 : 1;
-        let attempt = 0, maxAttempts = 2000; 
-        
-        let bestSchedule = null;
-        let bestScore = Infinity;
-
-        while (attempt < maxAttempts) {
-            attempt++; 
-            let currentMatches = [];
-            let playedCount = {}, consecutive = {}, partnerCount = {}, opponentCount = {};  
-            
-            for (let g = 1; g <= numGroups; g++) {
-                for (let i = 1; i <= playersPerGroup; i++) {
-                    let key = `G${g}_${i}`; playedCount[key] = 0; consecutive[key] = 0; partnerCount[key] = {}; opponentCount[key] = {};
-                }
-            }
-
-            let usedMatchSignatures = new Set();
-
-            function formBestPairs(players) {
-                if (!isDouble) return players.map(p => [p]);
-                if (players.length === 2) return [[players[0], players[1]]];
-                if (players.length === 4) {
-                    let p1 = players[0], p2 = players[1], p3 = players[2], p4 = players[3];
-                    let c1 = (partnerCount[p1][p2] || 0) + (partnerCount[p3][p4] || 0);
-                    let c2 = (partnerCount[p1][p3] || 0) + (partnerCount[p2][p4] || 0);
-                    let c3 = (partnerCount[p1][p4] || 0) + (partnerCount[p2][p3] || 0);
-                    
-                    if (c1 <= c2 && c1 <= c3) return [[p1, p2], [p3, p4]];
-                    if (c2 <= c1 && c2 <= c3) return [[p1, p3], [p2, p4]];
-                    return [[p1, p4], [p2, p3]];
-                }
-                
-                let remaining = [...players];
-                let pairs = [];
-                while(remaining.length > 0) {
-                    let pA = remaining.shift();
-                    let bestPBIdx = 0;
-                    let minCount = Infinity;
-                    for(let i=0; i<remaining.length; i++) {
-                        let count = partnerCount[pA][remaining[i]] || 0;
-                        if(count < minCount) { minCount = count; bestPBIdx = i; }
-                    }
-                    let pB = remaining.splice(bestPBIdx, 1)[0];
-                    pairs.push([pA, pB]);
-                }
-                return pairs;
-            }
-
-            let failed = false;
-            const targetPlays = numGroups > 1 ? (numRounds * numCourts * slotsPerMatch) / playersPerGroup : (numRounds * slotsPerMatch * 2) / playersPerGroup;
-
-            for (let r = 1; r <= numRounds; r++) {
-                if (numGroups > 1) {
-                    let neededPerGroup = Array(numGroups + 1).fill(0), courtMatchups = [];
-                    for (let c = 0; c < numCourts; c++) {
-                        let gA = 1, gB = 2;
-                        if (numGroups > 2) {
-                            gA = ((r - 1 + c * 2) % numGroups) + 1; gB = ((r - 1 + c * 2 + 1) % numGroups) + 1;
-                        }
-                        courtMatchups.push({ gA, gB }); neededPerGroup[gA] += slotsPerMatch; neededPerGroup[gB] += slotsPerMatch;
-                    }
-
-                    let poolSelections = {};
-                    for (let g = 1; g <= numGroups; g++) {
-                        if (neededPerGroup[g] === 0) continue;
-                        let pList = [];
-                        for (let i = 1; i <= playersPerGroup; i++) {
-                            let k = `G${g}_${i}`; if (playedCount[k] < targetPlays) pList.push(k);
-                        }
-                        pList.sort(() => Math.random() - 0.5); 
-                        pList.sort((x, y) => {
-                            let cx = consecutive[x], cy = consecutive[y];
-                            if (cx >= 2 && cy < 2) return 1; if (cy >= 2 && cx < 2) return -1;
-                            return playedCount[x] - playedCount[y];
-                        });
-                        if (pList.length < neededPerGroup[g]) { failed = true; break; }
-                        poolSelections[g] = pList.slice(0, neededPerGroup[g]);
-                    }
-                    if (failed) break;
-
-                    let groupPairs = {};
-                    for (let g = 1; g <= numGroups; g++) {
-                        if (poolSelections[g]) groupPairs[g] = formBestPairs(poolSelections[g]);
-                    }
-
-                    let roundUsedKeys = new Set();
-                    for (let c = 0; c < numCourts; c++) {
-                        let { gA, gB } = courtMatchups[c];
-                        let matchA = groupPairs[gA].shift();
-                        let matchB = groupPairs[gB].shift();
-                        
-                        if (isDouble) {
-                            let team1 = [...matchA].sort().join('_');
-                            let team2 = [...matchB].sort().join('_');
-                            let signature = [team1, team2].sort().join('_VS_');
-                            if (usedMatchSignatures.has(signature)) { failed = true; break; }
-                            usedMatchSignatures.add(signature);
-                            
-                            partnerCount[matchA[0]][matchA[1]] = (partnerCount[matchA[0]][matchA[1]] || 0) + 1;
-                            partnerCount[matchA[1]][matchA[0]] = (partnerCount[matchA[1]][matchA[0]] || 0) + 1;
-                            partnerCount[matchB[0]][matchB[1]] = (partnerCount[matchB[0]][matchB[1]] || 0) + 1;
-                            partnerCount[matchB[1]][matchB[0]] = (partnerCount[matchB[1]][matchB[0]] || 0) + 1;
-                        }
-
-                        // Accumulate head-to-head opponent matrix data
-                        matchA.forEach(pA => {
-                            matchB.forEach(pB => {
-                                opponentCount[pA][pB] = (opponentCount[pA][pB] || 0) + 1;
-                                opponentCount[pB][pA] = (opponentCount[pB][pA] || 0) + 1;
-                            });
-                        });
-
-                        matchA.forEach(p => roundUsedKeys.add(p)); matchB.forEach(p => roundUsedKeys.add(p));
-                        currentMatches.push({ round: r, court: `${c + 1}号场`, a: matchA, b: matchB });
-                    }
-                    if (failed) break; 
-
-                    for (let k in consecutive) {
-                        if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } else { consecutive[k] = 0; }
-                    }
-                } else {
-                    let pList = [];
-                    for (let i = 1; i <= playersPerGroup; i++) {
-                        let k = `G1_${i}`; if (playedCount[k] < targetPlays) pList.push(k);
-                    }
-                    pList.sort(() => Math.random() - 0.5);
-                    pList.sort((x, y) => {
-                        let cx = consecutive[x], cy = consecutive[y];
-                        if (cx >= 2 && cy < 2) return 1; if (cy >= 2 && cx < 2) return -1;
-                        return playedCount[x] - playedCount[y];
-                    });
-                    const totalNeeded = slotsPerMatch * 2; if (pList.length < totalNeeded) { failed = true; break; }
-                    let roundPicked = pList.slice(0, totalNeeded);
-                    
-                    let pairs = formBestPairs(roundPicked);
-                    let matchA = pairs[0], matchB = pairs[1];
-                    
-                    if (isDouble) {
-                        let team1 = [...matchA].sort().join('_');
-                        let team2 = [...matchB].sort().join('_');
-                        let signature = [team1, team2].sort().join('_VS_');
-                        if (usedMatchSignatures.has(signature)) { failed = true; break; }
-                        usedMatchSignatures.add(signature);
-                        
-                        partnerCount[matchA[0]][matchA[1]] = (partnerCount[matchA[0]][matchA[1]] || 0) + 1;
-                        partnerCount[matchA[1]][matchA[0]] = (partnerCount[matchA[1]][matchA[0]] || 0) + 1;
-                        partnerCount[matchB[0]][matchB[1]] = (partnerCount[matchB[0]][matchB[1]] || 0) + 1;
-                        partnerCount[matchB[1]][matchB[0]] = (partnerCount[matchB[1]][matchB[0]] || 0) + 1;
-                    }
-
-                    // Accumulate head-to-head opponent matrix data
-                    matchA.forEach(pA => {
-                        matchB.forEach(pB => {
-                            opponentCount[pA][pB] = (opponentCount[pA][pB] || 0) + 1;
-                            opponentCount[pB][pA] = (opponentCount[pB][pA] || 0) + 1;
-                        });
-                    });
-
-                    currentMatches.push({ round: r, court: `轮转对阵`, a: matchA, b: matchB });
-                    let roundUsedKeys = new Set([...matchA, ...matchB]);
-                    for (let k in consecutive) {
-                        if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } else { consecutive[k] = 0; }
-                    }
-                }
-            }
-            
-            if (!failed) {
-                let repeatPenalty = 0;
-                
-                // Weight 1: Partner repetition penalty matrix
-                for (let p1 in partnerCount) {
-                    for (let p2 in partnerCount[p1]) {
-                        if (partnerCount[p1][p2] > 1) {
-                            repeatPenalty += Math.pow(partnerCount[p1][p2], 2) * 10;
-                        }
-                    }
-                }
-                
-                // Weight 2: Opponent distribution variance penalty (Sum of Squares Method)
-                for (let p1 in opponentCount) {
-                    for (let p2 in opponentCount[p1]) {
-                        if (opponentCount[p1][p2] > 1) {
-                            repeatPenalty += Math.pow(opponentCount[p1][p2], 2);
-                        }
-                    }
-                }
-                
-                if (repeatPenalty < bestScore) {
-                    bestScore = repeatPenalty;
-                    bestSchedule = JSON.parse(JSON.stringify(currentMatches));
-                    if (bestScore === 0) break; 
-                }
-            }
-        }
-        
-        if (bestSchedule) {
-            generatedMatches = bestSchedule;
-            return true;
-        }
-        return false;
-    }
-
     function onParamChange() {
         isDouble = document.querySelector('input[name="matchType"]:checked').value === 'double';
         numGroups = parseInt(document.getElementById("cfgGroups").value) || 1;
@@ -996,6 +791,12 @@
             });
             selectEl.innerHTML = validOptionsHtml;
         }
+    }
+
+    function backToStep1() {
+        document.getElementById("step2").style.display = "none";
+        document.getElementById("step2").classList.remove("fade-in-up");
+        document.getElementById("step1").style.display = "block";
     }
 
     function loadHistoryChips() {
@@ -1099,6 +900,167 @@
         
         saveGameFrameworkToStorage();
         liveCalculate(false); 
+    }
+
+    function autoScheduleEngine() {
+        const slotsPerMatch = isDouble ? 2 : 1;
+        let attempt = 0, maxAttempts = 300; 
+        
+        let bestSchedule = null;
+        let bestScore = Infinity;
+
+        while (attempt < maxAttempts) {
+            attempt++; 
+            let currentMatches = [];
+            let playedCount = {}, consecutive = {}, partnerCount = {};  
+            
+            for (let g = 1; g <= numGroups; g++) {
+                for (let i = 1; i <= playersPerGroup; i++) {
+                    let key = `G${g}_${i}`; playedCount[key] = 0; consecutive[key] = 0; partnerCount[key] = {};
+                }
+            }
+
+            function formBestPairs(players) {
+                if (!isDouble) return players.map(p => [p]);
+                if (players.length === 2) return [[players[0], players[1]]];
+                if (players.length === 4) {
+                    let p1 = players[0], p2 = players[1], p3 = players[2], p4 = players[3];
+                    let c1 = (partnerCount[p1][p2] || 0) + (partnerCount[p3][p4] || 0);
+                    let c2 = (partnerCount[p1][p3] || 0) + (partnerCount[p2][p4] || 0);
+                    let c3 = (partnerCount[p1][p4] || 0) + (partnerCount[p2][p3] || 0);
+                    
+                    if (c1 <= c2 && c1 <= c3) return [[p1, p2], [p3, p4]];
+                    if (c2 <= c1 && c2 <= c3) return [[p1, p3], [p2, p4]];
+                    return [[p1, p4], [p2, p3]];
+                }
+                
+                let remaining = [...players];
+                let pairs = [];
+                while(remaining.length > 0) {
+                    let pA = remaining.shift();
+                    let bestPBIdx = 0;
+                    let minCount = Infinity;
+                    for(let i=0; i<remaining.length; i++) {
+                        let count = partnerCount[pA][remaining[i]] || 0;
+                        if(count < minCount) { minCount = count; bestPBIdx = i; }
+                    }
+                    let pB = remaining.splice(bestPBIdx, 1)[0];
+                    pairs.push([pA, pB]);
+                }
+                return pairs;
+            }
+
+            let failed = false;
+            const targetPlays = numGroups > 1 ? (numRounds * numCourts * slotsPerMatch) / playersPerGroup : (numRounds * slotsPerMatch * 2) / playersPerGroup;
+
+            for (let r = 1; r <= numRounds; r++) {
+                if (numGroups > 1) {
+                    let neededPerGroup = Array(numGroups + 1).fill(0), courtMatchups = [];
+                    for (let c = 0; c < numCourts; c++) {
+                        let gA = 1, gB = 2;
+                        if (numGroups > 2) {
+                            gA = ((r - 1 + c * 2) % numGroups) + 1; gB = ((r - 1 + c * 2 + 1) % numGroups) + 1;
+                        }
+                        courtMatchups.push({ gA, gB }); neededPerGroup[gA] += slotsPerMatch; neededPerGroup[gB] += slotsPerMatch;
+                    }
+
+                    let poolSelections = {};
+                    for (let g = 1; g <= numGroups; g++) {
+                        if (neededPerGroup[g] === 0) continue;
+                        let pList = [];
+                        for (let i = 1; i <= playersPerGroup; i++) {
+                            let k = `G${g}_${i}`; if (playedCount[k] < targetPlays) pList.push(k);
+                        }
+                        pList.sort(() => Math.random() - 0.5); 
+                        pList.sort((x, y) => {
+                            let cx = consecutive[x], cy = consecutive[y];
+                            if (cx >= 2 && cy < 2) return 1; if (cy >= 2 && cx < 2) return -1;
+                            return playedCount[x] - playedCount[y];
+                        });
+                        if (pList.length < neededPerGroup[g]) { failed = true; break; }
+                        poolSelections[g] = pList.slice(0, neededPerGroup[g]);
+                    }
+                    if (failed) break;
+
+                    let groupPairs = {};
+                    for (let g = 1; g <= numGroups; g++) {
+                        if (poolSelections[g]) groupPairs[g] = formBestPairs(poolSelections[g]);
+                    }
+
+                    let roundUsedKeys = new Set();
+                    for (let c = 0; c < numCourts; c++) {
+                        let { gA, gB } = courtMatchups[c];
+                        let matchA = groupPairs[gA].shift();
+                        let matchB = groupPairs[gB].shift();
+                        
+                        if (isDouble) {
+                            partnerCount[matchA[0]][matchA[1]] = (partnerCount[matchA[0]][matchA[1]] || 0) + 1;
+                            partnerCount[matchA[1]][matchA[0]] = (partnerCount[matchA[1]][matchA[0]] || 0) + 1;
+                            partnerCount[matchB[0]][matchB[1]] = (partnerCount[matchB[0]][matchB[1]] || 0) + 1;
+                            partnerCount[matchB[1]][matchB[0]] = (partnerCount[matchB[1]][matchB[0]] || 0) + 1;
+                        }
+
+                        matchA.forEach(p => roundUsedKeys.add(p)); matchB.forEach(p => roundUsedKeys.add(p));
+                        currentMatches.push({ round: r, court: `${c + 1}号场`, a: matchA, b: matchB });
+                    }
+                    for (let k in consecutive) {
+                        if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } else { consecutive[k] = 0; }
+                    }
+                } else {
+                    let pList = [];
+                    for (let i = 1; i <= playersPerGroup; i++) {
+                        let k = `G1_${i}`; if (playedCount[k] < targetPlays) pList.push(k);
+                    }
+                    pList.sort(() => Math.random() - 0.5);
+                    pList.sort((x, y) => {
+                        let cx = consecutive[x], cy = consecutive[y];
+                        if (cx >= 2 && cy < 2) return 1; if (cy >= 2 && cx < 2) return -1;
+                        return playedCount[x] - playedCount[y];
+                    });
+                    const totalNeeded = slotsPerMatch * 2; if (pList.length < totalNeeded) { failed = true; break; }
+                    let roundPicked = pList.slice(0, totalNeeded);
+                    
+                    let pairs = formBestPairs(roundPicked);
+                    let matchA = pairs[0], matchB = pairs[1];
+                    
+                    if (isDouble) {
+                        partnerCount[matchA[0]][matchA[1]] = (partnerCount[matchA[0]][matchA[1]] || 0) + 1;
+                        partnerCount[matchA[1]][matchA[0]] = (partnerCount[matchA[1]][matchA[0]] || 0) + 1;
+                        partnerCount[matchB[0]][matchB[1]] = (partnerCount[matchB[0]][matchB[1]] || 0) + 1;
+                        partnerCount[matchB[1]][matchB[0]] = (partnerCount[matchB[1]][matchB[0]] || 0) + 1;
+                    }
+
+                    currentMatches.push({ round: r, court: `轮转对阵`, a: matchA, b: matchB });
+                    let roundUsedKeys = new Set([...matchA, ...matchB]);
+                    for (let k in consecutive) {
+                        if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } else { consecutive[k] = 0; }
+                    }
+                }
+            }
+            
+            if (!failed) {
+                let repeatPenalty = 0;
+                for (let p1 in partnerCount) {
+                    for (let p2 in partnerCount[p1]) {
+                        if (partnerCount[p1][p2] > 1) {
+                            repeatPenalty += Math.pow(partnerCount[p1][p2], 2);
+                        }
+                    }
+                }
+                
+                if (repeatPenalty < bestScore) {
+                    bestScore = repeatPenalty;
+                    bestSchedule = JSON.parse(JSON.stringify(currentMatches));
+                    if (bestScore === 0) break; 
+                }
+            }
+        }
+        
+        if (bestSchedule) {
+            generatedMatches = bestSchedule;
+            return true;
+        }
+        return false;
     }
 
     function renderTimelineMatrix() {
@@ -1234,22 +1196,30 @@
         });
     }
 
+    // ============================================================
+    // NEW: Smart Score Auto-Jump & Auto-Fill Core Logic
+    // ============================================================
     function smartScoreInput(idx, side) {
         if(isViewerMode) return;
+        
         let myInput = document.getElementById(`s${side}_${idx}`);
         let otherSide = side === 'A' ? 'B' : 'A';
         let otherInput = document.getElementById(`s${otherSide}_${idx}`);
         
         let val = myInput.value;
+        
+        // 核心规则 1：输入两位数触发逻辑
         if (val.length >= 2) {
             let num = parseInt(val);
             if (num < 20) {
+                // 如果分数 < 20，必定是负方，对方直接自动填满 21 分
                 if (!otherInput.value) {
                     otherInput.value = 21;
                     triggerPopAnim(otherInput);
                 }
-                myInput.blur();
+                myInput.blur(); // 完成当前对局输入，收起键盘
             } else {
+                // 如果分数 >= 20 (比如 21, 22)，胜方已确认，跳转到另一边填负方分数
                 if (!otherInput.value) {
                     otherInput.focus();
                 } else {
@@ -1262,6 +1232,7 @@
 
     function smartScoreBlur(idx, side) {
         if(isViewerMode) return;
+        
         let myInput = document.getElementById(`s${side}_${idx}`);
         let otherSide = side === 'A' ? 'B' : 'A';
         let otherInput = document.getElementById(`s${otherSide}_${idx}`);
@@ -1269,6 +1240,7 @@
         let val = myInput.value;
         if (val !== "") {
             let num = parseInt(val);
+            // 核心规则 2：如果是 1 位数（比如 9），只要焦点离开，立刻帮对方补齐 21
             if (num < 20 && !otherInput.value) {
                 otherInput.value = 21;
                 triggerPopAnim(otherInput);
@@ -1279,9 +1251,10 @@
 
     function triggerPopAnim(element) {
         element.classList.remove('score-anim-pop');
-        void element.offsetWidth;
+        void element.offsetWidth; // Force Reflow
         element.classList.add('score-anim-pop');
     }
+    // ============================================================
 
     function renderMobileCards() {
         const container = document.getElementById("dynamicScheduleList");
@@ -1306,6 +1279,7 @@
                 let btnLabel = match.isLocked ? "🔒 修改比分" : "🔵 确认录入";
                 let btnClass = match.isLocked ? "btn-state-locked" : "btn-state-unlocked";
 
+                // Injected the smartScoreInput and smartScoreBlur events
                 html += `
                     <div class="match-card ${cardStateClass}" id="matchCard_${globalIdx}" style="${paddingTopStyle}">
                         ${courtHtml}
@@ -1326,11 +1300,19 @@
         container.innerHTML = html;
     }
 
+    function cacheInputValuesOnly(idx) {
+        let valA = document.getElementById(`sA_${idx}`) ? document.getElementById(`sA_${idx}`).value : "";
+        let valB = document.getElementById(`sB_${idx}`) ? document.getElementById(`sB_${idx}`).value : "";
+        generatedMatches[idx].scoreA = valA;
+        generatedMatches[idx].scoreB = valB;
+    }
+
     function toggleMatchLockGate(idx) {
         if(isViewerMode) return;
         
         let match = generatedMatches[idx];
         if (!match.isLocked) {
+            // Check DOM directly in case blur hasn't fired
             let valA = document.getElementById(`sA_${idx}`) ? document.getElementById(`sA_${idx}`).value : "";
             let valB = document.getElementById(`sB_${idx}`) ? document.getElementById(`sB_${idx}`).value : "";
             
@@ -1441,7 +1423,7 @@
                 let subList = Object.values(stats).filter(p => p.group === `G1`).sort(sortRule);
                 let champion = subList.length > 0 ? subList[0].name : "神秘选手";
                 summaryBox.innerHTML = `
-                    <div style="font-size: 1.25rem; font-weight: 800; margin-bottom: 10px; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">${winText}</div>
+                    <div style="font-size: 1.25rem; font-weight: 800; margin-bottom: 10px; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">🏆 恭喜 ${champion} 荣获总冠军！ 🎉</div>
                     <div style="font-size: 0.95rem; font-weight: 600; opacity: 0.95;">个人积分赛圆满结束，感谢所有选手的拼搏！</div>
                 `;
             }
