@@ -658,32 +658,10 @@
             <button type="button" class="btn-block btn-orange" style="width: 35%; background-color: #8e8e93; box-shadow: none;" onclick="backToStep1()">
                 <div class="btn-title">返回</div>
             </button>
-            <button type="button" class="btn-block btn-teal" style="width: 65%;" onclick="lockNamesAndPreview()">
-                <div class="btn-title">锁定名单并排表</div>
+            <button type="button" class="btn-block btn-teal" style="width: 65%;" onclick="lockNamesAndBuildAll()">
+                <div class="btn-title">锁定名单并生成</div>
             </button>
         </div>
-    </div>
-
-    <div id="step2_5" class="card" style="display: none;">
-        <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; color: var(--ios-text);">👀 赛程防重校验预览</div>
-        <div style="font-size: 0.8rem; color: var(--ios-subtext); margin-bottom: 12px;">系统已开启【算法防重保护】。🎨 同色块代表同队搭档，<span style="color:var(--ios-orange);font-weight:bold;">点击色块可高亮查看具体对阵</span>。</div>
-        
-        <div id="previewTimelineBanner" class="timeline-banner" onclick="clearPreviewTimelineHighlight()"></div>
-        
-        <div id="previewScheduleList" style="margin-bottom: 16px; background: var(--ios-bg); border-radius: var(--radius-sub); border: 1px solid var(--border-light); overflow: hidden;">
-        </div>
-
-        <div style="display: flex; gap: 12px;">
-            <button type="button" class="btn-block btn-orange" style="width: 40%; background-color: var(--ios-orange); box-shadow: none;" onclick="reschedulePreview()">
-                <div class="btn-title">🔄 换一套</div>
-            </button>
-            <button type="button" class="btn-block btn-teal" style="width: 60%;" onclick="confirmAndStartMatch()">
-                <div class="btn-title">✅ 确认并开赛</div>
-            </button>
-        </div>
-        <button type="button" class="btn-block" style="margin-top: 12px; background-color: transparent; border: 1px solid var(--border-light); color: var(--ios-text); padding: 10px;" onclick="backToStep2FromNamePreview()">
-            <div class="btn-title" style="font-size: 0.9rem;">返回修改名单</div>
-        </button>
     </div>
 
     <div id="step3" style="display: none;">
@@ -737,7 +715,6 @@
     let nameMap = {}; 
     let generatedMatches = []; 
     let activeHighlight = null; 
-    let activePreviewHighlight = null;
     let globalGeneratedImageBlob = null; 
 
     function toggleCourtInput() {
@@ -745,330 +722,7 @@
         document.getElementById("courtInputRow").style.display = (gNum === 1) ? "none" : "block";
     }
 
-    function onParamChange() {
-        isDouble = document.querySelector('input[name="matchType"]:checked').value === 'double';
-        numGroups = parseInt(document.getElementById("cfgGroups").value) || 1;
-        numCourts = numGroups === 1 ? 1 : (parseInt(document.getElementById("cfgCourts").value) || 1);
-        playersPerGroup = parseInt(document.getElementById("cfgPlayers").value) || 6;
-
-        const slotsPerMatch = isDouble ? 2 : 1;
-        const errorTips = document.getElementById("errorTips");
-        const selectEl = document.getElementById("cfgRoundsSelect");
-        const btnNext = document.getElementById("btnNextStep");
-
-        if (numGroups > 1) {
-            const requiredPerRound = numCourts * slotsPerMatch;
-            if (playersPerGroup < requiredPerRound) {
-                errorTips.innerText = `❌ 人数不足！${numCourts}个场地进行${isDouble?'双':'单'}打，每组至少需要 ${requiredPerRound} 人。`;
-                errorTips.style.display = "block";
-                selectEl.innerHTML = "<option value=''>请修正人数...</option>";
-                btnNext.disabled = true;
-                return;
-            }
-        } else {
-            const requiredTotal = isDouble ? 4 : 2;
-            if (playersPerGroup < requiredTotal) {
-                errorTips.innerText = `❌ 人数不足！内部轮转赛进行${isDouble?'双':'单'}打至少需要 ${requiredTotal} 人。`;
-                errorTips.style.display = "block";
-                selectEl.innerHTML = "<option value=''>请修正人数...</option>";
-                btnNext.disabled = true;
-                return;
-            }
-        }
-        errorTips.style.display = "none";
-        btnNext.disabled = false;
-
-        let validRounds = [];
-        for (let targetPlay = 1; targetPlay <= 15; targetPlay++) {
-            let totalRound = 0;
-            if (numGroups > 1) {
-                let upper = playersPerGroup * targetPlay;
-                let lower = numCourts * slotsPerMatch;
-                if (upper % lower === 0) totalRound = upper / lower;
-            } else {
-                let upper = playersPerGroup * targetPlay;
-                let lower = slotsPerMatch * 2;
-                if (upper % lower === 0) totalRound = upper / lower;
-            }
-
-            if (totalRound > 0 && totalRound <= 30) {
-                if (numGroups === 1 && totalRound === 1 && targetPlay === 1) continue;
-                if (!validRounds.some(item => item.round === totalRound)) {
-                    validRounds.push({ round: totalRound, plays: targetPlay });
-                }
-            }
-        }
-
-        if (validRounds.length === 0) {
-            selectEl.innerHTML = "<option value=''>暂无完美匹配的对齐轮次，请调整人数</option>";
-            btnNext.disabled = true;
-        } else {
-            let closestRoundObj = validRounds.reduce((prev, curr) => {
-                return (Math.abs(curr.round - 9) < Math.abs(prev.round - 9)) ? curr : prev;
-            });
-
-            let validOptionsHtml = "";
-            validRounds.forEach(r => {
-                let isSelected = (r.round === closestRoundObj.round) ? "selected" : "";
-                validOptionsHtml += `<option value="${r.round}" ${isSelected}>共 ${r.round} 轮比赛 (每人上场 ${r.plays} 次)</option>`;
-            });
-            selectEl.innerHTML = validOptionsHtml;
-        }
-    }
-
-    function backToStep1() {
-        document.getElementById("step2").style.display = "none";
-        document.getElementById("step2").classList.remove("fade-in-up");
-        document.getElementById("step1").style.display = "block";
-    }
-
-    function backToStep2FromNamePreview() {
-        document.getElementById("step2_5").style.display = "none";
-        document.getElementById("step2_5").classList.remove("fade-in-up");
-        document.getElementById("step2").style.display = "block";
-    }
-
-    function loadHistoryChips() {
-        let hist = JSON.parse(localStorage.getItem('yuyiqifei_history_names') || '[]');
-        if (hist.length > 0) {
-            document.getElementById("historyChipsWrapper").style.display = "block";
-            let html = hist.map(n => `<div class="history-chip" onclick="quickFillName('${n}')">${n}</div>`).join('');
-            document.getElementById("historyChipsContainer").innerHTML = html;
-        }
-    }
-
-    function quickFillName(name) {
-        let inputs = document.querySelectorAll('.name-input');
-        for (let i = 0; i < inputs.length; i++) {
-            if (!inputs[i].value) { 
-                inputs[i].value = name; 
-                if(navigator.vibrate) navigator.vibrate(20);
-                break; 
-            }
-        }
-    }
-
-    function goToStep2() {
-        numRounds = parseInt(document.getElementById("cfgRoundsSelect").value) || 6;
-        const nameSections = document.getElementById("dynamicNameSections");
-        nameSections.innerHTML = "";
-        
-        const groupColors = ["var(--ios-red)", "var(--ios-blue)", "#9b59b6", "var(--ios-orange)", "var(--ios-primary)"];
-        const defaultNamesPool = [
-            ["张三", "李四", "王五", "赵六", "钱七", "孙八", "周九", "吴十"],
-            ["阿华", "阿明", "阿强", "阿飞", "小丽", "小红", "小冬", "小宇"]
-        ];
-
-        for (let g = 1; g <= numGroups; g++) {
-            const color = groupColors[(g-1) % groupColors.length];
-            const groupLetter = String.fromCharCode(64 + g); 
-            let html = `<span class="group-name-title" style="color:${color}; font-weight:700; margin-top:10px; font-size:0.95rem;">● ${numGroups === 1 ? '选手名单管理' : groupLetter + ' 组选手名单'}</span>`;
-            html += `<div class="name-grid">`;
-            for (let i = 1; i <= playersPerGroup; i++) {
-                html += `<div class="name-item"><input type="text" id="inputName_G${g}_${i}" class="name-input" placeholder="选手姓名 ${i}"></div>`;
-            }
-            html += `</div>`;
-            nameSections.innerHTML += html;
-        }
-        
-        loadHistoryChips();
-        
-        document.getElementById("step1").style.display = "none";
-        document.getElementById("step2").style.display = "block";
-        document.getElementById("step2").classList.add("fade-in-up");
-    }
-
-    function lockNamesAndPreview() {
-        nameMap = {};
-        let collectedNames = [];
-        const shuffle = (array) => {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-            return array;
-        };
-
-        for (let g = 1; g <= numGroups; g++) {
-            let groupNames = [];
-            let groupLetter = String.fromCharCode(64 + g);
-            for (let i = 1; i <= playersPerGroup; i++) {
-                let val = document.getElementById(`inputName_G${g}_${i}`).value.trim();
-                let finalName = val || (numGroups === 1 ? `选手-${i}` : `${groupLetter}组-${i}`);
-                groupNames.push(finalName);
-                if (val) collectedNames.push(val); 
-            }
-            shuffle(groupNames);
-            for (let i = 1; i <= playersPerGroup; i++) {
-                nameMap[`G${g}_${i}`] = groupNames[i - 1];
-            }
-        }
-
-        if(collectedNames.length > 0) {
-            let oldHist = JSON.parse(localStorage.getItem('yuyiqifei_history_names') || '[]');
-            let uniqueHist = Array.from(new Set([...collectedNames, ...oldHist])).slice(0, 30);
-            localStorage.setItem('yuyiqifei_history_names', JSON.stringify(uniqueHist));
-        }
-
-        if(!autoScheduleEngine()) {
-            alert("无法排表：请检查是否比赛轮次过多导致必然出现冲突！\n系统已尽力均衡对阵，请减少轮次或增加人数后重试。");
-            return;
-        }
-
-        renderPreviewTimeline();
-        
-        document.getElementById("step2").style.display = "none";
-        document.getElementById("step2_5").style.display = "block";
-        document.getElementById("step2_5").classList.add("fade-in-up");
-    }
-
-    function renderPreviewTimeline() {
-        const container = document.getElementById("previewScheduleList");
-        container.innerHTML = "";
-        activePreviewHighlight = null;
-
-        let allPlayerKeys = [];
-        for (let g = 1; g <= numGroups; g++) {
-            for (let i = 1; i <= playersPerGroup; i++) allPlayerKeys.push(`G${g}_${i}`);
-        }
-
-        let html = `<div style="overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius:10px;">
-                        <table style="width: 100%; border-collapse: collapse; min-width: 460px; font-size: 0.8rem; text-align: center;">
-                            <thead>
-                                <tr>
-                                    <th class="timeline-th-corner">队员</th>`;
-        for (let r = 1; r <= numRounds; r++) html += `<th class="timeline-th-round">R${r}</th>`;
-        html += `</tr></thead><tbody>`;
-
-        const groupHues = { 1: 350, 2: 210, 3: 280, 4: 30, 5: 170 };
-
-        allPlayerKeys.forEach((pKey) => {
-            const pName = nameMap[pKey];
-            html += `<tr><td class="timeline-name-cell">${pName}</td>`;
-            
-            for (let r = 1; r <= numRounds; r++) {
-                let roundMatches = generatedMatches.filter(m => m.round === r);
-                let playingMatch = roundMatches.find(m => m.a.includes(pKey) || m.b.includes(pKey));
-                
-                if (playingMatch) {
-                    let textSymbol = "";
-                    let bgColor = "";
-                    
-                    if (numGroups === 1) {
-                        textSymbol = "&nbsp;&nbsp;"; 
-                        let isTeamA = playingMatch.a.includes(pKey);
-                        bgColor = isTeamA ? `hsl(350, 80%, 55%)` : `hsl(210, 80%, 55%)`;
-                    } else {
-                        textSymbol = playingMatch.court.replace("号场", "场");
-                        let courtNumMatch = playingMatch.court.match(/\d+/);
-                        let courtIdx = courtNumMatch ? parseInt(courtNumMatch[0]) : 1;
-                        
-                        let pGroup = parseInt(pKey.split('_')[0].substring(1));
-                        let baseHue = groupHues[pGroup] || (pGroup * 50 % 360);
-                        
-                        let lightness = courtIdx % 2 === 1 ? 55 : 40;
-                        let saturation = courtIdx % 2 === 1 ? 80 : 60;
-                        
-                        bgColor = `hsl(${baseHue}, ${saturation}%, ${lightness}%)`;
-                    }
-
-                    html += `<td id="prev_cell_${r}_${pKey}" class="prev-timeline-cell timeline-cell timeline-cell-active" onclick="handlePreviewTimelineClick(${r}, '${pKey}')" style="background: ${bgColor};">${textSymbol}</td>`;
-                } else {
-                    html += `<td class="prev-timeline-cell timeline-cell timeline-cell-off" id="prev_cell_${r}_${pKey}_off">休</td>`;
-                }
-            }
-            html += `</tr>`;
-        });
-        html += `</tbody></table></div>`;
-        container.innerHTML = html;
-        container.scrollTop = 0;
-    }
-
-    function handlePreviewTimelineClick(r, pKey) {
-        const banner = document.getElementById("previewTimelineBanner");
-        
-        if (activePreviewHighlight === `${r}_${pKey}`) {
-            clearPreviewTimelineHighlight();
-            return;
-        }
-        activePreviewHighlight = `${r}_${pKey}`;
-
-        let match = generatedMatches.find(m => m.round === r && (m.a.includes(pKey) || m.b.includes(pKey)));
-        if (!match) {
-            clearPreviewTimelineHighlight();
-            return; 
-        }
-
-        let isTeamA = match.a.includes(pKey);
-        let myTeam = isTeamA ? match.a : match.b;
-        let oppTeam = isTeamA ? match.b : match.a;
-
-        let namesA = match.a.map(k => nameMap[k]).join(" / ");
-        let namesB = match.b.map(k => nameMap[k]).join(" / ");
-        let courtStr = match.court === "轮转对阵" ? "轮转" : match.court;
-        
-        let colorA = "#FFD60A";
-        let colorB = "#FFD60A";
-
-        banner.innerHTML = `👉 第 ${r} 轮 ${courtStr} <br><span style="color:${colorA}">${namesA}</span> <span style="color:#8e8e93; font-size:0.8rem; margin:0 4px;">VS</span> <span style="color:${colorB}">${namesB}</span><span class="close-hint">(点击此处关闭高亮)</span>`;
-        banner.style.display = "block";
-
-        document.querySelectorAll('.prev-timeline-cell').forEach(el => {
-            el.classList.remove('highlight-partner', 'highlight-opponent', 'dimmed-cell');
-            let parts = el.id.split('_');
-            if(parts.length < 5) return; 
-            let cellR = parseInt(parts[2]);
-            let cellPKey = parts[3] + '_' + parts[4];
-
-            if (cellR === r) {
-                if (myTeam.includes(cellPKey)) {
-                    el.classList.add('highlight-partner');
-                } else if (oppTeam.includes(cellPKey)) {
-                    el.classList.add('highlight-opponent');
-                } else {
-                    el.classList.add('dimmed-cell');
-                }
-            } else {
-                el.classList.add('dimmed-cell'); 
-            }
-        });
-    }
-
-    function clearPreviewTimelineHighlight() {
-        activePreviewHighlight = null;
-        const banner = document.getElementById("previewTimelineBanner");
-        if (banner) banner.style.display = "none";
-        document.querySelectorAll('.prev-timeline-cell').forEach(el => {
-            el.classList.remove('highlight-partner', 'highlight-opponent', 'dimmed-cell');
-        });
-    }
-
-    function reschedulePreview() {
-        if(!autoScheduleEngine()) {
-            alert("重新排表失败！由于轮次和人数限制，当前组合已是极限，无法再找到更优组合。");
-            return;
-        }
-        renderPreviewTimeline();
-        if(navigator.vibrate) navigator.vibrate(20);
-    }
-
-    function confirmAndStartMatch() {
-        currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-3);
-        window.history.replaceState(null, null, window.location.href.split('#')[0] + "#room=" + currentRoomId);
-
-        generatedMatches.forEach(m => { m.isLocked = false; m.scoreA = ""; m.scoreB = ""; });
-
-        renderTimelineMatrix();
-        renderMobileCards();
-        
-        document.getElementById("step2_5").style.display = "none";
-        document.getElementById("step3").style.display = "block";
-        document.getElementById("step3").classList.add("fade-in-up");
-        
-        saveGameFrameworkToStorage();
-        liveCalculate(false); 
-    }
-
+    // --- Variance Minimization Implementation Inside autoScheduleEngine ---
     function autoScheduleEngine() {
         const slotsPerMatch = isDouble ? 2 : 1;
         let attempt = 0, maxAttempts = 2000; 
@@ -1175,6 +829,7 @@
                             partnerCount[matchB[1]][matchB[0]] = (partnerCount[matchB[1]][matchB[0]] || 0) + 1;
                         }
 
+                        // Accumulate head-to-head opponent matrix data
                         matchA.forEach(pA => {
                             matchB.forEach(pB => {
                                 opponentCount[pA][pB] = (opponentCount[pA][pB] || 0) + 1;
@@ -1220,6 +875,7 @@
                         partnerCount[matchB[1]][matchB[0]] = (partnerCount[matchB[1]][matchB[0]] || 0) + 1;
                     }
 
+                    // Accumulate head-to-head opponent matrix data
                     matchA.forEach(pA => {
                         matchB.forEach(pB => {
                             opponentCount[pA][pB] = (opponentCount[pA][pB] || 0) + 1;
@@ -1238,6 +894,7 @@
             if (!failed) {
                 let repeatPenalty = 0;
                 
+                // Weight 1: Partner repetition penalty matrix
                 for (let p1 in partnerCount) {
                     for (let p2 in partnerCount[p1]) {
                         if (partnerCount[p1][p2] > 1) {
@@ -1246,6 +903,7 @@
                     }
                 }
                 
+                // Weight 2: Opponent distribution variance penalty (Sum of Squares Method)
                 for (let p1 in opponentCount) {
                     for (let p2 in opponentCount[p1]) {
                         if (opponentCount[p1][p2] > 1) {
@@ -1267,6 +925,180 @@
             return true;
         }
         return false;
+    }
+
+    function onParamChange() {
+        isDouble = document.querySelector('input[name="matchType"]:checked').value === 'double';
+        numGroups = parseInt(document.getElementById("cfgGroups").value) || 1;
+        numCourts = numGroups === 1 ? 1 : (parseInt(document.getElementById("cfgCourts").value) || 1);
+        playersPerGroup = parseInt(document.getElementById("cfgPlayers").value) || 6;
+
+        const slotsPerMatch = isDouble ? 2 : 1;
+        const errorTips = document.getElementById("errorTips");
+        const selectEl = document.getElementById("cfgRoundsSelect");
+        const btnNext = document.getElementById("btnNextStep");
+
+        if (numGroups > 1) {
+            const requiredPerRound = numCourts * slotsPerMatch;
+            if (playersPerGroup < requiredPerRound) {
+                errorTips.innerText = `❌ 人数不足！${numCourts}个场地进行${isDouble?'双':'单'}打，每组至少需要 ${requiredPerRound} 人。`;
+                errorTips.style.display = "block";
+                selectEl.innerHTML = "<option value=''>请修正人数...</option>";
+                btnNext.disabled = true;
+                return;
+            }
+        } else {
+            const requiredTotal = isDouble ? 4 : 2;
+            if (playersPerGroup < requiredTotal) {
+                errorTips.innerText = `❌ 人数不足！内部轮转赛进行${isDouble?'双':'单'}打至少需要 ${requiredTotal} 人。`;
+                errorTips.style.display = "block";
+                selectEl.innerHTML = "<option value=''>请修正人数...</option>";
+                btnNext.disabled = true;
+                return;
+            }
+        }
+        errorTips.style.display = "none";
+        btnNext.disabled = false;
+
+        let validRounds = [];
+        for (let targetPlay = 1; targetPlay <= 15; targetPlay++) {
+            let totalRound = 0;
+            if (numGroups > 1) {
+                let upper = playersPerGroup * targetPlay;
+                let lower = numCourts * slotsPerMatch;
+                if (upper % lower === 0) totalRound = upper / lower;
+            } else {
+                let upper = playersPerGroup * targetPlay;
+                let lower = slotsPerMatch * 2;
+                if (upper % lower === 0) totalRound = upper / lower;
+            }
+
+            if (totalRound > 0 && totalRound <= 30) {
+                if (numGroups === 1 && totalRound === 1 && targetPlay === 1) continue;
+                if (!validRounds.some(item => item.round === totalRound)) {
+                    validRounds.push({ round: totalRound, plays: targetPlay });
+                }
+            }
+        }
+
+        if (validRounds.length === 0) {
+            selectEl.innerHTML = "<option value=''>暂无完美匹配的对齐轮次，请调整人数</option>";
+            btnNext.disabled = true;
+        } else {
+            let closestRoundObj = validRounds.reduce((prev, curr) => {
+                return (Math.abs(curr.round - 9) < Math.abs(prev.round - 9)) ? curr : prev;
+            });
+
+            let validOptionsHtml = "";
+            validRounds.forEach(r => {
+                let isSelected = (r.round === closestRoundObj.round) ? "selected" : "";
+                validOptionsHtml += `<option value="${r.round}" ${isSelected}>共 ${r.round} 轮比赛 (每人上场 ${r.plays} 次)</option>`;
+            });
+            selectEl.innerHTML = validOptionsHtml;
+        }
+    }
+
+    function loadHistoryChips() {
+        let hist = JSON.parse(localStorage.getItem('yuyiqifei_history_names') || '[]');
+        if (hist.length > 0) {
+            document.getElementById("historyChipsWrapper").style.display = "block";
+            let html = hist.map(n => `<div class="history-chip" onclick="quickFillName('${n}')">${n}</div>`).join('');
+            document.getElementById("historyChipsContainer").innerHTML = html;
+        }
+    }
+
+    function quickFillName(name) {
+        let inputs = document.querySelectorAll('.name-input');
+        for (let i = 0; i < inputs.length; i++) {
+            if (!inputs[i].value) { 
+                inputs[i].value = name; 
+                if(navigator.vibrate) navigator.vibrate(20);
+                break; 
+            }
+        }
+    }
+
+    function goToStep2() {
+        numRounds = parseInt(document.getElementById("cfgRoundsSelect").value) || 6;
+        const nameSections = document.getElementById("dynamicNameSections");
+        nameSections.innerHTML = "";
+        
+        const groupColors = ["var(--ios-red)", "var(--ios-blue)", "#9b59b6", "var(--ios-orange)", "var(--ios-primary)"];
+        const defaultNamesPool = [
+            ["张三", "李四", "王五", "赵六", "钱七", "孙八", "周九", "吴十"],
+            ["阿华", "阿明", "阿强", "阿飞", "小丽", "小红", "小冬", "小宇"]
+        ];
+
+        for (let g = 1; g <= numGroups; g++) {
+            const color = groupColors[(g-1) % groupColors.length];
+            const groupLetter = String.fromCharCode(64 + g); 
+            let html = `<span class="group-name-title" style="color:${color}; font-weight:700; margin-top:10px; font-size:0.95rem;">● ${numGroups === 1 ? '选手名单管理' : groupLetter + ' 组选手名单'}</span>`;
+            html += `<div class="name-grid">`;
+            for (let i = 1; i <= playersPerGroup; i++) {
+                html += `<div class="name-item"><input type="text" id="inputName_G${g}_${i}" class="name-input" placeholder="选手姓名 ${i}"></div>`;
+            }
+            html += `</div>`;
+            nameSections.innerHTML += html;
+        }
+        
+        loadHistoryChips();
+        
+        document.getElementById("step1").style.display = "none";
+        document.getElementById("step2").style.display = "block";
+        document.getElementById("step2").classList.add("fade-in-up");
+    }
+
+    function lockNamesAndBuildAll() {
+        nameMap = {};
+        let collectedNames = [];
+        const shuffle = (array) => {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        };
+
+        for (let g = 1; g <= numGroups; g++) {
+            let groupNames = [];
+            let groupLetter = String.fromCharCode(64 + g);
+            for (let i = 1; i <= playersPerGroup; i++) {
+                let val = document.getElementById(`inputName_G${g}_${i}`).value.trim();
+                let finalName = val || (numGroups === 1 ? `选手-${i}` : `${groupLetter}组-${i}`);
+                groupNames.push(finalName);
+                if (val) collectedNames.push(val); 
+            }
+            shuffle(groupNames);
+            for (let i = 1; i <= playersPerGroup; i++) {
+                nameMap[`G${g}_${i}`] = groupNames[i - 1];
+            }
+        }
+
+        if(collectedNames.length > 0) {
+            let oldHist = JSON.parse(localStorage.getItem('yuyiqifei_history_names') || '[]');
+            let uniqueHist = Array.from(new Set([...collectedNames, ...oldHist])).slice(0, 30);
+            localStorage.setItem('yuyiqifei_history_names', JSON.stringify(uniqueHist));
+        }
+
+        if(!autoScheduleEngine()) {
+            alert("无法计算出完美对齐矩阵，请返回调整！");
+            return;
+        }
+
+        currentRoomId = "rm_" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-3);
+        window.history.replaceState(null, null, window.location.href.split('#')[0] + "#room=" + currentRoomId);
+
+        generatedMatches.forEach(m => { m.isLocked = false; m.scoreA = ""; m.scoreB = ""; });
+
+        renderTimelineMatrix();
+        renderMobileCards();
+        
+        document.getElementById("step2").style.display = "none";
+        document.getElementById("step3").style.display = "block";
+        document.getElementById("step3").classList.add("fade-in-up");
+        
+        saveGameFrameworkToStorage();
+        liveCalculate(false); 
     }
 
     function renderTimelineMatrix() {
@@ -1319,9 +1151,9 @@
                         bgColor = `hsl(${baseHue}, ${saturation}%, ${lightness}%)`;
                     }
 
-                    html += `<td id="live_cell_${r}_${pKey}" class="live-timeline-cell timeline-cell timeline-cell-active" onclick="handleTimelineClick(${r}, '${pKey}')" style="background: ${bgColor};">${textSymbol}</td>`;
+                    html += `<td id="cell_${r}_${pKey}" class="timeline-cell timeline-cell-active" onclick="handleTimelineClick(${r}, '${pKey}')" style="background: ${bgColor};">${textSymbol}</td>`;
                 } else {
-                    html += `<td class="live-timeline-cell timeline-cell timeline-cell-off" id="live_cell_${r}_${pKey}_off">休</td>`;
+                    html += `<td class="timeline-cell timeline-cell-off" id="cell_${r}_${pKey}_off">休</td>`;
                 }
             }
             html += `</tr>`;
@@ -1353,8 +1185,8 @@
         let namesB = match.b.map(k => nameMap[k]).join(" / ");
         let courtStr = match.court === "轮转对阵" ? "轮转" : match.court;
         
-        let colorA = "#FFD60A";
-        let colorB = "#FFD60A";
+        let colorA = isTeamA ? "#FFD60A" : "#ff453a";
+        let colorB = !isTeamA ? "#FFD60A" : "#ff453a";
         
         let statusTag = "";
         if (match.isLocked) {
@@ -1371,13 +1203,13 @@
         banner.innerHTML = `👉 第 ${r} 轮 ${courtStr} ${statusTag}<br><span style="color:${colorA}">${namesA}</span> <span style="color:#8e8e93; font-size:0.8rem; margin:0 4px;">VS</span> <span style="color:${colorB}">${namesB}</span><span class="close-hint">(点击此处关闭高亮)</span>`;
         banner.style.display = "block";
 
-        document.querySelectorAll('.live-timeline-cell').forEach(el => {
+        document.querySelectorAll('.timeline-cell').forEach(el => {
             el.classList.remove('highlight-partner', 'highlight-opponent', 'dimmed-cell');
             
             let parts = el.id.split('_');
-            if(parts.length < 5) return;
-            let cellR = parseInt(parts[2]);
-            let cellPKey = parts[3] + '_' + parts[4];
+            if(parts.length < 4) return;
+            let cellR = parseInt(parts[1]);
+            let cellPKey = parts[2] + '_' + parts[3];
 
             if (cellR === r) {
                 if (myTeam.includes(cellPKey)) {
@@ -1397,7 +1229,7 @@
         activeHighlight = null;
         const banner = document.getElementById("timelineBanner");
         if (banner) banner.style.display = "none";
-        document.querySelectorAll('.live-timeline-cell').forEach(el => {
+        document.querySelectorAll('.timeline-cell').forEach(el => {
             el.classList.remove('highlight-partner', 'highlight-opponent', 'dimmed-cell');
         });
     }
@@ -1492,13 +1324,6 @@
             html += `</div>`;
         }
         container.innerHTML = html;
-    }
-
-    function cacheInputValuesOnly(idx) {
-        let valA = document.getElementById(`sA_${idx}`) ? document.getElementById(`sA_${idx}`).value : "";
-        let valB = document.getElementById(`sB_${idx}`) ? document.getElementById(`sB_${idx}`).value : "";
-        generatedMatches[idx].scoreA = valA;
-        generatedMatches[idx].scoreB = valB;
     }
 
     function toggleMatchLockGate(idx) {
@@ -1616,7 +1441,7 @@
                 let subList = Object.values(stats).filter(p => p.group === `G1`).sort(sortRule);
                 let champion = subList.length > 0 ? subList[0].name : "神秘选手";
                 summaryBox.innerHTML = `
-                    <div style="font-size: 1.25rem; font-weight: 800; margin-bottom: 10px; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">🏆 恭喜 ${champion} 荣获总冠军！ 🎉</div>
+                    <div style="font-size: 1.25rem; font-weight: 800; margin-bottom: 10px; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">${winText}</div>
                     <div style="font-size: 0.95rem; font-weight: 600; opacity: 0.95;">个人积分赛圆满结束，感谢所有选手的拼搏！</div>
                 `;
             }
@@ -1775,11 +1600,8 @@
         generatedMatches = JSON.parse(localStorage.getItem("yuyiqifei_generatedMatches"));
         currentRoomId = localStorage.getItem("yuyiqifei_roomId") || "";
         
-        document.getElementById("step2_5").style.display = "none";
-        
         renderTimelineMatrix(); 
         renderMobileCards(); 
-        renderRankTablesFramework();
 
         const savedScores = JSON.parse(localStorage.getItem("yuyiqifei_scores") || "{}");
         for (let id in savedScores) {
@@ -1837,7 +1659,6 @@
                         clearTimelineHighlight();
                         renderTimelineMatrix();
                         renderMobileCards();
-                        renderRankTablesFramework();
 
                         if (decodedPayload.scores) {
                             for (let id in decodedPayload.scores) {
@@ -1919,7 +1740,6 @@
                         
                         renderTimelineMatrix();
                         renderMobileCards();
-                        renderRankTablesFramework();
 
                         document.getElementById("step1").style.display = "none";
                         document.getElementById("step2").style.display = "none";
