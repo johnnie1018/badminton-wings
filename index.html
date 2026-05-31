@@ -882,7 +882,7 @@
         }
 
         if(!autoScheduleEngine()) {
-            alert("无法计算出完美对齐矩阵，请返回调整！");
+            alert("无法排表：请检查是否比赛轮次过多导致必然出现【同一批人重复交手】！\n单打允许重复组合，双打已开启绝对防重对抗保护，请减少轮次或增加人数后重试。");
             return;
         }
 
@@ -902,7 +902,6 @@
         liveCalculate(false); 
     }
 
-    // --- UPGRADED ALGORITHM: Prevent Exact Duplicates (2000 Attempts) ---
     function autoScheduleEngine() {
         const slotsPerMatch = isDouble ? 2 : 1;
         let attempt = 0, maxAttempts = 2000; 
@@ -996,14 +995,13 @@
                         let matchA = groupPairs[gA].shift();
                         let matchB = groupPairs[gB].shift();
                         
-                        // Prevent Exact Match Repeat
-                        let team1 = [...matchA].sort().join('_');
-                        let team2 = [...matchB].sort().join('_');
-                        let signature = [team1, team2].sort().join('_VS_');
-                        if (usedMatchSignatures.has(signature)) { failed = true; break; }
-                        usedMatchSignatures.add(signature);
-
                         if (isDouble) {
+                            let team1 = [...matchA].sort().join('_');
+                            let team2 = [...matchB].sort().join('_');
+                            let signature = [team1, team2].sort().join('_VS_');
+                            if (usedMatchSignatures.has(signature)) { failed = true; break; }
+                            usedMatchSignatures.add(signature);
+                            
                             partnerCount[matchA[0]][matchA[1]] = (partnerCount[matchA[0]][matchA[1]] || 0) + 1;
                             partnerCount[matchA[1]][matchA[0]] = (partnerCount[matchA[1]][matchA[0]] || 0) + 1;
                             partnerCount[matchB[0]][matchB[1]] = (partnerCount[matchB[0]][matchB[1]] || 0) + 1;
@@ -1013,6 +1011,8 @@
                         matchA.forEach(p => roundUsedKeys.add(p)); matchB.forEach(p => roundUsedKeys.add(p));
                         currentMatches.push({ round: r, court: `${c + 1}号场`, a: matchA, b: matchB });
                     }
+                    if (failed) break; 
+
                     for (let k in consecutive) {
                         if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } else { consecutive[k] = 0; }
                     }
@@ -1033,14 +1033,13 @@
                     let pairs = formBestPairs(roundPicked);
                     let matchA = pairs[0], matchB = pairs[1];
                     
-                    // Prevent Exact Match Repeat
-                    let team1 = [...matchA].sort().join('_');
-                    let team2 = [...matchB].sort().join('_');
-                    let signature = [team1, team2].sort().join('_VS_');
-                    if (usedMatchSignatures.has(signature)) { failed = true; break; }
-                    usedMatchSignatures.add(signature);
-
                     if (isDouble) {
+                        let team1 = [...matchA].sort().join('_');
+                        let team2 = [...matchB].sort().join('_');
+                        let signature = [team1, team2].sort().join('_VS_');
+                        if (usedMatchSignatures.has(signature)) { failed = true; break; }
+                        usedMatchSignatures.add(signature);
+                        
                         partnerCount[matchA[0]][matchA[1]] = (partnerCount[matchA[0]][matchA[1]] || 0) + 1;
                         partnerCount[matchA[1]][matchA[0]] = (partnerCount[matchA[1]][matchA[0]] || 0) + 1;
                         partnerCount[matchB[0]][matchB[1]] = (partnerCount[matchB[0]][matchB[1]] || 0) + 1;
@@ -1164,7 +1163,6 @@
         let namesB = match.b.map(k => nameMap[k]).join(" / ");
         let courtStr = match.court === "轮转对阵" ? "轮转" : match.court;
         
-        // --- CHANGED HERE: Unified color to gold, totally stripped out red ---
         let colorA = "#FFD60A";
         let colorB = "#FFD60A";
         
