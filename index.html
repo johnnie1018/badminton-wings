@@ -206,14 +206,13 @@
         .timeline-th-corner { border: 1px solid var(--border-light); padding: 10px 8px; background: var(--ios-bg); position: sticky; left: 0; z-index: 3; min-width: 65px; font-weight:700; color:var(--ios-text); }
         .timeline-th-round { border: 1px solid var(--border-light); padding: 10px 4px; background: var(--ios-bg); font-weight: 700; min-width: 38px; color:var(--ios-text); }
         .timeline-name-cell { border: 1px solid var(--border-light); padding: 10px 6px; font-weight: 700; background: var(--ios-card); position: sticky; left: 0; z-index: 2; box-shadow: 2px 0 4px rgba(0,0,0,0.02); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 75px; color:var(--ios-text); }
+        
+        .timeline-cell { transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); cursor: pointer; }
         .timeline-cell-active { border: 1px solid var(--border-light); padding: 4px; color: white; font-weight: 700; font-size: 0.75rem; border-radius:4px; }
         .timeline-cell-off { border: 1px solid var(--border-light); padding: 4px; background: var(--ios-bg); color: var(--ios-subtext); font-size: 0.75rem; }
 
-        .timeline-cell { transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); cursor: pointer; }
         .dimmed-cell { opacity: 0.15 !important; filter: grayscale(100%); }
         .highlight-partner { box-shadow: 0 0 0 3px #FFD60A inset, 0 0 14px rgba(255, 214, 10, 0.9) !important; z-index: 10; position: relative; }
-        
-        /* UPDATED: highlight-opponent changed to iOS Blue to remove the aggressive red feeling */
         .highlight-opponent { box-shadow: 0 0 0 3px #007aff inset, 0 0 14px rgba(0, 122, 255, 0.6) !important; z-index: 10; position: relative; }
         
         .timeline-banner { background-color: #1c1c1e; color: white; padding: 12px 14px; border-radius: 10px; margin-bottom: 12px; text-align: center; font-weight: 600; font-size: 0.95rem; display: none; box-shadow: 0 8px 20px rgba(0,0,0,0.25); animation: slideDown 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: pointer; }
@@ -251,11 +250,12 @@
 <div class="container">
     <h1>羽翼齐飞</h1>
     <div class="subtitle">🏸 智能赛事编排与动态计分系统 🏸</div>
+    
     <div id="viewerModeBadge" class="viewer-badge">👁️ 当前处于：群友实时观战模式（只读自动刷新）</div>
 
-    <!-- Step 1: Configuration -->
     <div id="step1" class="card fade-in-up">
         <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; color: var(--ios-text);">赛事模式配置</div>
+        
         <div class="form-group">
             <label>比赛类型</label>
             <div class="radio-group">
@@ -263,36 +263,43 @@
                 <label class="radio-label"><input type="radio" name="matchType" value="double" checked onchange="onParamChange()">双打 (2vs2)</label>
             </div>
         </div>
+
         <div class="form-group">
             <label>分组数量 (组)</label>
             <input type="number" id="cfgGroups" class="form-control" value="2" min="1" oninput="onParamChange(); toggleCourtInput();">
         </div>
+
         <div class="form-group" id="courtInputRow">
             <label>可用场地数量 (个)</label>
             <input type="number" id="cfgCourts" class="form-control" value="2" min="1" oninput="onParamChange()">
         </div>
+
         <div class="form-group">
             <label>每组人员数量 (人/组)</label>
             <input type="number" id="cfgPlayers" class="form-control" value="6" min="2" oninput="onParamChange()">
             <div id="errorTips" class="error-tips" style="display:none; color:var(--ios-red); font-size:0.85rem; margin-top:4px;"></div>
         </div>
+
         <div class="form-group">
             <label style="color: var(--ios-primary-dark);">💡 选择比赛轮次 (已锁定出场数绝对相等)</label>
             <select id="cfgRoundsSelect" class="form-control" style="border: 1px solid rgba(52, 199, 89, 0.3); font-weight: 600; color: var(--ios-primary-dark); background-color: rgba(52, 199, 89, 0.05);"></select>
         </div>
+
         <button type="button" class="btn-block btn-orange" id="btnNextStep" onclick="goToStep2()">
             <div class="btn-title">下一步</div>
         </button>
     </div>
 
-    <!-- Step 2: Name Input -->
     <div id="step2" class="card" style="display: none;">
         <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; color: var(--ios-text);">选手名单录入</div>
+        
         <div id="historyChipsWrapper" style="display:none;">
             <div style="font-size: 0.75rem; color: var(--ios-subtext); margin-bottom: 6px; font-weight: 600;">⚡ 点击历史常用选手快速录入：</div>
             <div class="history-chip-container" id="historyChipsContainer"></div>
         </div>
+
         <div id="dynamicNameSections"></div>
+        
         <div style="display: flex; gap: 12px; margin-top: 20px;">
             <button type="button" class="btn-block btn-orange" style="width: 35%; background-color: #8e8e93; box-shadow: none;" onclick="backToStep1()">
                 <div class="btn-title">返回</div>
@@ -303,11 +310,15 @@
         </div>
     </div>
 
-    <!-- Step 2.5: Graphical Schedule Preview -->
     <div id="step2_5" class="card" style="display: none;">
         <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; color: var(--ios-text);">👀 赛程防重校验预览</div>
-        <div style="font-size: 0.8rem; color: var(--ios-subtext); margin-bottom: 12px;">系统已开启【同组全员绝对防重保护】。🎨 <span style="color:var(--ios-orange);font-weight:bold;">同色块代表同队搭档</span>，您可通过颜色分布直观检查对阵。</div>
-        <div id="previewScheduleList" style="margin-bottom: 16px; background: var(--ios-bg); border-radius: var(--radius-sub); border: 1px solid var(--border-light); overflow: hidden;"></div>
+        <div style="font-size: 0.8rem; color: var(--ios-subtext); margin-bottom: 12px;">系统已开启【全员绝对防重保护】。🎨 同色块代表同队搭档，<span style="color:var(--ios-orange);font-weight:bold;">点击色块可高亮查看具体对阵</span>。</div>
+        
+        <div id="previewTimelineBanner" class="timeline-banner" onclick="clearPreviewTimelineHighlight()"></div>
+        
+        <div id="previewScheduleList" style="margin-bottom: 16px; background: var(--ios-bg); border-radius: var(--radius-sub); border: 1px solid var(--border-light); overflow: hidden;">
+            </div>
+
         <div style="display: flex; gap: 12px;">
             <button type="button" class="btn-block btn-orange" style="width: 40%; background-color: var(--ios-orange); box-shadow: none;" onclick="reschedulePreview()">
                 <div class="btn-title">🔄 换一套</div>
@@ -321,8 +332,8 @@
         </button>
     </div>
 
-    <!-- Step 3 & 4: Live Core -->
     <div id="step3" style="display: none;">
+        
         <div id="sharingCardContainer" class="card" style="padding: 12px; text-align: center; background-color: #eaf4ff; border: none; margin-bottom: 16px;">
             <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()">
                 <div class="btn-title">🔗 分享最新比分</div>
@@ -340,6 +351,7 @@
         <div id="dynamicScheduleList"></div>
 
         <div class="section-title">第四步：实时战绩展示</div>
+        
         <div id="posterArea" style="padding: 10px; border-radius: 16px; background-color: var(--ios-bg); margin: -10px;">
             <div id="posterHeader" style="display:none; text-align:center; font-weight:800; font-size:1.3rem; margin-bottom:12px; color:var(--ios-text);">🏸 羽翼齐飞 - 最终战绩 🏸</div>
             <div class="summary-total" id="groupSummary" style="display: none;"></div>
@@ -371,6 +383,7 @@
     let nameMap = {}; 
     let generatedMatches = []; 
     let activeHighlight = null; 
+    let activePreviewHighlight = null;
     let globalGeneratedImageBlob = null; 
 
     function toggleCourtInput() {
@@ -555,9 +568,11 @@
         document.getElementById("step2_5").classList.add("fade-in-up");
     }
 
+    // Step 2.5: Render Preview Timeline with Interactive Spotlight
     function renderPreviewTimeline() {
         const container = document.getElementById("previewScheduleList");
         container.innerHTML = "";
+        activePreviewHighlight = null;
 
         let allPlayerKeys = [];
         for (let g = 1; g <= numGroups; g++) {
@@ -604,9 +619,10 @@
                         bgColor = `hsl(${baseHue}, ${saturation}%, ${lightness}%)`;
                     }
 
-                    html += `<td style="border: 1px solid var(--border-light); padding: 4px; color: white; font-weight: 700; font-size: 0.75rem; background: ${bgColor};">${textSymbol}</td>`;
+                    // Assigned prev-timeline-cell class and dedicated handlePreviewTimelineClick
+                    html += `<td id="prev_cell_${r}_${pKey}" class="prev-timeline-cell timeline-cell timeline-cell-active" onclick="handlePreviewTimelineClick(${r}, '${pKey}')" style="background: ${bgColor};">${textSymbol}</td>`;
                 } else {
-                    html += `<td class="timeline-cell-off">休</td>`;
+                    html += `<td class="prev-timeline-cell timeline-cell timeline-cell-off" id="prev_cell_${r}_${pKey}_off">休</td>`;
                 }
             }
             html += `</tr>`;
@@ -614,6 +630,67 @@
         html += `</tbody></table></div>`;
         container.innerHTML = html;
         container.scrollTop = 0;
+    }
+
+    // Spotlight logic for Preview Matrix
+    function handlePreviewTimelineClick(r, pKey) {
+        const banner = document.getElementById("previewTimelineBanner");
+        
+        if (activePreviewHighlight === `${r}_${pKey}`) {
+            clearPreviewTimelineHighlight();
+            return;
+        }
+        activePreviewHighlight = `${r}_${pKey}`;
+
+        let match = generatedMatches.find(m => m.round === r && (m.a.includes(pKey) || m.b.includes(pKey)));
+        if (!match) {
+            clearPreviewTimelineHighlight();
+            return; 
+        }
+
+        let isTeamA = match.a.includes(pKey);
+        let myTeam = isTeamA ? match.a : match.b;
+        let oppTeam = isTeamA ? match.b : match.a;
+
+        let namesA = match.a.map(k => nameMap[k]).join(" / ");
+        let namesB = match.b.map(k => nameMap[k]).join(" / ");
+        let courtStr = match.court === "轮转对阵" ? "轮转" : match.court;
+        
+        // Exact formatting matching the user request (Same Yellow/Gold for both sides to avoid hostile red)
+        let colorA = "#FFD60A";
+        let colorB = "#FFD60A";
+
+        banner.innerHTML = `👉 第 ${r} 轮 ${courtStr} <br><span style="color:${colorA}">${namesA}</span> <span style="color:#8e8e93; font-size:0.8rem; margin:0 4px;">VS</span> <span style="color:${colorB}">${namesB}</span><span class="close-hint">(点击此处关闭高亮)</span>`;
+        banner.style.display = "block";
+
+        document.querySelectorAll('.prev-timeline-cell').forEach(el => {
+            el.classList.remove('highlight-partner', 'highlight-opponent', 'dimmed-cell');
+            let parts = el.id.split('_');
+            if(parts.length < 5) return; 
+            let cellR = parseInt(parts[2]);
+            let cellPKey = parts[3] + '_' + parts[4];
+
+            if (cellR === r) {
+                if (myTeam.includes(cellPKey)) {
+                    el.classList.add('highlight-partner');
+                } else if (oppTeam.includes(cellPKey)) {
+                    el.classList.add('highlight-opponent');
+                } else {
+                    el.classList.add('dimmed-cell');
+                }
+            } else {
+                el.classList.add('dimmed-cell'); 
+            }
+        });
+    }
+
+    function clearPreviewTimelineHighlight() {
+        activePreviewHighlight = null;
+        const banner = document.getElementById("previewTimelineBanner");
+        if (banner) banner.style.display = "none";
+        document.querySelectorAll('.prev-timeline-cell').forEach(el => {
+            el.classList.remove('highlight-partner', 'highlight-opponent', 'dimmed-cell');
+        });
     }
 
     function reschedulePreview() {
@@ -642,9 +719,10 @@
         liveCalculate(false); 
     }
 
+    // 2000-attempt Deep Exhaustive Algorithm to prevent any exact same match combo
     function autoScheduleEngine() {
         const slotsPerMatch = isDouble ? 2 : 1;
-        let attempt = 0, maxAttempts = 300; 
+        let attempt = 0, maxAttempts = 2000; 
         
         let bestSchedule = null;
         let bestScore = Infinity;
@@ -735,7 +813,10 @@
                         let matchA = groupPairs[gA].shift();
                         let matchB = groupPairs[gB].shift();
                         
-                        let signature = [...matchA, ...matchB].sort().join('_');
+                        let team1 = [...matchA].sort().join('_');
+                        let team2 = [...matchB].sort().join('_');
+                        let signature = [team1, team2].sort().join('_VS_');
+                        
                         if (usedMatchSignatures.has(signature)) {
                             failed = true;
                             break; 
@@ -774,7 +855,10 @@
                     let pairs = formBestPairs(roundPicked);
                     let matchA = pairs[0], matchB = pairs[1];
                     
-                    let signature = [...matchA, ...matchB].sort().join('_');
+                    let team1 = [...matchA].sort().join('_');
+                    let team2 = [...matchB].sort().join('_');
+                    let signature = [team1, team2].sort().join('_VS_');
+                    
                     if (usedMatchSignatures.has(signature)) {
                         failed = true;
                         break;
@@ -821,6 +905,7 @@
         return false;
     }
 
+    // Step 3: Live Match Timeline with Interactive Spotlight
     function renderTimelineMatrix() {
         const container = document.getElementById("dynamicTimeline");
         container.innerHTML = "";
@@ -871,9 +956,10 @@
                         bgColor = `hsl(${baseHue}, ${saturation}%, ${lightness}%)`;
                     }
 
-                    html += `<td id="cell_${r}_${pKey}" class="timeline-cell timeline-cell-active" onclick="handleTimelineClick(${r}, '${pKey}')" style="background: ${bgColor};">${textSymbol}</td>`;
+                    // Assigned live-timeline-cell class
+                    html += `<td id="live_cell_${r}_${pKey}" class="live-timeline-cell timeline-cell timeline-cell-active" onclick="handleTimelineClick(${r}, '${pKey}')" style="background: ${bgColor};">${textSymbol}</td>`;
                 } else {
-                    html += `<td class="timeline-cell timeline-cell-off" id="cell_${r}_${pKey}_off">休</td>`;
+                    html += `<td class="live-timeline-cell timeline-cell timeline-cell-off" id="live_cell_${r}_${pKey}_off">休</td>`;
                 }
             }
             html += `</tr>`;
@@ -905,9 +991,9 @@
         let namesB = match.b.map(k => nameMap[k]).join(" / ");
         let courtStr = match.court === "轮转对阵" ? "轮转" : match.court;
         
-        // --- CHANGED HERE: Removed red color from names to prevent hostile appearance ---
-        let colorA = isTeamA ? "#FFD60A" : "#ffffff";
-        let colorB = !isTeamA ? "#FFD60A" : "#ffffff";
+        // Use identical Gold color for both teams in live banner too
+        let colorA = "#FFD60A";
+        let colorB = "#FFD60A";
         
         let statusTag = "";
         if (match.isLocked) {
@@ -924,13 +1010,13 @@
         banner.innerHTML = `👉 第 ${r} 轮 ${courtStr} ${statusTag}<br><span style="color:${colorA}">${namesA}</span> <span style="color:#8e8e93; font-size:0.8rem; margin:0 4px;">VS</span> <span style="color:${colorB}">${namesB}</span><span class="close-hint">(点击此处关闭高亮)</span>`;
         banner.style.display = "block";
 
-        document.querySelectorAll('.timeline-cell').forEach(el => {
+        document.querySelectorAll('.live-timeline-cell').forEach(el => {
             el.classList.remove('highlight-partner', 'highlight-opponent', 'dimmed-cell');
             
             let parts = el.id.split('_');
-            if(parts.length < 4) return;
-            let cellR = parseInt(parts[1]);
-            let cellPKey = parts[2] + '_' + parts[3];
+            if(parts.length < 5) return;
+            let cellR = parseInt(parts[2]);
+            let cellPKey = parts[3] + '_' + parts[4];
 
             if (cellR === r) {
                 if (myTeam.includes(cellPKey)) {
@@ -950,7 +1036,7 @@
         activeHighlight = null;
         const banner = document.getElementById("timelineBanner");
         if (banner) banner.style.display = "none";
-        document.querySelectorAll('.timeline-cell').forEach(el => {
+        document.querySelectorAll('.live-timeline-cell').forEach(el => {
             el.classList.remove('highlight-partner', 'highlight-opponent', 'dimmed-cell');
         });
     }
