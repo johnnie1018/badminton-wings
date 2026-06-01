@@ -659,7 +659,7 @@
                 <div class="btn-title">返回</div>
             </button>
             <button type="button" class="btn-block btn-teal" style="width: 65%;" onclick="lockNamesAndBuildAll()">
-                <div class="btn-title">锁定名单并生成</div>
+                <div class="btn-title">锁定名单并排表</div>
             </button>
         </div>
     </div>
@@ -829,7 +829,7 @@
         for (let g = 1; g <= numGroups; g++) {
             const color = groupColors[(g-1) % groupColors.length];
             const groupLetter = String.fromCharCode(64 + g); 
-            let html = `<span class="group-name-title" style="color:${color}; font-weight:700; margin-top:10px; font-size:0.95rem;">● ${numGroups === 1 ? '选手名单管理' : groupLetter + ' 组选手名单'}</span>`;
+            let html = `<span class="group-name-title" style="color:${color}; font-weight:700; margin-top:10px; font-size:0.95rem;">● ${numGroups === 1 ? '选手名单录入' : groupLetter + ' 组选手名单'}</span>`;
             html += `<div class="name-grid">`;
             for (let i = 1; i <= playersPerGroup; i++) {
                 html += `<div class="name-item"><input type="text" id="inputName_G${g}_${i}" class="name-input" placeholder="选手姓名 ${i}"></div>`;
@@ -878,7 +878,7 @@
         }
 
         if(!autoScheduleEngine()) {
-            alert("排表失败：轮次过多导致必然出现【完全重复的对阵组合】！\n系统已开启绝对防重保护，请尝试减少比赛轮次或增加参赛人数。");
+            alert("排表失败：当前设定下无法保证公平轮转，请尝试微调人数！");
             return;
         }
 
@@ -898,6 +898,7 @@
         liveCalculate(false); 
     }
 
+    // --- UPGRADED ALGORITHM: Minimizing Variance penalty approach for Opponents ---
     function autoScheduleEngine() {
         const slotsPerMatch = isDouble ? 2 : 1;
         let attempt = 0, maxAttempts = 2000; 
@@ -1004,6 +1005,7 @@
                             partnerCount[matchB[1]][matchB[0]] = (partnerCount[matchB[1]][matchB[0]] || 0) + 1;
                         }
 
+                        // Accumulate head-to-head opponent matrix data
                         matchA.forEach(pA => {
                             matchB.forEach(pB => {
                                 opponentCount[pA][pB] = (opponentCount[pA][pB] || 0) + 1;
@@ -1049,6 +1051,7 @@
                         partnerCount[matchB[1]][matchB[0]] = (partnerCount[matchB[1]][matchB[0]] || 0) + 1;
                     }
 
+                    // Accumulate head-to-head opponent matrix data
                     matchA.forEach(pA => {
                         matchB.forEach(pB => {
                             opponentCount[pA][pB] = (opponentCount[pA][pB] || 0) + 1;
@@ -1067,6 +1070,7 @@
             if (!failed) {
                 let repeatPenalty = 0;
                 
+                // Weight 1: Partner Repeat Penalty (Heavy Penalty for doubles)
                 for (let p1 in partnerCount) {
                     for (let p2 in partnerCount[p1]) {
                         if (partnerCount[p1][p2] > 1) {
@@ -1074,7 +1078,8 @@
                         }
                     }
                 }
-                
+
+                // Weight 2: Opponent Repeat Penalty (Sum of Squares Variance Minimization)
                 for (let p1 in opponentCount) {
                     for (let p2 in opponentCount[p1]) {
                         if (opponentCount[p1][p2] > 1) {
@@ -1086,7 +1091,7 @@
                 if (repeatPenalty < bestScore) {
                     bestScore = repeatPenalty;
                     bestSchedule = JSON.parse(JSON.stringify(currentMatches));
-                    if (bestScore === 0) break; 
+                    if (bestScore === 0) break; // Found a mathematically perfect diverse layout
                 }
             }
         }
@@ -1116,7 +1121,8 @@
         for (let r = 1; r <= numRounds; r++) html += `<th class="timeline-th-round">R${r}</th>`;
         html += `</tr></thead><tbody>`;
 
-        const groupHues = { 1: 350, 2: 210, 3: 280, 4: 30, 5: 170 };
+        // Modern Morandi Color Palette
+        const groupHues = { 1: 30, 2: 200, 3: 160, 4: 260, 5: 340 };
 
         allPlayerKeys.forEach((pKey, idx) => {
             const pName = nameMap[pKey];
@@ -1133,7 +1139,8 @@
                     if (numGroups === 1) {
                         textSymbol = "&nbsp;&nbsp;"; 
                         let isTeamA = playingMatch.a.includes(pKey);
-                        bgColor = isTeamA ? `hsl(350, 80%, 55%)` : `hsl(210, 80%, 55%)`;
+                        // Option 3: Gold vs Purple
+                        bgColor = isTeamA ? `hsl(45, 95%, 45%)` : `hsl(260, 65%, 60%)`;
                     } else {
                         textSymbol = playingMatch.court.replace("号场", "场");
                         let courtNumMatch = playingMatch.court.match(/\d+/);
@@ -1148,9 +1155,9 @@
                         bgColor = `hsl(${baseHue}, ${saturation}%, ${lightness}%)`;
                     }
 
-                    html += `<td id="cell_${r}_${pKey}" class="timeline-cell timeline-cell-active" onclick="handleTimelineClick(${r}, '${pKey}')" style="background: ${bgColor};">${textSymbol}</td>`;
+                    html += `<td id="live_cell_${r}_${pKey}" class="live-timeline-cell timeline-cell timeline-cell-active" onclick="handleTimelineClick(${r}, '${pKey}')" style="background: ${bgColor};">${textSymbol}</td>`;
                 } else {
-                    html += `<td class="timeline-cell timeline-cell-off" id="cell_${r}_${pKey}_off">休</td>`;
+                    html += `<td class="live-timeline-cell timeline-cell timeline-cell-off" id="live_cell_${r}_${pKey}_off">休</td>`;
                 }
             }
             html += `</tr>`;
@@ -1197,16 +1204,16 @@
             }
         }
 
-        banner.innerHTML = `👉 第 ${r} 轮 ${courtStr} ${statusTag}<br><span style="color:${colorA}">${namesA}</span> <span style="color:#8e8e93; font-size:0.8rem; margin:0 4px;">VS</span> <span style="color:${colorB}">${namesB}</span><span class="close-hint">(点击任意处关闭)</span>`;
+        banner.innerHTML = `👉 第 ${r} 轮 ${courtStr} ${statusTag}<br><span style="color:${colorA}">${namesA}</span> <span style="color:#8e8e93; font-size:0.8rem; margin:0 4px;">VS</span> <span style="color:${colorB}">${namesB}</span><span class="close-hint">(点击此处关闭高亮)</span>`;
         banner.style.display = "block";
 
-        document.querySelectorAll('.timeline-cell').forEach(el => {
+        document.querySelectorAll('.live-timeline-cell').forEach(el => {
             el.classList.remove('highlight-partner', 'highlight-opponent', 'dimmed-cell');
             
             let parts = el.id.split('_');
-            if(parts.length < 4) return;
-            let cellR = parseInt(parts[1]);
-            let cellPKey = parts[2] + '_' + parts[3];
+            if(parts.length < 5) return;
+            let cellR = parseInt(parts[2]);
+            let cellPKey = parts[3] + '_' + parts[4];
 
             if (cellR === r) {
                 if (myTeam.includes(cellPKey)) {
@@ -1226,7 +1233,7 @@
         activeHighlight = null;
         const banner = document.getElementById("timelineBanner");
         if (banner) banner.style.display = "none";
-        document.querySelectorAll('.timeline-cell').forEach(el => {
+        document.querySelectorAll('.live-timeline-cell').forEach(el => {
             el.classList.remove('highlight-partner', 'highlight-opponent', 'dimmed-cell');
         });
     }
@@ -1690,7 +1697,7 @@
         
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(shareUrl).then(() => {
-                alert("📋 赛事专属观战链接已复制！\n\n💡 提示：系统已开启云端实时同步。后续录入比分将自动刷新，整场比赛只需分享一次。");
+                alert("📋 赛事专属极简观战链接已复制！\n\n💡 提示：系统已开启云端实时同步。后续录入比分将自动刷新，整场比赛只需分享一次。");
             }).catch(() => {
                 fallbackCopyAction(shareUrl);
             });
