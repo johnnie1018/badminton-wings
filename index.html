@@ -882,7 +882,7 @@
         }
 
         if(!autoScheduleEngine()) {
-            alert("无法排表：请检查是否比赛轮次过多导致必然出现【同一批人重复交手】！\n单打允许重复组合，双打已开启绝对防重对抗保护，请减少轮次或增加人数后重试。");
+            alert("无法排表：请检查是否比赛轮次过多导致组合耗尽！\n系统已尽力均衡对阵，请减少轮次或增加人数后重试。");
             return;
         }
 
@@ -902,6 +902,7 @@
         liveCalculate(false); 
     }
 
+    // --- UPGRADED ALGORITHM: Minimizing Variance penalty approach for both Opponents and Partners ---
     function autoScheduleEngine() {
         const slotsPerMatch = isDouble ? 2 : 1;
         let attempt = 0, maxAttempts = 2000; 
@@ -912,15 +913,13 @@
         while (attempt < maxAttempts) {
             attempt++; 
             let currentMatches = [];
-            let playedCount = {}, consecutive = {}, partnerCount = {};  
+            let playedCount = {}, consecutive = {}, partnerCount = {}, opponentCount = {};  
             
             for (let g = 1; g <= numGroups; g++) {
                 for (let i = 1; i <= playersPerGroup; i++) {
-                    let key = `G${g}_${i}`; playedCount[key] = 0; consecutive[key] = 0; partnerCount[key] = {};
+                    let key = `G${g}_${i}`; playedCount[key] = 0; consecutive[key] = 0; partnerCount[key] = {}; opponentCount[key] = {};
                 }
             }
-
-            let usedMatchSignatures = new Set();
 
             function formBestPairs(players) {
                 if (!isDouble) return players.map(p => [p]);
@@ -996,23 +995,22 @@
                         let matchB = groupPairs[gB].shift();
                         
                         if (isDouble) {
-                            let team1 = [...matchA].sort().join('_');
-                            let team2 = [...matchB].sort().join('_');
-                            let signature = [team1, team2].sort().join('_VS_');
-                            if (usedMatchSignatures.has(signature)) { failed = true; break; }
-                            usedMatchSignatures.add(signature);
-                            
                             partnerCount[matchA[0]][matchA[1]] = (partnerCount[matchA[0]][matchA[1]] || 0) + 1;
                             partnerCount[matchA[1]][matchA[0]] = (partnerCount[matchA[1]][matchA[0]] || 0) + 1;
                             partnerCount[matchB[0]][matchB[1]] = (partnerCount[matchB[0]][matchB[1]] || 0) + 1;
                             partnerCount[matchB[1]][matchB[0]] = (partnerCount[matchB[1]][matchB[0]] || 0) + 1;
                         }
 
+                        matchA.forEach(pA => {
+                            matchB.forEach(pB => {
+                                opponentCount[pA][pB] = (opponentCount[pA][pB] || 0) + 1;
+                                opponentCount[pB][pA] = (opponentCount[pB][pA] || 0) + 1;
+                            });
+                        });
+
                         matchA.forEach(p => roundUsedKeys.add(p)); matchB.forEach(p => roundUsedKeys.add(p));
                         currentMatches.push({ round: r, court: `${c + 1}号场`, a: matchA, b: matchB });
                     }
-                    if (failed) break; 
-
                     for (let k in consecutive) {
                         if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } else { consecutive[k] = 0; }
                     }
@@ -1034,17 +1032,18 @@
                     let matchA = pairs[0], matchB = pairs[1];
                     
                     if (isDouble) {
-                        let team1 = [...matchA].sort().join('_');
-                        let team2 = [...matchB].sort().join('_');
-                        let signature = [team1, team2].sort().join('_VS_');
-                        if (usedMatchSignatures.has(signature)) { failed = true; break; }
-                        usedMatchSignatures.add(signature);
-                        
                         partnerCount[matchA[0]][matchA[1]] = (partnerCount[matchA[0]][matchA[1]] || 0) + 1;
                         partnerCount[matchA[1]][matchA[0]] = (partnerCount[matchA[1]][matchA[0]] || 0) + 1;
                         partnerCount[matchB[0]][matchB[1]] = (partnerCount[matchB[0]][matchB[1]] || 0) + 1;
                         partnerCount[matchB[1]][matchB[0]] = (partnerCount[matchB[1]][matchB[0]] || 0) + 1;
                     }
+
+                    matchA.forEach(pA => {
+                        matchB.forEach(pB => {
+                            opponentCount[pA][pB] = (opponentCount[pA][pB] || 0) + 1;
+                            opponentCount[pB][pA] = (opponentCount[pB][pA] || 0) + 1;
+                        });
+                    });
 
                     currentMatches.push({ round: r, court: `轮转对阵`, a: matchA, b: matchB });
                     let roundUsedKeys = new Set([...matchA, ...matchB]);
@@ -1059,7 +1058,14 @@
                 for (let p1 in partnerCount) {
                     for (let p2 in partnerCount[p1]) {
                         if (partnerCount[p1][p2] > 1) {
-                            repeatPenalty += Math.pow(partnerCount[p1][p2], 2);
+                            repeatPenalty += Math.pow(partnerCount[p1][p2], 2) * 10;
+                        }
+                    }
+                }
+                for (let p1 in opponentCount) {
+                    for (let p2 in opponentCount[p1]) {
+                        if (opponentCount[p1][p2] > 1) {
+                            repeatPenalty += Math.pow(opponentCount[p1][p2], 2);
                         }
                     }
                 }
