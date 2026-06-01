@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>羽翼齐飞 - 智能对抗与轮转赛事系统</title>
+    <title>羽翼齐飞 - 智能赛事云管家</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         /* CSS Variables - Default Light Mode */
@@ -589,23 +589,23 @@
 
 <div id="loadingOverlay" class="loading-overlay" style="display: none;">
     <div class="spinner"></div>
-    <div style="color:var(--ios-subtext); font-weight:600; font-size:0.9rem;">正在拉取云端实时赛况...</div>
+    <div style="color:var(--ios-subtext); font-weight:600; font-size:0.9rem;">正在同步实时赛况...</div>
 </div>
 
 <div id="imagePreviewModal" class="img-preview-modal">
-    <div class="img-modal-tip">✨ 海报已生成<br><span style="font-size: 0.85rem; font-weight: 500; color: #FFD60A;">请长按下方图片保存到相册，或直接转发给朋友</span></div>
+    <div class="img-modal-tip">✨ 海报已生成<br><span style="font-size: 0.85rem; font-weight: 500; color: #FFD60A;">长按图片保存到相册，或直接转发给好友</span></div>
     <img id="previewImageSrc" src="" alt="战绩海报预览" />
     <div class="modal-action-row">
         <button class="btn-block btn-white-glass" style="flex:1;" onclick="document.getElementById('imagePreviewModal').style.display='none'">返回系统</button>
-        <button class="btn-block btn-orange" id="btnNativeShare" style="flex:1; display:none;" onclick="triggerNativeShare()">📲 调起系统分享</button>
+        <button class="btn-block btn-orange" id="btnNativeShare" style="flex:1; display:none;" onclick="triggerNativeShare()">📲 唤起系统分享面板</button>
     </div>
 </div>
 
 <div class="container">
     <h1>羽翼齐飞</h1>
-    <div class="subtitle">🏸 智能赛事编排与动态计分系统 🏸</div>
+    <div class="subtitle">🏸 智能赛事云管家 🏸</div>
     
-    <div id="viewerModeBadge" class="viewer-badge">👁️ 当前处于：群友实时观战模式（只读自动刷新）</div>
+    <div id="viewerModeBadge" class="viewer-badge">👁️ 当前为观战模式（比分实时同步刷新）</div>
 
     <div id="step1" class="card fade-in-up">
         <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; color: var(--ios-text);">赛事模式配置</div>
@@ -635,7 +635,7 @@
         </div>
 
         <div class="form-group">
-            <label style="color: var(--ios-primary-dark);">💡 选择比赛轮次 (已锁定出场数绝对相等)</label>
+            <label style="color: var(--ios-primary-dark);">💡 赛事轮次 (智能算法确保每人上场次数绝对均等)</label>
             <select id="cfgRoundsSelect" class="form-control" style="border: 1px solid rgba(52, 199, 89, 0.3); font-weight: 600; color: var(--ios-primary-dark); background-color: rgba(52, 199, 89, 0.05);"></select>
         </div>
 
@@ -669,7 +669,7 @@
         <div id="sharingCardContainer" class="card" style="padding: 12px; text-align: center; background-color: #eaf4ff; border: none; margin-bottom: 16px;">
             <button type="button" class="btn-block btn-blue" id="btnShareMatch" onclick="generateShareLink()">
                 <div class="btn-title">🔗 分享最新比分</div>
-                <div class="btn-subtitle">一键发至群聊，群友即可实时观战</div>
+                <div class="btn-subtitle">一键发送至微信，好友点击即可看直播</div>
             </button>
         </div>
 
@@ -679,10 +679,10 @@
             <div id="dynamicTimeline"></div>
         </div>
 
-        <div class="section-title">第三步：比分录入表单</div>
+        <div class="section-title">📝 赛程排布与实时记分</div>
         <div id="dynamicScheduleList"></div>
 
-        <div class="section-title">第四步：实时战绩展示</div>
+        <div class="section-title">🏆 赛事积分排行榜</div>
         
         <div id="posterArea" style="padding: 10px; border-radius: 16px; background-color: var(--ios-bg); margin: -10px;">
             <div id="posterHeader" style="display:none; text-align:center; font-weight:800; font-size:1.3rem; margin-bottom:12px; color:var(--ios-text);">🏸 羽翼齐飞 - 最终战绩 🏸</div>
@@ -693,11 +693,11 @@
 
         <button type="button" class="btn-block" id="btnExportImage" style="display: none; margin-top:20px; background: linear-gradient(135deg, #34c759, #248a3d); box-shadow: 0 4px 12px rgba(52, 199, 89, 0.3); color: white;" onclick="exportRankToImage()">
             <div class="btn-title">📸 一键生成战绩海报</div>
-            <div class="btn-subtitle">完美适配所有机型防拦截长按保存</div>
+            <div class="btn-subtitle">生成高清赛况长图，长按保存或直接转发</div>
         </button>
         
         <button type="button" class="btn-block btn-orange" id="btnWipeSystem" style="margin-top:16px; background-color: var(--ios-red); box-shadow: 0 4px 12px rgba(255, 59, 48, 0.15);" onclick="resetAllTournament()">
-            <div class="btn-title">清空整个赛事</div>
+            <div class="btn-title">结束并清空当前赛事</div>
         </button>
     </div>
 </div>
@@ -777,7 +777,7 @@
         }
 
         if (validRounds.length === 0) {
-            selectEl.innerHTML = "<option value=''>暂无完美匹配的对齐轮次，请调整人数</option>";
+            selectEl.innerHTML = "<option value=''>暂无绝对均等的轮次方案，请微调人数或场地</option>";
             btnNext.disabled = true;
         } else {
             let closestRoundObj = validRounds.reduce((prev, curr) => {
@@ -825,10 +825,6 @@
         nameSections.innerHTML = "";
         
         const groupColors = ["var(--ios-red)", "var(--ios-blue)", "#9b59b6", "var(--ios-orange)", "var(--ios-primary)"];
-        const defaultNamesPool = [
-            ["张三", "李四", "王五", "赵六", "钱七", "孙八", "周九", "吴十"],
-            ["阿华", "阿明", "阿强", "阿飞", "小丽", "小红", "小冬", "小宇"]
-        ];
 
         for (let g = 1; g <= numGroups; g++) {
             const color = groupColors[(g-1) % groupColors.length];
@@ -882,7 +878,7 @@
         }
 
         if(!autoScheduleEngine()) {
-            alert("无法排表：请检查是否比赛轮次过多导致组合耗尽！\n系统已尽力均衡对阵，请减少轮次或增加人数后重试。");
+            alert("排表失败：轮次过多导致必然出现【完全重复的对阵组合】！\n系统已开启绝对防重保护，请尝试减少比赛轮次或增加参赛人数。");
             return;
         }
 
@@ -902,7 +898,6 @@
         liveCalculate(false); 
     }
 
-    // --- UPGRADED ALGORITHM: Minimizing Variance penalty approach for both Opponents and Partners ---
     function autoScheduleEngine() {
         const slotsPerMatch = isDouble ? 2 : 1;
         let attempt = 0, maxAttempts = 2000; 
@@ -920,6 +915,8 @@
                     let key = `G${g}_${i}`; playedCount[key] = 0; consecutive[key] = 0; partnerCount[key] = {}; opponentCount[key] = {};
                 }
             }
+
+            let usedMatchSignatures = new Set();
 
             function formBestPairs(players) {
                 if (!isDouble) return players.map(p => [p]);
@@ -995,6 +992,12 @@
                         let matchB = groupPairs[gB].shift();
                         
                         if (isDouble) {
+                            let team1 = [...matchA].sort().join('_');
+                            let team2 = [...matchB].sort().join('_');
+                            let signature = [team1, team2].sort().join('_VS_');
+                            if (usedMatchSignatures.has(signature)) { failed = true; break; }
+                            usedMatchSignatures.add(signature);
+                            
                             partnerCount[matchA[0]][matchA[1]] = (partnerCount[matchA[0]][matchA[1]] || 0) + 1;
                             partnerCount[matchA[1]][matchA[0]] = (partnerCount[matchA[1]][matchA[0]] || 0) + 1;
                             partnerCount[matchB[0]][matchB[1]] = (partnerCount[matchB[0]][matchB[1]] || 0) + 1;
@@ -1011,6 +1014,8 @@
                         matchA.forEach(p => roundUsedKeys.add(p)); matchB.forEach(p => roundUsedKeys.add(p));
                         currentMatches.push({ round: r, court: `${c + 1}号场`, a: matchA, b: matchB });
                     }
+                    if (failed) break; 
+
                     for (let k in consecutive) {
                         if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } else { consecutive[k] = 0; }
                     }
@@ -1032,6 +1037,12 @@
                     let matchA = pairs[0], matchB = pairs[1];
                     
                     if (isDouble) {
+                        let team1 = [...matchA].sort().join('_');
+                        let team2 = [...matchB].sort().join('_');
+                        let signature = [team1, team2].sort().join('_VS_');
+                        if (usedMatchSignatures.has(signature)) { failed = true; break; }
+                        usedMatchSignatures.add(signature);
+                        
                         partnerCount[matchA[0]][matchA[1]] = (partnerCount[matchA[0]][matchA[1]] || 0) + 1;
                         partnerCount[matchA[1]][matchA[0]] = (partnerCount[matchA[1]][matchA[0]] || 0) + 1;
                         partnerCount[matchB[0]][matchB[1]] = (partnerCount[matchB[0]][matchB[1]] || 0) + 1;
@@ -1055,6 +1066,7 @@
             
             if (!failed) {
                 let repeatPenalty = 0;
+                
                 for (let p1 in partnerCount) {
                     for (let p2 in partnerCount[p1]) {
                         if (partnerCount[p1][p2] > 1) {
@@ -1062,6 +1074,7 @@
                         }
                     }
                 }
+                
                 for (let p1 in opponentCount) {
                     for (let p2 in opponentCount[p1]) {
                         if (opponentCount[p1][p2] > 1) {
@@ -1184,7 +1197,7 @@
             }
         }
 
-        banner.innerHTML = `👉 第 ${r} 轮 ${courtStr} ${statusTag}<br><span style="color:${colorA}">${namesA}</span> <span style="color:#8e8e93; font-size:0.8rem; margin:0 4px;">VS</span> <span style="color:${colorB}">${namesB}</span><span class="close-hint">(点击此处关闭高亮)</span>`;
+        banner.innerHTML = `👉 第 ${r} 轮 ${courtStr} ${statusTag}<br><span style="color:${colorA}">${namesA}</span> <span style="color:#8e8e93; font-size:0.8rem; margin:0 4px;">VS</span> <span style="color:${colorB}">${namesB}</span><span class="close-hint">(点击任意处关闭)</span>`;
         banner.style.display = "block";
 
         document.querySelectorAll('.timeline-cell').forEach(el => {
@@ -1677,7 +1690,7 @@
         
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(shareUrl).then(() => {
-                alert("📋 赛事专属极简观战链接已复制！\n\n💡 提示：系统已开启云端实时同步。后续录入比分后，观战端会自动刷新，整场比赛仅需发一次。");
+                alert("📋 赛事专属观战链接已复制！\n\n💡 提示：系统已开启云端实时同步。后续录入比分将自动刷新，整场比赛只需分享一次。");
             }).catch(() => {
                 fallbackCopyAction(shareUrl);
             });
@@ -1694,7 +1707,7 @@
         textArea.focus(); textArea.select();
         try {
             document.execCommand('copy');
-            alert("📋 赛事专属观战链接已复制！请直接粘贴发送至微信群。\n\n💡 提示：系统已开启云端同步，后续录入比分会自动刷新，无需重新分享。");
+            alert("📋 赛事专属观战链接已复制！请直接粘贴发送至微信群。\n\n💡 提示：系统已开启云端同步，后续录入比分将自动刷新，整场比赛只需分享一次。");
         } catch (err) {
             alert("自动复制失败，请手动复制地址栏的长网址发送给群友！");
         }
@@ -1773,7 +1786,7 @@
                 const shareCard = document.getElementById("sharingCardContainer");
                 shareCard.innerHTML = `
                     <div style="font-size: 1.05rem; font-weight: 700; color: var(--ios-subtext); margin-bottom: 2px;">👁️ 智能赛事云分发通道</div>
-                    <div style="font-size: 0.8rem; font-weight: 500; color: #aeaeb2;">您正在实时观战本场比赛，比分将自动同步刷新</div>
+                    <div style="font-size: 0.8rem; font-weight: 500; color: #aeaeb2;">当前为实时观战模式，比分将自动同步刷新</div>
                 `;
                 
                 currentRoomId = roomIdFromUrl;
@@ -1807,7 +1820,7 @@
     }
 
     function resetAllTournament() {
-        if (confirm("确定要彻底删除当前比赛并重组新一局吗？该操作不可撤销！")) {
+        if (confirm("确定要结束并清空当前所有赛事数据吗？此操作不可撤销！")) {
             let savedHistory = localStorage.getItem('yuyiqifei_history_names');
             localStorage.clear(); 
             if (savedHistory) {
