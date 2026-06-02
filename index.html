@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>羽翼齐飞 - 智能赛事云管家</title>
+    <!-- Core Engine for Exporting Poster Images -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- High Performance String Compression Engine for Cloud Sync -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
     <style>
         /* CSS Variables - Default Light Mode */
@@ -574,7 +576,6 @@
         liveCalculate(false); 
     }
 
-    // --- UPGRADED ALGORITHM: Minimizing Variance penalty approach for Opponents & Partners ---
     function autoScheduleEngine() {
         const slotsPerMatch = isDouble ? 2 : 1;
         let attempt = 0, maxAttempts = 2000; 
@@ -592,8 +593,6 @@
                     let key = `G${g}_${i}`; playedCount[key] = 0; consecutive[key] = 0; partnerCount[key] = {}; opponentCount[key] = {};
                 }
             }
-
-            let usedMatchSignatures = new Set();
 
             function formBestPairs(players) {
                 if (!isDouble) return players.map(p => [p]);
@@ -669,12 +668,6 @@
                         let matchB = groupPairs[gB].shift();
                         
                         if (isDouble) {
-                            let team1 = [...matchA].sort().join('_');
-                            let team2 = [...matchB].sort().join('_');
-                            let signature = [team1, team2].sort().join('_VS_');
-                            if (usedMatchSignatures.has(signature)) { failed = true; break; }
-                            usedMatchSignatures.add(signature);
-                            
                             partnerCount[matchA[0]][matchA[1]] = (partnerCount[matchA[0]][matchA[1]] || 0) + 1;
                             partnerCount[matchA[1]][matchA[0]] = (partnerCount[matchA[1]][matchA[0]] || 0) + 1;
                             partnerCount[matchB[0]][matchB[1]] = (partnerCount[matchB[0]][matchB[1]] || 0) + 1;
@@ -691,8 +684,6 @@
                         matchA.forEach(p => roundUsedKeys.add(p)); matchB.forEach(p => roundUsedKeys.add(p));
                         currentMatches.push({ round: r, court: `${c + 1}号场`, a: matchA, b: matchB });
                     }
-                    if (failed) break; 
-
                     for (let k in consecutive) {
                         if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } else { consecutive[k] = 0; }
                     }
@@ -714,12 +705,6 @@
                     let matchA = pairs[0], matchB = pairs[1];
                     
                     if (isDouble) {
-                        let team1 = [...matchA].sort().join('_');
-                        let team2 = [...matchB].sort().join('_');
-                        let signature = [team1, team2].sort().join('_VS_');
-                        if (usedMatchSignatures.has(signature)) { failed = true; break; }
-                        usedMatchSignatures.add(signature);
-                        
                         partnerCount[matchA[0]][matchA[1]] = (partnerCount[matchA[0]][matchA[1]] || 0) + 1;
                         partnerCount[matchA[1]][matchA[0]] = (partnerCount[matchA[1]][matchA[0]] || 0) + 1;
                         partnerCount[matchB[0]][matchB[1]] = (partnerCount[matchB[0]][matchB[1]] || 0) + 1;
@@ -743,7 +728,6 @@
             
             if (!failed) {
                 let repeatPenalty = 0;
-                
                 for (let p1 in partnerCount) {
                     for (let p2 in partnerCount[p1]) {
                         if (partnerCount[p1][p2] > 1) {
@@ -751,7 +735,6 @@
                         }
                     }
                 }
-                
                 for (let p1 in opponentCount) {
                     for (let p2 in opponentCount[p1]) {
                         if (opponentCount[p1][p2] > 1) {
@@ -775,7 +758,6 @@
         return false;
     }
 
-    // --- OPTIMIZED DOM RENDERING WITH requestAnimationFrame ---
     function renderTimelineMatrix() {
         let allPlayerKeys = [];
         for (let g = 1; g <= numGroups; g++) {
@@ -807,7 +789,8 @@
                     if (numGroups === 1) {
                         textSymbol = "&nbsp;&nbsp;"; 
                         let isTeamA = playingMatch.a.includes(pKey);
-                        bgColor = isTeamA ? `hsl(45, 95%, 45%)` : `hsl(260, 65%, 60%)`;
+                        // 使用双打1号场同款配色 (莫兰迪 暖橙 vs 海蓝)
+                        bgColor = isTeamA ? `hsl(30, 80%, 55%)` : `hsl(200, 80%, 55%)`;
                     } else {
                         textSymbol = playingMatch.court.replace("号场", "场");
                         let courtNumMatch = playingMatch.court.match(/\d+/);
@@ -1186,7 +1169,6 @@
             tablesHtml += `</tbody></table>`;
         }
 
-        // Apply DOM updates efficiently via requestAnimationFrame
         requestAnimationFrame(() => {
             const summaryBox = document.getElementById("groupSummary");
             const exportBtn = document.getElementById("btnExportImage");
