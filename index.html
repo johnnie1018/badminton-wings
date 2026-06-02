@@ -554,7 +554,7 @@
         }
 
         if(!autoScheduleEngine()) {
-            alert("排表冲突：当前设定下无法避免【对阵完全重复】。请尝试减少比赛轮次或增加参赛人数。");
+            alert("排表失败：当前设定下无法保证公平轮转，请尝试微调人数！");
             return;
         }
 
@@ -592,8 +592,6 @@
                     let key = `G${g}_${i}`; playedCount[key] = 0; consecutive[key] = 0; partnerCount[key] = {}; opponentCount[key] = {};
                 }
             }
-
-            let usedMatchSignatures = new Set();
 
             function formBestPairs(players) {
                 if (!isDouble) return players.map(p => [p]);
@@ -669,12 +667,6 @@
                         let matchB = groupPairs[gB].shift();
                         
                         if (isDouble) {
-                            let team1 = [...matchA].sort().join('_');
-                            let team2 = [...matchB].sort().join('_');
-                            let signature = [team1, team2].sort().join('_VS_');
-                            if (usedMatchSignatures.has(signature)) { failed = true; break; }
-                            usedMatchSignatures.add(signature);
-                            
                             partnerCount[matchA[0]][matchA[1]] = (partnerCount[matchA[0]][matchA[1]] || 0) + 1;
                             partnerCount[matchA[1]][matchA[0]] = (partnerCount[matchA[1]][matchA[0]] || 0) + 1;
                             partnerCount[matchB[0]][matchB[1]] = (partnerCount[matchB[0]][matchB[1]] || 0) + 1;
@@ -715,12 +707,6 @@
                     let matchA = pairs[0], matchB = pairs[1];
                     
                     if (isDouble) {
-                        let team1 = [...matchA].sort().join('_');
-                        let team2 = [...matchB].sort().join('_');
-                        let signature = [team1, team2].sort().join('_VS_');
-                        if (usedMatchSignatures.has(signature)) { failed = true; break; }
-                        usedMatchSignatures.add(signature);
-                        
                         partnerCount[matchA[0]][matchA[1]] = (partnerCount[matchA[0]][matchA[1]] || 0) + 1;
                         partnerCount[matchA[1]][matchA[0]] = (partnerCount[matchA[1]][matchA[0]] || 0) + 1;
                         partnerCount[matchB[0]][matchB[1]] = (partnerCount[matchB[0]][matchB[1]] || 0) + 1;
