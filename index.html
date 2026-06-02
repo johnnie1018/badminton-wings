@@ -63,6 +63,9 @@
             .table-winner th { background-color: #3a2a00 !important; color: #ff9f0a !important; }
             .table-loser { border-color: #3a3a3c !important; }
             .history-chip { background-color: #2c2c2e !important; color: #fff !important; border-color: #3a3a3c !important; }
+            
+            /* Dark Mode Timeline Completed Cell */
+            .timeline-cell-locked { background: #2c2c2e !important; color: #8e8e93 !important; border-color: #3a3a3c !important; }
         }
         
         body {
@@ -212,6 +215,9 @@
         .timeline-name-cell { border: 1px solid var(--border-light); padding: 10px 6px; font-weight: 700; background: var(--ios-card); position: sticky; left: 0; z-index: 2; box-shadow: 2px 0 4px rgba(0,0,0,0.02); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 75px; color:var(--ios-text); }
         .timeline-cell-active { border: 1px solid var(--border-light); padding: 4px; color: white; font-weight: 700; font-size: 0.75rem; border-radius:4px; }
         .timeline-cell-off { border: 1px solid var(--border-light); padding: 4px; background: var(--ios-bg); color: var(--ios-subtext); font-size: 0.75rem; }
+
+        /* Light Mode Timeline Completed Cell */
+        .timeline-cell-locked { background: #e2e8f0 !important; color: #64748b !important; border: 1px solid #cbd5e1 !important; }
 
         .timeline-cell { transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); cursor: pointer; }
         .dimmed-cell { opacity: 0.15 !important; filter: grayscale(100%); }
@@ -594,6 +600,8 @@
                 }
             }
 
+            let usedMatchSignatures = new Set();
+
             function formBestPairs(players) {
                 if (!isDouble) return players.map(p => [p]);
                 if (players.length === 2) return [[players[0], players[1]]];
@@ -668,6 +676,12 @@
                         let matchB = groupPairs[gB].shift();
                         
                         if (isDouble) {
+                            let team1 = [...matchA].sort().join('_');
+                            let team2 = [...matchB].sort().join('_');
+                            let signature = [team1, team2].sort().join('_VS_');
+                            if (usedMatchSignatures.has(signature)) { failed = true; break; }
+                            usedMatchSignatures.add(signature);
+                            
                             partnerCount[matchA[0]][matchA[1]] = (partnerCount[matchA[0]][matchA[1]] || 0) + 1;
                             partnerCount[matchA[1]][matchA[0]] = (partnerCount[matchA[1]][matchA[0]] || 0) + 1;
                             partnerCount[matchB[0]][matchB[1]] = (partnerCount[matchB[0]][matchB[1]] || 0) + 1;
@@ -684,6 +698,8 @@
                         matchA.forEach(p => roundUsedKeys.add(p)); matchB.forEach(p => roundUsedKeys.add(p));
                         currentMatches.push({ round: r, court: `${c + 1}号场`, a: matchA, b: matchB });
                     }
+                    if (failed) break; 
+
                     for (let k in consecutive) {
                         if (roundUsedKeys.has(k)) { playedCount[k]++; consecutive[k]++; } else { consecutive[k] = 0; }
                     }
@@ -705,6 +721,12 @@
                     let matchA = pairs[0], matchB = pairs[1];
                     
                     if (isDouble) {
+                        let team1 = [...matchA].sort().join('_');
+                        let team2 = [...matchB].sort().join('_');
+                        let signature = [team1, team2].sort().join('_VS_');
+                        if (usedMatchSignatures.has(signature)) { failed = true; break; }
+                        usedMatchSignatures.add(signature);
+                        
                         partnerCount[matchA[0]][matchA[1]] = (partnerCount[matchA[0]][matchA[1]] || 0) + 1;
                         partnerCount[matchA[1]][matchA[0]] = (partnerCount[matchA[1]][matchA[0]] || 0) + 1;
                         partnerCount[matchB[0]][matchB[1]] = (partnerCount[matchB[0]][matchB[1]] || 0) + 1;
@@ -728,6 +750,7 @@
             
             if (!failed) {
                 let repeatPenalty = 0;
+                
                 for (let p1 in partnerCount) {
                     for (let p2 in partnerCount[p1]) {
                         if (partnerCount[p1][p2] > 1) {
@@ -735,6 +758,7 @@
                         }
                     }
                 }
+                
                 for (let p1 in opponentCount) {
                     for (let p2 in opponentCount[p1]) {
                         if (opponentCount[p1][p2] > 1) {
@@ -789,7 +813,6 @@
                     if (numGroups === 1) {
                         textSymbol = "&nbsp;&nbsp;"; 
                         let isTeamA = playingMatch.a.includes(pKey);
-                        // 使用双打1号场同款配色 (莫兰迪 暖橙 vs 海蓝)
                         bgColor = isTeamA ? `hsl(30, 80%, 55%)` : `hsl(200, 80%, 55%)`;
                     } else {
                         textSymbol = playingMatch.court.replace("号场", "场");
@@ -803,7 +826,8 @@
                         bgColor = `hsl(${baseHue}, ${saturation}%, ${lightness}%)`;
                     }
 
-                    html += `<td id="live_cell_${r}_${pKey}" class="live-timeline-cell timeline-cell timeline-cell-active" onclick="handleTimelineClick(${r}, '${pKey}')" style="background: ${bgColor};">${textSymbol}</td>`;
+                    let lockedClass = playingMatch.isLocked ? "timeline-cell-locked" : "";
+                    html += `<td id="live_cell_${r}_${pKey}" class="live-timeline-cell timeline-cell timeline-cell-active ${lockedClass}" onclick="handleTimelineClick(${r}, '${pKey}')" style="background: ${bgColor};">${textSymbol}</td>`;
                 } else {
                     html += `<td class="live-timeline-cell timeline-cell timeline-cell-off" id="live_cell_${r}_${pKey}_off">休</td>`;
                 }
@@ -1017,6 +1041,8 @@
         
         saveGameFrameworkToStorage();
         renderMobileCards();
+        clearTimelineHighlight();
+        renderTimelineMatrix(); 
         liveCalculate(true); 
     }
 
