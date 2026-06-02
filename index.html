@@ -574,7 +574,7 @@
         liveCalculate(false); 
     }
 
-    // --- UPGRADED ALGORITHM: Minimizing Variance penalty approach for Opponents ---
+    // --- UPGRADED ALGORITHM: Minimizing Variance penalty approach for Opponents & Partners ---
     function autoScheduleEngine() {
         const slotsPerMatch = isDouble ? 2 : 1;
         let attempt = 0, maxAttempts = 2000; 
@@ -592,6 +592,8 @@
                     let key = `G${g}_${i}`; playedCount[key] = 0; consecutive[key] = 0; partnerCount[key] = {}; opponentCount[key] = {};
                 }
             }
+
+            let usedMatchSignatures = new Set();
 
             function formBestPairs(players) {
                 if (!isDouble) return players.map(p => [p]);
@@ -667,13 +669,18 @@
                         let matchB = groupPairs[gB].shift();
                         
                         if (isDouble) {
+                            let team1 = [...matchA].sort().join('_');
+                            let team2 = [...matchB].sort().join('_');
+                            let signature = [team1, team2].sort().join('_VS_');
+                            if (usedMatchSignatures.has(signature)) { failed = true; break; }
+                            usedMatchSignatures.add(signature);
+                            
                             partnerCount[matchA[0]][matchA[1]] = (partnerCount[matchA[0]][matchA[1]] || 0) + 1;
                             partnerCount[matchA[1]][matchA[0]] = (partnerCount[matchA[1]][matchA[0]] || 0) + 1;
                             partnerCount[matchB[0]][matchB[1]] = (partnerCount[matchB[0]][matchB[1]] || 0) + 1;
                             partnerCount[matchB[1]][matchB[0]] = (partnerCount[matchB[1]][matchB[0]] || 0) + 1;
                         }
 
-                        // Accumulate head-to-head opponent matrix data
                         matchA.forEach(pA => {
                             matchB.forEach(pB => {
                                 opponentCount[pA][pB] = (opponentCount[pA][pB] || 0) + 1;
@@ -707,13 +714,18 @@
                     let matchA = pairs[0], matchB = pairs[1];
                     
                     if (isDouble) {
+                        let team1 = [...matchA].sort().join('_');
+                        let team2 = [...matchB].sort().join('_');
+                        let signature = [team1, team2].sort().join('_VS_');
+                        if (usedMatchSignatures.has(signature)) { failed = true; break; }
+                        usedMatchSignatures.add(signature);
+                        
                         partnerCount[matchA[0]][matchA[1]] = (partnerCount[matchA[0]][matchA[1]] || 0) + 1;
                         partnerCount[matchA[1]][matchA[0]] = (partnerCount[matchA[1]][matchA[0]] || 0) + 1;
                         partnerCount[matchB[0]][matchB[1]] = (partnerCount[matchB[0]][matchB[1]] || 0) + 1;
                         partnerCount[matchB[1]][matchB[0]] = (partnerCount[matchB[1]][matchB[0]] || 0) + 1;
                     }
 
-                    // Accumulate head-to-head opponent matrix data
                     matchA.forEach(pA => {
                         matchB.forEach(pB => {
                             opponentCount[pA][pB] = (opponentCount[pA][pB] || 0) + 1;
@@ -732,7 +744,6 @@
             if (!failed) {
                 let repeatPenalty = 0;
                 
-                // Weight 1: Partner repetition penalty matrix
                 for (let p1 in partnerCount) {
                     for (let p2 in partnerCount[p1]) {
                         if (partnerCount[p1][p2] > 1) {
@@ -741,7 +752,6 @@
                     }
                 }
                 
-                // Weight 2: Opponent distribution variance penalty (Sum of Squares Method)
                 for (let p1 in opponentCount) {
                     for (let p2 in opponentCount[p1]) {
                         if (opponentCount[p1][p2] > 1) {
@@ -753,7 +763,7 @@
                 if (repeatPenalty < bestScore) {
                     bestScore = repeatPenalty;
                     bestSchedule = JSON.parse(JSON.stringify(currentMatches));
-                    if (bestScore === 0) break; // Found a mathematically perfect diverse layout
+                    if (bestScore === 0) break; 
                 }
             }
         }
@@ -765,11 +775,8 @@
         return false;
     }
 
+    // --- OPTIMIZED DOM RENDERING WITH requestAnimationFrame ---
     function renderTimelineMatrix() {
-        const container = document.getElementById("dynamicTimeline");
-        container.innerHTML = "";
-        activeHighlight = null; 
-        
         let allPlayerKeys = [];
         for (let g = 1; g <= numGroups; g++) {
             for (let i = 1; i <= playersPerGroup; i++) allPlayerKeys.push(`G${g}_${i}`);
@@ -783,10 +790,9 @@
         for (let r = 1; r <= numRounds; r++) html += `<th class="timeline-th-round">R${r}</th>`;
         html += `</tr></thead><tbody>`;
 
-        // Modern Morandi Color Palette
         const groupHues = { 1: 30, 2: 200, 3: 160, 4: 260, 5: 340 };
 
-        allPlayerKeys.forEach((pKey, idx) => {
+        allPlayerKeys.forEach((pKey) => {
             const pName = nameMap[pKey];
             html += `<tr><td class="timeline-name-cell">${pName}</td>`;
             
@@ -801,16 +807,13 @@
                     if (numGroups === 1) {
                         textSymbol = "&nbsp;&nbsp;"; 
                         let isTeamA = playingMatch.a.includes(pKey);
-                        // Option 3: Gold vs Purple
                         bgColor = isTeamA ? `hsl(45, 95%, 45%)` : `hsl(260, 65%, 60%)`;
                     } else {
                         textSymbol = playingMatch.court.replace("号场", "场");
                         let courtNumMatch = playingMatch.court.match(/\d+/);
                         let courtIdx = courtNumMatch ? parseInt(courtNumMatch[0]) : 1;
-                        
                         let pGroup = parseInt(pKey.split('_')[0].substring(1));
                         let baseHue = groupHues[pGroup] || (pGroup * 50 % 360);
-                        
                         let lightness = courtIdx % 2 === 1 ? 55 : 40;
                         let saturation = courtIdx % 2 === 1 ? 80 : 60;
                         
@@ -825,7 +828,11 @@
             html += `</tr>`;
         });
         html += `</tbody></table></div>`;
-        container.innerHTML = html;
+        
+        requestAnimationFrame(() => {
+            document.getElementById("dynamicTimeline").innerHTML = html;
+            activeHighlight = null; 
+        });
     }
 
     function handleTimelineClick(r, pKey) {
@@ -950,7 +957,6 @@
     }
 
     function renderMobileCards() {
-        const container = document.getElementById("dynamicScheduleList");
         let html = "";
         for (let r = 1; r <= numRounds; r++) {
             html += `<div class="round-container"><div class="round-title">第 ${r} 轮</div>`;
@@ -989,7 +995,9 @@
             });
             html += `</div>`;
         }
-        container.innerHTML = html;
+        requestAnimationFrame(() => {
+            document.getElementById("dynamicScheduleList").innerHTML = html;
+        });
     }
 
     function cacheInputValuesOnly(idx) {
@@ -1087,9 +1095,6 @@
             return y.totalScore - x.totalScore;
         };
 
-        const summaryBox = document.getElementById("groupSummary");
-        const exportBtn = document.getElementById("btnExportImage");
-
         let winningGroup = "";
         if (numGroups === 2) {
             if (totalWinA > totalWinB) winningGroup = "G1";
@@ -1098,13 +1103,16 @@
             else winningGroup = "TIE";
         }
 
+        let summaryClass = "";
+        let summaryHtml = "";
+        let exportDisplay = "none";
+
         if (isAllFinished) {
-            exportBtn.style.display = "flex";
-            summaryBox.className = "summary-total summary-finished";
-            
+            exportDisplay = "flex";
+            summaryClass = "summary-total summary-finished";
             if (numGroups === 2) {
                 let winText = winningGroup === "G1" ? "🏆 A 组 夺得总冠军！ 🎉" : (winningGroup === "G2" ? "🏆 B 组 夺得总冠军！ 🎉" : "🤝 双方握手言和，势均力敌！");
-                summaryBox.innerHTML = `
+                summaryHtml = `
                     <div style="font-size: 1.25rem; font-weight: 800; margin-bottom: 10px; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">${winText}</div>
                     <div style="font-size: 0.95rem; font-weight: 600; opacity: 0.95;">
                         A 组：${totalWinA} 胜 (${totalScoreA}分) &nbsp;&nbsp;|&nbsp;&nbsp; B 组：${totalWinB} 胜 (${totalScoreB}分)
@@ -1113,21 +1121,19 @@
             } else {
                 let subList = Object.values(stats).filter(p => p.group === `G1`).sort(sortRule);
                 let champion = subList.length > 0 ? subList[0].name : "神秘选手";
-                summaryBox.innerHTML = `
+                summaryHtml = `
                     <div style="font-size: 1.25rem; font-weight: 800; margin-bottom: 10px; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">🏆 恭喜 ${champion} 荣获总冠军！ 🎉</div>
                     <div style="font-size: 0.95rem; font-weight: 600; opacity: 0.95;">个人积分赛圆满结束，感谢所有选手的拼搏！</div>
                 `;
             }
-            summaryBox.style.display = "block";
         } else {
-            exportBtn.style.display = "none";
             if (numGroups === 2) {
-                summaryBox.className = "summary-total summary-ongoing";
+                summaryClass = "summary-total summary-ongoing";
                 let leadText = "⚔️ 双方激烈抗衡中...";
                 if (winningGroup === "G1") leadText = "🔥 A 组 暂时领先";
                 else if (winningGroup === "G2") leadText = "🔥 B 组 暂时领先";
                 
-                summaryBox.innerHTML = `
+                summaryHtml = `
                     <div style="display: flex; justify-content: space-around; font-weight: 600; margin-bottom: 8px;">
                         <span>A 组: <span style="color:var(--ios-primary)">${totalWinA} 胜</span> (${totalScoreA}分)</span>
                         <span style="color: rgba(255,255,255,0.3)">|</span>
@@ -1135,18 +1141,12 @@
                     </div>
                     <div style="color:#ffcc00; font-size:0.85rem; font-weight:700;">${leadText} (赛程进度 ${lockedMatchCount}/${totalMatchCount})</div>
                 `;
-                summaryBox.style.display = "block";
-            } else {
-                summaryBox.style.display = "none";
             }
         }
 
-        const tablesContainer = document.getElementById("dynamicRankTables");
-        tablesContainer.innerHTML = "";
-
+        let tablesHtml = "";
         for (let g = 1; g <= numGroups; g++) {
             let subList = Object.values(stats).filter(p => p.group === `G${g}`).sort(sortRule);
-            
             let groupStateClass = "";
             let groupTitlePrefix = numGroups === 1 ? "" : (g === 1 ? "A" : "B");
             let groupTitleText = numGroups === 1 ? `👑 全员个人战绩榜` : `📊 ${groupTitlePrefix} 组战绩排名`;
@@ -1172,7 +1172,7 @@
                  groupTitleText = `🔥 ${groupTitlePrefix} 组战绩排名 (领先)`;
             }
 
-            let html = `
+            tablesHtml += `
                 <div style="${titleStyle}">${groupTitleText}</div>
                 <table class="rank-table ${groupStateClass}">
                     <thead><tr><th style="width: 15%;">排名</th><th style="width: 32%;">队员</th><th style="width: 21%;">胜 - 负</th><th style="width: 17%;">净胜</th><th style="width: 15%;">得分</th></tr></thead>
@@ -1181,11 +1181,28 @@
             
             subList.forEach((p, idx) => {
                 let medal = idx === 0 ? "🥇" : (idx === 1 ? "🥈" : (idx === 2 ? "🥉" : `<span style="color:var(--ios-subtext); font-weight:500;">${idx + 1}</span>`));
-                html += `<tr><td style="font-weight:700;">${medal}</td><td style="font-weight:700; color:var(--ios-text);">${p.name}</td><td style="color:var(--ios-primary-dark); font-weight:600;">${p.win} - ${p.lose}</td><td style="font-weight:600; color:${p.diffScore >= 0 ? 'var(--ios-red)' : 'var(--ios-text)'}">${p.diffScore > 0 ? '+' + p.diffScore : p.diffScore}</td><td style="color:var(--ios-subtext); font-weight:500;">${p.totalScore}</td></tr>`;
+                tablesHtml += `<tr><td style="font-weight:700;">${medal}</td><td style="font-weight:700; color:var(--ios-text);">${p.name}</td><td style="color:var(--ios-primary-dark); font-weight:600;">${p.win} - ${p.lose}</td><td style="font-weight:600; color:${p.diffScore >= 0 ? 'var(--ios-red)' : 'var(--ios-text)'}">${p.diffScore > 0 ? '+' + p.diffScore : p.diffScore}</td><td style="color:var(--ios-subtext); font-weight:500;">${p.totalScore}</td></tr>`;
             });
-            html += `</tbody></table>`;
-            tablesContainer.innerHTML += html;
+            tablesHtml += `</tbody></table>`;
         }
+
+        // Apply DOM updates efficiently via requestAnimationFrame
+        requestAnimationFrame(() => {
+            const summaryBox = document.getElementById("groupSummary");
+            const exportBtn = document.getElementById("btnExportImage");
+            const tablesContainer = document.getElementById("dynamicRankTables");
+
+            if (isAllFinished || numGroups === 2) {
+                summaryBox.className = summaryClass;
+                summaryBox.innerHTML = summaryHtml;
+                summaryBox.style.display = "block";
+            } else {
+                summaryBox.style.display = "none";
+            }
+
+            exportBtn.style.display = exportDisplay;
+            tablesContainer.innerHTML = tablesHtml;
+        });
     }
 
     function exportRankToImage() {
