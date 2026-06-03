@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>羽翼齐飞 - 智能赛事云管家</title>
-    <!-- Core Engine for Exporting Poster Images -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <!-- High Performance String Compression Engine for Cloud Sync -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
     <style>
         /* CSS Variables - Default Light Mode */
@@ -135,7 +133,7 @@
         .radio-label input { display: none; }
         .radio-label:has(input:checked) { background: var(--ios-card); color: var(--ios-text); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); }
 
-        .name-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 8px; }
+        .name-grid { display: grid; gap: 12px; margin-bottom: 8px; }
         .name-input {
             flex: 1; padding: 12px; border: none; border-radius: var(--radius-sub); font-size: 0.95rem;
             font-weight: 600; width: 100%; box-sizing: border-box; text-align: center; background-color: #f2f2f7; color: var(--ios-text); transition: all 0.2s ease;
@@ -331,12 +329,21 @@
     <div id="step2" class="card" style="display: none;">
         <div style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; color: var(--ios-text);">选手名单录入</div>
         
+        <!-- UI Toggle: Manual vs Random Mode -->
+        <div class="form-group" id="inputModeToggleRow" style="display: none; padding-bottom: 12px; margin-bottom: 16px;">
+            <div class="radio-group">
+                <label class="radio-label"><input type="radio" name="inputMode" value="manual" checked onchange="toggleInputMode()">固定分组</label>
+                <label class="radio-label"><input type="radio" name="inputMode" value="random" onchange="toggleInputMode()">互斥抽签</label>
+            </div>
+        </div>
+
         <div id="historyChipsWrapper" style="display:none;">
             <div style="font-size: 0.75rem; color: var(--ios-subtext); margin-bottom: 6px; font-weight: 600;">⚡ 点击历史常用选手快速录入：</div>
             <div class="history-chip-container" id="historyChipsContainer"></div>
         </div>
 
-        <div id="dynamicNameSections"></div>
+        <div id="manualNameSections"></div>
+        <div id="randomNameSections" style="display: none;"></div>
         
         <div style="display: flex; gap: 12px; margin-top: 20px;">
             <button type="button" class="btn-block btn-orange" style="width: 35%; background-color: #8e8e93; box-shadow: none;" onclick="backToStep1()">
@@ -493,7 +500,9 @@
     }
 
     function quickFillName(name) {
-        let inputs = document.querySelectorAll('.name-input');
+        let mode = document.querySelector('input[name="inputMode"]:checked') ? document.querySelector('input[name="inputMode"]:checked').value : 'manual';
+        let targetClass = mode === 'manual' ? '.manual-name-input' : '.random-name-input';
+        let inputs = document.querySelectorAll(targetClass);
         for (let i = 0; i < inputs.length; i++) {
             if (!inputs[i].value) { 
                 inputs[i].value = name; 
@@ -505,28 +514,62 @@
 
     function goToStep2() {
         numRounds = parseInt(document.getElementById("cfgRoundsSelect").value) || 6;
-        const nameSections = document.getElementById("dynamicNameSections");
-        nameSections.innerHTML = "";
+        const manualSec = document.getElementById("manualNameSections");
+        const randomSec = document.getElementById("randomNameSections");
+        const modeToggleRow = document.getElementById("inputModeToggleRow");
+        
+        manualSec.innerHTML = "";
+        randomSec.innerHTML = "";
         
         const groupColors = ["var(--ios-red)", "var(--ios-blue)", "#9b59b6", "var(--ios-orange)", "var(--ios-primary)"];
 
+        // 1. Render Manual Mode Grid
         for (let g = 1; g <= numGroups; g++) {
             const color = groupColors[(g-1) % groupColors.length];
             const groupLetter = String.fromCharCode(64 + g); 
-            let html = `<span class="group-name-title" style="color:${color}; font-weight:700; margin-top:10px; font-size:0.95rem;">● ${numGroups === 1 ? '选手名单录入' : groupLetter + ' 组选手名单'}</span>`;
-            html += `<div class="name-grid">`;
+            let html = `<span class="group-name-title" style="color:${color}; font-weight:700; margin-top:10px; font-size:0.95rem;">● ${numGroups === 1 ? '选手名单录入' : groupLetter + ' 组固定名单'}</span>`;
+            html += `<div class="name-grid" style="grid-template-columns: repeat(2, 1fr);">`;
             for (let i = 1; i <= playersPerGroup; i++) {
-                html += `<div class="name-item"><input type="text" id="inputName_G${g}_${i}" class="name-input" placeholder="选手姓名 ${i}"></div>`;
+                html += `<div class="name-item"><input type="text" id="inputName_G${g}_${i}" class="name-input manual-name-input" placeholder="选手姓名 ${i}"></div>`;
             }
             html += `</div>`;
-            nameSections.innerHTML += html;
+            manualSec.innerHTML += html;
+        }
+
+        // 2. Render Random Mode Grid (Only active if > 1 group)
+        if (numGroups > 1) {
+            modeToggleRow.style.display = "block";
+            let rHtml = `<div style="font-size: 0.8rem; color: var(--ios-orange); margin-bottom: 12px; background: rgba(255,149,0,0.1); padding: 10px; border-radius: 8px; font-weight: 500;">💡 <b>互斥抽签模式：</b>每行的选手会被<b>随机打散</b>到不同组。同行之间绝对不会成为同组队友（适用于按水平分档抽签）。</div>`;
+            for (let r = 1; r <= playersPerGroup; r++) {
+                rHtml += `<div class="name-grid" style="grid-template-columns: repeat(${numGroups}, 1fr); margin-bottom: 6px;">`;
+                for (let c = 1; c <= numGroups; c++) {
+                    rHtml += `<div class="name-item"><input type="text" id="inputRandom_R${r}_C${c}" class="name-input random-name-input" placeholder="第${r}档选手"></div>`;
+                }
+                rHtml += `</div>`;
+            }
+            randomSec.innerHTML = rHtml;
+        } else {
+            modeToggleRow.style.display = "none";
+            document.querySelector('input[name="inputMode"][value="manual"]').checked = true;
         }
         
+        toggleInputMode();
         loadHistoryChips();
         
         document.getElementById("step1").style.display = "none";
         document.getElementById("step2").style.display = "block";
         document.getElementById("step2").classList.add("fade-in-up");
+    }
+
+    function toggleInputMode() {
+        let mode = document.querySelector('input[name="inputMode"]:checked').value;
+        if(mode === 'manual') {
+            document.getElementById('manualNameSections').style.display = 'block';
+            document.getElementById('randomNameSections').style.display = 'none';
+        } else {
+            document.getElementById('manualNameSections').style.display = 'none';
+            document.getElementById('randomNameSections').style.display = 'block';
+        }
     }
 
     function lockNamesAndBuildAll() {
@@ -540,18 +583,50 @@
             return array;
         };
 
-        for (let g = 1; g <= numGroups; g++) {
-            let groupNames = [];
-            let groupLetter = String.fromCharCode(64 + g);
-            for (let i = 1; i <= playersPerGroup; i++) {
-                let val = document.getElementById(`inputName_G${g}_${i}`).value.trim();
-                let finalName = val || (numGroups === 1 ? `选手-${i}` : `${groupLetter}组-${i}`);
-                groupNames.push(finalName);
-                if (val) collectedNames.push(val); 
+        let mode = 'manual';
+        if (numGroups > 1) {
+            let modeEl = document.querySelector('input[name="inputMode"]:checked');
+            if(modeEl) mode = modeEl.value;
+        }
+
+        if (mode === 'manual') {
+            for (let g = 1; g <= numGroups; g++) {
+                let groupNames = [];
+                let groupLetter = String.fromCharCode(64 + g);
+                for (let i = 1; i <= playersPerGroup; i++) {
+                    let val = document.getElementById(`inputName_G${g}_${i}`).value.trim();
+                    let finalName = val || (numGroups === 1 ? `选手-${i}` : `${groupLetter}组-${i}`);
+                    groupNames.push(finalName);
+                    if (val) collectedNames.push(val); 
+                }
+                shuffle(groupNames);
+                for (let i = 1; i <= playersPerGroup; i++) {
+                    nameMap[`G${g}_${i}`] = groupNames[i - 1];
+                }
             }
-            shuffle(groupNames);
-            for (let i = 1; i <= playersPerGroup; i++) {
-                nameMap[`G${g}_${i}`] = groupNames[i - 1];
+        } else {
+            // Random Allocation Logic
+            let groupAssignments = Array.from({length: numGroups}, () => []);
+            for (let r = 1; r <= playersPerGroup; r++) {
+                let rowPlayers = [];
+                for (let c = 1; c <= numGroups; c++) {
+                    let val = document.getElementById(`inputRandom_R${r}_C${c}`).value.trim();
+                    let finalName = val || `第${r}档-${c}`;
+                    rowPlayers.push(finalName);
+                    if (val) collectedNames.push(val); 
+                }
+                // Randomly distribute the row members across the groups
+                rowPlayers = shuffle(rowPlayers);
+                for (let c = 0; c < numGroups; c++) {
+                    groupAssignments[c].push(rowPlayers[c]);
+                }
+            }
+            // Bind to names array
+            for (let g = 1; g <= numGroups; g++) {
+                let gNames = shuffle(groupAssignments[g-1]);
+                for (let i = 1; i <= playersPerGroup; i++) {
+                    nameMap[`G${g}_${i}`] = gNames[i - 1];
+                }
             }
         }
 
@@ -562,7 +637,7 @@
         }
 
         if(!autoScheduleEngine()) {
-            alert("排表失败：当前设定下无法保证公平轮转，请尝试微调人数！");
+            alert("排表冲突：当前设定下无法避免【对阵完全重复】。请尝试减少比赛轮次或增加参赛人数。");
             return;
         }
 
@@ -582,6 +657,7 @@
         liveCalculate(false); 
     }
 
+    // --- UPGRADED ALGORITHM: Minimizing Variance penalty approach for Opponents & Partners ---
     function autoScheduleEngine() {
         const slotsPerMatch = isDouble ? 2 : 1;
         let attempt = 0, maxAttempts = 2000; 
@@ -750,7 +826,6 @@
             
             if (!failed) {
                 let repeatPenalty = 0;
-                
                 for (let p1 in partnerCount) {
                     for (let p2 in partnerCount[p1]) {
                         if (partnerCount[p1][p2] > 1) {
@@ -758,7 +833,6 @@
                         }
                     }
                 }
-                
                 for (let p1 in opponentCount) {
                     for (let p2 in opponentCount[p1]) {
                         if (opponentCount[p1][p2] > 1) {
