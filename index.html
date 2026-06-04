@@ -1483,10 +1483,27 @@
         } catch(e) { console.error("SSE stream boot failure."); }
     }
 
-    function generateShareLink() {
+    async function generateShareLink() {
         liveCalculate(true);
         const shareUrl = window.location.href.split('#')[0] + "#room=" + currentRoomId;
         
+        // 1. 优先尝试调用底层原生分享面板 (Native Share Sheet)
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: '羽翼齐飞 - 实时赛况直播',
+                    text: '邀请你实时观战！比分将自动同步刷新👇',
+                    url: shareUrl
+                });
+                return; // 唤起原生分享成功，直接结束，不再执行后面的复制弹窗
+            } catch (err) {
+                // 如果是用户主动划掉/取消了分享面板，直接静默退出
+                if (err.name === 'AbortError') return; 
+                console.warn("Native share failed, falling back to copy.", err);
+            }
+        }
+        
+        // 2. 优雅降级：如果是不支持 share API 的老旧浏览器（或微信部分受限环境），退回复制+弹窗逻辑
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(shareUrl).then(() => {
                 alert("📋 赛事专属观战链接已复制！\n\n💡 提示：系统已开启云端实时同步。后续录入比分将自动刷新，整场比赛只需分享一次。");
