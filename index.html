@@ -669,6 +669,7 @@
         liveCalculate(false); 
     }
 
+    // --- UPGRADED ALGORITHM: Minimizing Variance penalty approach for Opponents & Partners ---
     function autoScheduleEngine() {
         const slotsPerMatch = isDouble ? 2 : 1;
         let attempt = 0, maxAttempts = 2000; 
@@ -775,6 +776,7 @@
                             partnerCount[matchB[1]][matchB[0]] = (partnerCount[matchB[1]][matchB[0]] || 0) + 1;
                         }
 
+                        // Accumulate head-to-head opponent matrix data
                         matchA.forEach(pA => {
                             matchB.forEach(pB => {
                                 opponentCount[pA][pB] = (opponentCount[pA][pB] || 0) + 1;
@@ -820,6 +822,7 @@
                         partnerCount[matchB[1]][matchB[0]] = (partnerCount[matchB[1]][matchB[0]] || 0) + 1;
                     }
 
+                    // Accumulate head-to-head opponent matrix data
                     matchA.forEach(pA => {
                         matchB.forEach(pB => {
                             opponentCount[pA][pB] = (opponentCount[pA][pB] || 0) + 1;
@@ -838,6 +841,7 @@
             if (!failed) {
                 let repeatPenalty = 0;
                 
+                // Weight 1: Partner repetition penalty matrix
                 for (let p1 in partnerCount) {
                     for (let p2 in partnerCount[p1]) {
                         if (partnerCount[p1][p2] > 1) {
@@ -846,6 +850,7 @@
                     }
                 }
                 
+                // Weight 2: Opponent distribution variance penalty (Sum of Squares Method)
                 for (let p1 in opponentCount) {
                     for (let p2 in opponentCount[p1]) {
                         if (opponentCount[p1][p2] > 1) {
@@ -857,7 +862,7 @@
                 if (repeatPenalty < bestScore) {
                     bestScore = repeatPenalty;
                     bestSchedule = JSON.parse(JSON.stringify(currentMatches));
-                    if (bestScore === 0) break; 
+                    if (bestScore === 0) break; // Found a mathematically perfect diverse layout
                 }
             }
         }
